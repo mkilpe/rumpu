@@ -1,0 +1,53 @@
+
+
+= General Requirements
+* desktop application
+* graphical user interface to compose songs with drums
+* if two hits of the same track instrument would overlap, the first one is cut and where the second one starts
+
+= Basic Functionality
+* print song in music notation
+* render song as wav
+* undo/redo functionality
+* saving/loading (binary format to save a song)
+* selection with mouse, select range in section view and apply command (like copy, delete)
+* select tempo (bpm) and time signature when creating new song
+
+= Drum Related Features
+== Main Views
+* song view with numbered sections
+* section view with bars
+== Playing
+* allow to play selected section
+* show currently playing position in the section view as vertical line
+* play position in milliseconds shown
+* play bar position shown?
+== Song View
+* numbered sections
+* allow to reorder the sections
+* allow to duplicate sections
+* allow to remove sections
+* allow to add sections
+* show whole song view as list of the sections
+== Section View
+* buttons to play/stop (play whole song, play section, play selected area?, loop?)
+* multiple tracks
+* global volume
+* volume slide
+* tempo slide (should this be per section or whole song or both?)
+* random off beat and volume per hit (using formula)
+* change tempo at any point between bars (should sections have default tempo which then get changed when section starts?)
+* time signature change at any point between bars (a/b division using the song default as base)
+* highlight primary hit
+* zoom the view (ctrl+mouse wheel and such)
+=== Track
+* require audio file when adding track
+* volume control
+* mute
+* volume slide
+* multiple audio files per track, randomise which one is used per hit
+* allow to use audio file directly, or in future saved instrument file with metadata
+* colour highlight for custom time signatures
+* possible to copy section of instrument (or selected)
+* volume control at any point
+* possibility to divide bar and sub-bar by any natural number

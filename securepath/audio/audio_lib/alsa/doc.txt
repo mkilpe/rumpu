@@ -1,0 +1,7 @@
+snd_pcm_open() - SND_PCM_NONBLOCK (returns EBUSY in api calls if busy)
+
+SND_PCM_FORMAT_S16_LE or SND_PCM_FORMAT_S16_BE
+
+snd_pcm_writei() snd_pcm_readi()
+
+snd_pcm_avail() or snd_pcm_avail_delay()

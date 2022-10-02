@@ -1,0 +1,54 @@
+
+* multiple tracks which each have separate instrument
+* tempo as beat per minute (bpm), can be changed at any point (changes always for all tracks at the same time)
+* time signature change at any point (a/b division) but is same for all tracks
+* each instrument is a wav file
+* if two hits of the same track instrument would overlap, the first one is cut and where the second one starts
+* binary format to save songs
+* graphical user interface to compose songs
+* highlight primary hit
+* live preview play? play selected section only?
+* render the whole song to single wav
+* zoom in the view?
+* colour highlight for customized blocks, for patterns et al
+* re-usable pieces of track (patterns)
+** has no instrument attached
+** can control time signature
+
+* per track control:
+** volume change at any point (perhaps even linear slides of volume change)
+** possible to divide block by any n at any point without changing the time signature (e.g. divide 1/4 of the note to 3 parts once)
+** allow to set the hit points by using the primary division (time signature) or by manual division (secondary division)
+
+
+
+data structures:
+
+	* song divided to parts
+	* each part has specific amount of bars
+	* each part can be redivided and each beat in a bar can be divided as well
+	* time signature can be changed in between bars
+	* tempo can be changed in between bars
+	* each beat:
+		* can be either "hit", "stop" or "none"
+		* optional volume
+		* flags (accent)
+		* off beat offset (+- milliseconds to miss the exact hit)
+		* randomised volume (+- normalised volume change)
+
+views:
+
+	* song view with numbered sections
+	* section view with bars
+	* play view with current position shown in milliseconds and bars (play part or whole song) and volume control
+
+features:
+
+	* undo/redo of editing
+	* per track volume and mute
+	* per track/global volume slide (volume is kept for already playing audio but for new hits it is slid down)
+	* global tempo slide (it is common for tempo to slightly rise towards end)
+	* random off beat and volume calculation per hit
+	* allow multiple audio files per drum sample, randomise which one is used per hit
+	* print the song in musical notation
+	* use direct audio file for instrument or save instrument file with name et al
