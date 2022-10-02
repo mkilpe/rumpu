@@ -17,8 +17,6 @@ cmake_install.cmake
 *_autogen/
 cmake.config
 
-external
-
 CMakeDoxyfile.in
 CMakeDoxygenDefaults.cmake
 Doxyfile.Doxygen
