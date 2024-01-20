@@ -138,11 +138,12 @@ void default_logger_test_impl(std::string& m, log_info const& info, char const* 
 	std::tm t{};
 	auto time = time_point::clock::now();
 	if(gmtime(time_point::clock::to_time_t(time), t)) {
-		std::snprintf(buffer, 20, "%02d.%02d.%04d %02d:%02d:%02d"
-			, t.tm_mday, t.tm_mon + 1, t.tm_year + 1900
-			, t.tm_hour, t.tm_min, t.tm_sec);
+		std::snprintf(buffer, 20, "%02u.%02u.%04u %02u:%02u:%02u"
+			, static_cast<unsigned int>(t.tm_mday), static_cast<unsigned int>(t.tm_mon + 1)
+			, static_cast<unsigned int>(t.tm_year + 1900), static_cast<unsigned int>(t.tm_hour)
+			, static_cast<unsigned int>(t.tm_min), static_cast<unsigned int>(t.tm_sec));
 		int ms = std::chrono::duration_cast<std::chrono::milliseconds>(time.time_since_epoch()).count() % 1000;
-		std::snprintf(buffer + 19, 6, ".%03d ", ms);
+		std::snprintf(buffer + 19, 6, ".%03u ", static_cast<unsigned int>(ms));
 	}
 	//ttt_add_file_and_line(buffer, 24, 69, info);
 	m = buffer + securepath::print(format, args...);

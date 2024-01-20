@@ -1,9 +1,12 @@
-#pragma once
+#ifndef SPDRUM_COMMON_SONG_HEADER
+#define SPDRUM_COMMON_SONG_HEADER
 
 #include "section.hpp"
 #include "rand_hit.hpp"
 #include "track.hpp"
 #include "time_signature.hpp"
+
+#include <securepath/serialisation/tag.hpp>
 
 #include <cassert>
 #include <iterator>
@@ -16,6 +19,11 @@ struct song_metainfo {
 	std::string name;
 	std::string author;
 	std::string notes;
+
+	template<typename Ar>
+	void serialise(Ar& ar) {
+
+	}
 };
 
 class song {
@@ -47,6 +55,13 @@ public:
 	std::uint32_t add_section(std::optional<section> = std::nullopt);
 	void add_section(std::uint32_t id);
 
+	template<typename Ar>
+	void serialise(Ar& ar) {
+		serialisation::sequence<Ar> seq(ar);
+		seq & info_ & default_time_signature_ & default_tempo_
+			& instruments_ & sections_ & section_order_ & accent_info_
+			& rand_offset_ & rand_volume_ & serialisation::implicit_tag(1, tempo_slide_);
+	}
 private:
 	// information about this song
 	song_metainfo info_;
@@ -80,3 +95,5 @@ private:
 };
 
 }
+
+#endif

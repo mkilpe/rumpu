@@ -90,8 +90,9 @@ struct track_info {
 
 struct mixer::impl {
 	struct init {};
-	impl(init, song const& s, std::uint32_t sample_rate)
+	impl(init, song const& s, bool loop, std::uint32_t sample_rate)
 	: song_(&s)
+	, loop_(loop)
 	, pos_{sample_rate}
 	, infos_(song_->instruments().size())
 	{
@@ -103,8 +104,8 @@ struct mixer::impl {
 		}
 	}
 
-	impl(song const& s, std::uint32_t sample_rate)
-	: impl(init{}, s, sample_rate)
+	impl(song const& s, bool loop, std::uint32_t sample_rate)
+	: impl(init{}, s, loop, sample_rate)
 	{
 		sec_order_ = song_->section_order();
 		std::reverse(sec_order_.begin(), sec_order_.end());
@@ -114,8 +115,8 @@ struct mixer::impl {
 		}
 	}
 
-	impl(song const& s, std::uint32_t section, std::uint32_t sample_rate)
-	: impl(init{}, s, sample_rate)
+	impl(song const& s, std::uint32_t section, bool loop, std::uint32_t sample_rate)
+	: impl(init{}, s, loop, sample_rate)
 	{
 		section_play_ = true;
 		section_ = song_->find_section(section);
@@ -137,8 +138,7 @@ struct mixer::impl {
 			set_next_section();
 			pos_.new_section();
 		} else {
-			section_ = nullptr;
-			/*if(loop_) {
+			if(loop_) {
 				pos_.time_pos = 0.0f;
 				if(!section_play_) {
 					sec_order_ = song_->section_order();
@@ -146,7 +146,9 @@ struct mixer::impl {
 					set_next_section();
 				}
 				pos_.new_section();
-			}*/
+			} else {
+				section_ = nullptr;
+			}
 		}
 	}
 
@@ -329,13 +331,13 @@ struct mixer::impl {
 	std::vector<track_info> infos_;
 };
 
-mixer::mixer(song const& s, std::uint32_t sample_rate)
-: impl_(std::make_unique<impl>(s, sample_rate))
+mixer::mixer(song const& s, bool loop, std::uint32_t sample_rate)
+: impl_(std::make_unique<impl>(s, loop, sample_rate))
 {
 }
 
-mixer::mixer(song const& s, std::uint32_t section, std::uint32_t sample_rate)
-: impl_(std::make_unique<impl>(s, section, sample_rate))
+mixer::mixer(song const& s, std::uint32_t section, bool loop, std::uint32_t sample_rate)
+: impl_(std::make_unique<impl>(s, section, loop, sample_rate))
 {
 }
 
@@ -365,7 +367,7 @@ std::size_t mixer::process(float* buffer, std::size_t samples)  {
 
 	return ret;
 }
-/*
+
 std::uint32_t mixer::currently_playing_bar() const {
 	return impl_->pos_.bar_pos;
 }
@@ -373,7 +375,7 @@ std::uint32_t mixer::currently_playing_bar() const {
 std::uint32_t mixer::currently_playing_section() const {
 	return impl_->pos_.section_id;
 }
-*/
+
 float mixer::play_position() const {
 	return impl_->pos_.time_pos;
 }

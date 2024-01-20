@@ -1,4 +1,5 @@
-#pragma once
+#ifndef SPDRUM_COMMON_TRACK_HEADER
+#define SPDRUM_COMMON_TRACK_HEADER
 
 #include "bar.hpp"
 #include "instrument.hpp"
@@ -29,9 +30,17 @@ public:
 	void set_length(std::uint32_t l) {
 		bars_.resize(l);
 	}
+
+	template<typename Ar>
+	void serialise(Ar& ar) {
+		serialisation::sequence<Ar> seq(ar);
+		seq & bars_ & volume_slides_;
+	}
 private:
 	std::deque<bar> bars_;
 	std::map<std::uint32_t, volume_slide> volume_slides_;
 };
 
 }
+
+#endif

@@ -1,4 +1,7 @@
-#pragma once
+#ifndef SPDRUM_COMMON_TIME_SIGNATURE_HEADER
+#define SPDRUM_COMMON_TIME_SIGNATURE_HEADER
+
+#include <securepath/serialisation/sequence.hpp>
 
 #include <cstdint>
 
@@ -20,9 +23,16 @@ public:
 	/// returns the lower part of the time signature (4 in the 3/4)
 	std::uint16_t beat_type() const { return beat_type_; }
 
+	template<typename Ar>
+	void serialise(Ar& ar) {
+		serialisation::sequence<Ar> seq(ar);
+		seq & beats_in_bar_ & beat_type_;
+	}
 private:
 	std::uint16_t beats_in_bar_{};
 	std::uint16_t beat_type_{};
 };
 
 }
+
+#endif

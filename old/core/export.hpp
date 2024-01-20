@@ -1,4 +1,5 @@
-#pragma once
+#ifndef SPDRUM_COMMON_EXPORT_HEADER
+#define SPDRUM_COMMON_EXPORT_HEADER
 
 #include "song.hpp"
 
@@ -19,3 +20,5 @@ struct export_options {
 void export_as_wav(std::string const& file, song const&, export_options = {});
 
 }
+
+#endif

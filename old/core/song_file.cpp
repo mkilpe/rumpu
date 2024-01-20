@@ -1,7 +1,6 @@
 #include "song_file.hpp"
 
 #include <securepath/serialisation/util.hpp>
-#include "serialisation/serialisation.hpp"
 
 #include <fstream>
 
@@ -9,7 +8,7 @@ namespace securepath::drum {
 
 std::string const file_tag{"spd"};
 int const format_version{1};
-/*
+
 song load_song_file(std::string const& file) {
 	std::ifstream in(file, std::ios_base::binary);
 	if(!in) {
@@ -42,5 +41,5 @@ void save_song_file(std::string const& file, song const& s) {
 	serialisation::serialiser ser(enc);
 	ser & format_version & s;
 }
-*/
+
 }

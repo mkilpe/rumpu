@@ -1,4 +1,5 @@
-#pragma once
+#ifndef SPDRUM_COMMON_SECTION_HEADER
+#define SPDRUM_COMMON_SECTION_HEADER
 
 #include "bar.hpp"
 #include "tempo.hpp"
@@ -19,6 +20,12 @@ struct section_bar_change {
 	std::optional<time_signature> timing_change;
 	std::optional<tempo> tempo_change;
 	std::optional<tempo_slide> tempo_slide_change;
+
+	template<typename Ar>
+	void serialise(Ar& ar) {
+		serialisation::sequence<Ar> seq(ar);
+		seq & timing_change & tempo_change & tempo_slide_change;
+	}
 };
 
 class section {
@@ -49,6 +56,12 @@ public:
 		}
 	}
 
+	template<typename Ar>
+	void serialise(Ar& ar) {
+		serialisation::sequence<Ar> seq(ar);
+		seq & length_ & tracks_ & changes_;
+	}
+
 private:
 	// length of this section in bars
 	std::uint32_t length_{};
@@ -59,3 +72,5 @@ private:
 };
 
 }
+
+#endif

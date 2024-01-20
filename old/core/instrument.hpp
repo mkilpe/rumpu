@@ -1,4 +1,5 @@
-#pragma once
+#ifndef SPDRUM_COMMON_INSTRUMENT_HEADER
+#define SPDRUM_COMMON_INSTRUMENT_HEADER
 
 #include "drum_sample.hpp"
 #include "volume.hpp"
@@ -18,6 +19,11 @@ public:
 
 	void load_samples(std::uint32_t sample_rate);
 
+	template<typename Ar>
+	void serialise(Ar& ar) {
+		serialisation::sequence<Ar> seq(ar);
+		seq & name_ & samples_ & volume_;
+	}
 private:
 	std::string name_;
 	std::vector<drum_sample> samples_;
@@ -25,3 +31,5 @@ private:
 };
 
 }
+
+#endif

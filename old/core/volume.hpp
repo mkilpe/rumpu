@@ -1,8 +1,12 @@
-#pragma once
+#ifndef SPDRUM_COMMON_VOLUME_HEADER
+#define SPDRUM_COMMON_VOLUME_HEADER
 
+#include <securepath/serialisation/sequence.hpp>
+#include <securepath/serialisation/tag.hpp>
+
+#include <cstdint>
 #include <cmath>
-
-#include "types.hpp"
+#include <optional>
 
 namespace securepath::drum {
 
@@ -10,7 +14,13 @@ namespace securepath::drum {
 struct volume {
 	// separate mute to remember the old value
 	bool mute{};
-	fp_type value{1.0_fp};
+	float value{1.0f};
+
+	template<typename Ar>
+	void serialise(Ar& ar) {
+		serialisation::sequence<Ar> seq(ar);
+		seq & mute & value;
+	}
 
 	friend bool operator==(volume const& l, volume const& r) = default;
 };
@@ -18,7 +28,13 @@ struct volume {
 
 /// amount of volume change
 struct delta_volume {
-	fp_type value{};
+	float value{};
+
+	template<typename Ar>
+	void serialise(Ar& ar) {
+		serialisation::sequence<Ar> seq(ar);
+		seq & value;
+	}
 
 	friend bool operator==(delta_volume const& l, delta_volume const& r) = default;
 };
@@ -30,48 +46,75 @@ struct volume_slide {
 	std::uint32_t begin{};
 	// one beyond bar where this slide ends
 	std::uint32_t end{};
-	fp_type value{};
+	float value{};
 
 	bool is_valid() const { return begin != end; }
 	bool is_active(std::uint32_t bar) const { return begin <= bar && bar < end; }
-	fp_type bar_delta() const { return value / (end-begin); }
+	float bar_delta() const { return value / (end-begin); }
+
+	template<typename Ar>
+	void serialise(Ar& ar) {
+		serialisation::sequence<Ar> seq(ar);
+		seq & begin & end & value;
+	}
 };
 
 /// volume accent
 struct volume_accent {
-	fp_type value{};
+	float value{};
+
+	template<typename Ar>
+	void serialise(Ar& ar) {
+		serialisation::sequence<Ar> seq(ar);
+		seq & value;
+	}
 
 	friend bool operator==(volume_accent const& l, volume_accent const& r) = default;
 };
 
+
 /// volume accent settings (strength, accent pattern, etc)
 struct volume_accent_info {
+	template<typename Ar>
+	void serialise(Ar& ar) {
+		serialisation::sequence<Ar> seq(ar);
+	}
 };
 
 struct audio_falloff {
 	enum falloff_type { immediate, linear, exponential } type{ exponential };
-	fp_type pos{};
-	fp_type end{};
+	float pos{};
+	float end{};
 
 	bool is_done() const {
 		return pos >= end;
 	}
 
-	fp_type factor(fp_type delta) {
-		fp_type ret = 0.0_fp;
+	float factor(float delta) {
+		float ret = 0.0;
 		pos += delta;
 		if(pos > end) {
 			pos = end;
 		}
 		if(type == linear) {
-			ret = 1.0_fp - pos/end;
+			ret = 1.0f - pos/end;
 		} else if(type == exponential) {
-			fp_type x = pos/end*7-5;
-			ret = 1.0_fp - std::exp2(x) / 4;
+			float x = pos/end*7-5;
+			ret = 1.0f - std::exp2(x) / 4;
 		}
 		return ret;
 	}
 
+	template<typename Ar>
+	void serialise(Ar& ar) {
+		serialisation::sequence<Ar> seq(ar);
+		seq & type & pos & end;
+	}
+
 	friend bool operator==(audio_falloff const& l, audio_falloff const& r) = default;
 };
+
+
 }
+
+#endif

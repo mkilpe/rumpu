@@ -57,8 +57,8 @@ struct riff_fmt_data {
 	std::uint16_t audio_format = 0;
 	std::uint16_t channels = 0;
 	std::uint32_t sample_rate = 0;
-	std::uint32_t byte_rate = 0; // == sample_rate*channels*bits_per_sample/8
-	std::uint16_t block_align = 0; // == channels*bits_per_sample/8
+	std::uint32_t byte_rate = 0;      // == sample_rate*channels*bits_per_sample/8
+	std::uint16_t block_align = 0;    // == channels*bits_per_sample/8
 	std::uint16_t bits_per_sample = 0;
 
 	enum { size = 16 };
