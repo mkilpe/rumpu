@@ -32,7 +32,7 @@ static void peak_normalise(std::deque<float>& song_data) {
 		max = std::max(max, v);
 	}
 	float div = std::max(std::abs(min), std::abs(max));
-	LOG_TRACE("peak normalising with value %", div);
+	LOG_TRACE("peak normalising with value {}", div);
 	for(auto& v : song_data) {
 		v /= div;
 	}
@@ -55,7 +55,7 @@ void export_as_wav(std::string const& file, song const& s, export_options ops) {
 	}
 	export_as_wav(file, af, resample(song_data));
 
-	LOG_TRACE("exporting song as wav took %ms", t.elapsed_milliseconds());
+	LOG_TRACE("exporting song as wav took {}ms", t.elapsed_milliseconds());
 }
 
 }

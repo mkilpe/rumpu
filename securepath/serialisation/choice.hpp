@@ -56,13 +56,13 @@ template<typename End, typename VisitReturn>
 struct choice_impl<End, End, VisitReturn> {
 	template<typename Ser, typename Visitor>
 	static VisitReturn visit(tag_info t, Ser&&, Visitor&& v) {
-		LOG_TRACE("no such tag with choice: %", t.tag);
+		LOG_TRACE("no such tag with choice: {}", t.tag);
 		throw serialisation_error("no such tag with choice");
 	}
 
 	template<typename Type, typename Ser>
 	static void serialise(Ser&&, Type&& value) {
-		LOG_TRACE("no such type with choice: %", typeid(value).name());
+		LOG_TRACE("no such type with choice: {}", typeid(value).name());
 		throw serialisation_error("no such type with choice");
 	}
 };

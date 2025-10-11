@@ -19,19 +19,19 @@ namespace securepath::log::test {
 
 #define LOG_TEST_1(logger, ...) ::securepath::log::log_handler(::securepath::log::log_info{__FILE__, __LINE__, 0}, logger, __VA_ARGS__);
 
-static std::string test_string1 = "test1";
-static std::string test_string2 = "test2";
-static std::string test_string3 = "test3";
-static std::string test_string4 = "test4";
-static std::string test_string5 = "test5";
+constexpr std::string test_string1 = "test1";
+constexpr std::string test_string2 = "test2";
+constexpr std::string test_string3 = "test3";
+constexpr std::string test_string4 = "test4";
+constexpr std::string test_string5 = "test5";
 
-static std::string log_file1 = "log_file_aaa.log";
-static std::string log_file2 = "log_file_bbb.log";
-static std::string log_file3 = "log_file_ccc.log";
+const std::string log_file1 = "log_file_aaa.log";
+const std::string log_file2 = "log_file_bbb.log";
+const std::string log_file3 = "log_file_ccc.log";
 
-static std::string log_name1 = "name1";
-static std::string log_name2 = "name2";
-static std::string log_name3 = "name3";
+const std::string log_name1 = "name1";
+const std::string log_name2 = "name2";
+const std::string log_name3 = "name3";
 
 inline
 int ttt_add_line_to_buffer(char buffer[], int first_index, int last_index, log_info const& info) {
@@ -146,7 +146,7 @@ void default_logger_test_impl(std::string& m, log_info const& info, char const* 
 		std::snprintf(buffer + 19, 6, ".%03u ", static_cast<unsigned int>(ms));
 	}
 	//ttt_add_file_and_line(buffer, 24, 69, info);
-	m = buffer + securepath::print(format, args...);
+	m = buffer + std::format(format, args...);
 }
 
 struct test_logger_1 {

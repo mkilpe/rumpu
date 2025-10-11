@@ -361,7 +361,7 @@ std::size_t mixer::process(float* buffer, std::size_t samples)  {
 		}
 	}
 
-	LOG_TRACE("rendering % samples took % microseconds", ret, t.elapsed_microseconds());
+	LOG_TRACE("rendering {} samples took {} microseconds", ret, t.elapsed_microseconds());
 
 	return ret;
 }

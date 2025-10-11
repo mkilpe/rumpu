@@ -15,15 +15,6 @@ error::error(std::exception_ptr ex)
 	}
 }
 
-std::ostream& operator<<(std::ostream& out, error const& err) {
-	if(err) {
-		out << err.code() << ": " << err.code().message() << " (" << err.message() << ")";
-	} else {
-		out << "no error";
-	}
-	return out;
-}
-
 namespace {
 	char const* errors[] =
 		{ "no error"

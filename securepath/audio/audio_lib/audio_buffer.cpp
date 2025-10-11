@@ -149,8 +149,7 @@ audio_buffer audio_buffer::copy() const {
 
 void audio_buffer::dump(std::ostream& out) {
 	std::vector<std::uint8_t> data(begin<std::uint8_t>(), free_begin<std::uint8_t>());
-	out << format_ << "\n\n" << to_hex(data);
+	std::print(out, "{}\n\n{}", format_ , to_hex(data));
 }
-
 
 }

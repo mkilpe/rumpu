@@ -10,7 +10,7 @@
 namespace securepath::log {
 
 template<typename Func, typename... Args>
-void default_log_impl(Func func, log_info const& info, char const* format, Args const&... args) {
+void default_log_impl(Func func, log_info const& info, std::format_string<Args...> fmt, Args&&... args) {
 	using time_point = std::chrono::time_point<std::chrono::system_clock>;
 
 	char buffer[256] = {"                                                                      "};
@@ -31,19 +31,13 @@ void default_log_impl(Func func, log_info const& info, char const* format, Args 
 	ologstreambuf buf(buffer, 70);
 	std::ostream os(&buf);
 
-	print(os, format, args...);
+	std::print(os, fmt, std::forward<Args>(args)...);
 	func(formatted_message{info, std::string_view{buf.begin(), buf.size()}, std::string_view{}});
 }
 
-/**
- *	\brief default_log is default logged that formats message and uses basic_backend to log messages (log.hpp). Called by macros defined in log.hpp.
- *  \param info contains file and line where log macro was called, as well as importance of the message (log level).
- *  \param Param format contains actual log message where optional arguments (args) are added by print function implemented in util/print_util.hpp
- *	Function writes log message containing (TODO) to (TODO) (see tutorial for usage example) /////////////////////// TODO
- */
 template<typename... Args>
-void default_log(log_info const& info, char const* format, Args const&... args) {
-	default_log_impl(backend::log, info, format, args...);
+void default_log(log_info const& info, std::format_string<Args...> fmt, Args&&... args) {
+	default_log_impl(backend::log, info, fmt, std::forward<Args>(args)...);
 }
 
 }

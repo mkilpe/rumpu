@@ -51,8 +51,6 @@ struct audio_format {
 	}
 };
 
-std::ostream& operator<<(std::ostream&, audio_format const&);
-
 inline bool operator==(audio_format a1, audio_format a2) {
 	return a1.type == a2.type
 		&& a1.channels == a2.channels
@@ -74,8 +72,28 @@ struct device_config {
 	std::size_t period_size; //in samples
 };
 
-std::ostream& operator<<(std::ostream&, device_config const&);
-
 }
+
+template <>
+struct std::formatter<securepath::audio::audio_format> {
+    constexpr auto parse(std::format_parse_context& ctx) {
+        return ctx.begin();
+    }
+    auto format(const securepath::audio::audio_format& c, std::format_context& ctx) const {
+    	char const* sample_type_name[4] = {"char_t", "uchar_t" , "short_t", "float_t"};
+		char const* endian_type_name[2] = {"little", "big"};
+        return std::format_to(ctx.out(), "[{}, {}, {}, {}, {}]", sample_type_name[c.type], c.channels, c.bits_per_sample, c.samples_per_second, endian_type_name[c.endian]);
+    }
+};
+
+template <>
+struct std::formatter<securepath::audio::device_config> {
+    constexpr auto parse(std::format_parse_context& ctx) {
+        return ctx.begin();
+    }
+    auto format(const securepath::audio::device_config& c, std::format_context& ctx) const {
+        return std::format_to(ctx.out(), "{{{}, {}, {}}}", c.buffer_size, c.period_size, c.format);
+    }
+};
 
 #endif

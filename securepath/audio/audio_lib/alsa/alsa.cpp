@@ -26,7 +26,7 @@ struct hw_params {
 	hw_params() : params() {
 		int err = snd_pcm_hw_params_malloc(&params);
 		if(err != 0) {
-			LOG_TRACE("failed to allocate device parameters: %", snd_strerror(err));
+			LOG_TRACE("failed to allocate device parameters: {}", snd_strerror(err));
 			throw std::runtime_error("failed to allocate device parameters");
 		}
 	}
@@ -41,7 +41,7 @@ struct sw_params {
 	sw_params() : params() {
 		int err = snd_pcm_sw_params_malloc(&params);
 		if(err != 0) {
-			LOG_TRACE("failed to allocate device parameters: %", snd_strerror(err));
+			LOG_TRACE("failed to allocate device parameters: {}", snd_strerror(err));
 			throw std::runtime_error("failed to allocate device parameters");
 		}
 	}
@@ -70,37 +70,37 @@ snd_pcm_format_t map_to_alsa_format(audio_format const& f) {
 device_config configure(snd_pcm_t* handle, device_config config) {
 	hw_params p;
 
-	LOG_TRACE("trying configuration: %", config);
+	LOG_TRACE("trying configuration: {}", config);
 
 	int err = snd_pcm_hw_params_any(handle, p.params);
 	if(err < 0) {
-		LOG_TRACE("failed to configure parameters: %", snd_strerror(err));
+		LOG_TRACE("failed to configure parameters: {}", snd_strerror(err));
 		throw std::runtime_error("failed to configure parameters");
 	}
 	err = snd_pcm_hw_params_set_rate_resample(handle, p.params, 1);
 	if(err < 0) {
-		LOG_TRACE("failed to configure parameters (resample): %", snd_strerror(err));
+		LOG_TRACE("failed to configure parameters (resample): {}", snd_strerror(err));
 		throw std::runtime_error("failed to configure parameters");
 	}
 	err = snd_pcm_hw_params_set_access(handle, p.params, SND_PCM_ACCESS_RW_INTERLEAVED);
 	if(err < 0) {
-		LOG_TRACE("failed to configure parameters (access): %", snd_strerror(err));
+		LOG_TRACE("failed to configure parameters (access): {}", snd_strerror(err));
 		throw std::runtime_error("failed to configure parameters");
 	}
 	err = snd_pcm_hw_params_set_format(handle, p.params, map_to_alsa_format(config.format));
 	if(err != 0) {
-		LOG_TRACE("failed to configure parameters (format): %", snd_strerror(err));
+		LOG_TRACE("failed to configure parameters (format): {}", snd_strerror(err));
 		throw std::runtime_error("failed to configure parameters");
 	}
 	err = snd_pcm_hw_params_set_channels(handle, p.params, config.format.channels);
 	if(err != 0) {
-		LOG_TRACE("failed to configure parameters (channels): %", snd_strerror(err));
+		LOG_TRACE("failed to configure parameters (channels): {}", snd_strerror(err));
 		throw std::runtime_error("failed to configure parameters");
 	}
 
 	err = snd_pcm_hw_params_set_rate(handle, p.params, config.format.samples_per_second, 0);
 	if(err != 0) {
-		LOG_TRACE("failed to configure parameters (rate): %", snd_strerror(err));
+		LOG_TRACE("failed to configure parameters (rate): {}", snd_strerror(err));
 		throw std::runtime_error("failed to configure parameters");
 	}
 
@@ -108,7 +108,7 @@ device_config configure(snd_pcm_t* handle, device_config config) {
 	snd_pcm_uframes_t buffer_size = config.buffer_size;
 	err = snd_pcm_hw_params_set_buffer_size_near(handle, p.params, &buffer_size);
 	if(err != 0) {
-		LOG_TRACE("failed to configure parameters (buffer): %", snd_strerror(err));
+		LOG_TRACE("failed to configure parameters (buffer): {}", snd_strerror(err));
 		throw std::runtime_error("failed to configure parameters");
 	}
 	config.buffer_size = buffer_size;
@@ -117,18 +117,18 @@ device_config configure(snd_pcm_t* handle, device_config config) {
 	dir = 0;
 	err = snd_pcm_hw_params_set_period_size_near(handle, p.params, &period_size, &dir);
 	if(err != 0) {
-		LOG_TRACE("failed to configure parameters (period): %", snd_strerror(err));
+		LOG_TRACE("failed to configure parameters (period): {}", snd_strerror(err));
 		throw std::runtime_error("failed to configure parameters");
 	}
 	config.period_size = period_size;
 
 	err = snd_pcm_hw_params(handle, p.params);
 	if(err != 0) {
-		LOG_TRACE("failed to set device parameters: %", snd_strerror(err));
+		LOG_TRACE("failed to set device parameters: {}", snd_strerror(err));
 		throw std::runtime_error("failed to set device parameters");
 	}
 
-	LOG_TRACE("using configuration: %", config);
+	LOG_TRACE("using configuration: {}", config);
 
 	return config;
 }
@@ -137,21 +137,21 @@ void configure_avail_min(snd_pcm_t* handle, audio_format const& format, std::siz
 	sw_params p;
 	int err = snd_pcm_sw_params_current(handle, p.params);
 	if(err < 0) {
-		LOG_TRACE("failed to configure parameters: %", snd_strerror(err));
+		LOG_TRACE("failed to configure parameters: {}", snd_strerror(err));
 		throw std::runtime_error("failed to configure parameters");
 	}
 
-	LOG_TRACE("Setting avail min to % samples", samples);
+	LOG_TRACE("Setting avail min to {} samples", samples);
 
 	err = snd_pcm_sw_params_set_avail_min(handle, p.params, samples);
 	if(err < 0) {
-		LOG_TRACE("failed to configure parameters: %", snd_strerror(err));
+		LOG_TRACE("failed to configure parameters: {}", snd_strerror(err));
 		throw std::runtime_error("failed to configure parameters");
 	}
 
 	err = snd_pcm_sw_params(handle, p.params);
 	if(err < 0) {
-		LOG_TRACE("failed to set software parameters: %", snd_strerror(err));
+		LOG_TRACE("failed to set software parameters: {}", snd_strerror(err));
 		throw std::runtime_error("failed to set software parameters");
 	}
 }
@@ -166,7 +166,7 @@ public:
 	{
 		int err = snd_pcm_open(&handle_, device.c_str(), SND_PCM_STREAM_PLAYBACK, 0/*SND_PCM_NONBLOCK*/);
 		if(err != 0) {
-			LOG_TRACE("cannot open audio device for playback: %", snd_strerror(err));
+			LOG_TRACE("cannot open audio device for playback: {}", snd_strerror(err));
 			throw std::runtime_error("failed to open device for playback");
 		}
 
@@ -180,7 +180,7 @@ public:
 
 		/*err = snd_pcm_prepare(handle_);
 		if(err != 0) {
-			LOG_TRACE("cannot prepare device for play: %", snd_strerror(err));
+			LOG_TRACE("cannot prepare device for play: {}", snd_strerror(err));
 			throw std::runtime_error("cannot prepare device for play");
 		}*/
 	}
@@ -195,7 +195,7 @@ public:
 		if(snd_pcm_state(handle_) == SND_PCM_STATE_PREPARED) {
 			int err = snd_pcm_start(handle_);
 			if(err != 0) {
-				LOG_TRACE("failed to start play: %", snd_strerror(err));
+				LOG_TRACE("failed to start play: {}", snd_strerror(err));
 				throw std::runtime_error("failed to start play");
 			}
 		}
@@ -207,7 +207,7 @@ public:
 			? snd_pcm_drop(handle_)
 			: snd_pcm_drain(handle_);
 		if(err != 0) {
-			LOG_TRACE("failed to stop play: %", snd_strerror(err));
+			LOG_TRACE("failed to stop play: {}", snd_strerror(err));
 			throw std::runtime_error("failed to stop play");
 		}
 	}
@@ -234,20 +234,20 @@ public:
 		configure_avail_min(handle_, device_config_.format, samples);
 		int err = snd_pcm_prepare(handle_);
 		if(err != 0) {
-			LOG_TRACE("cannot prepare device for play: %", snd_strerror(err));
+			LOG_TRACE("cannot prepare device for play: {}", snd_strerror(err));
 			throw std::runtime_error("cannot prepare device for play");
 		}
 
 		int res = snd_pcm_poll_descriptors_count(handle_);
 		if(res <= 0) {
-			LOG_TRACE("failed to get poll descriptors count from ALSA: %", snd_strerror(res));
+			LOG_TRACE("failed to get poll descriptors count from ALSA: {}", snd_strerror(res));
 			throw std::runtime_error("failed to get poll descriptors count from ALSA");
 		}
 		fds_.resize(res);
 
 		res = snd_pcm_poll_descriptors(handle_, fds_.data(), fds_.size());
 		if(res < 0) {
-			LOG_TRACE("failed to get poll descriptors from ALSA: %", snd_strerror(res));
+			LOG_TRACE("failed to get poll descriptors from ALSA: {}", snd_strerror(res));
 			throw std::runtime_error("failed to get poll descriptors from ALSA");
 		}
 	}
@@ -291,7 +291,7 @@ public:
 				LOG_TRACE("play device recover (ESTRPIPE)");
 				snd_pcm_recover(handle_, samples, 0);
 			} else {
-				LOG_TRACE("failed to write to play device: %", snd_strerror(samples));
+				LOG_TRACE("failed to write to play device: {}", snd_strerror(samples));
 				throw std::runtime_error("failed to write to play device");
 			}
 			samples = 0;
@@ -313,7 +313,7 @@ public:
 	{
 		int err = snd_pcm_open(&handle_, device.c_str(), SND_PCM_STREAM_CAPTURE, SND_PCM_NONBLOCK);
 		if(err != 0) {
-			LOG_TRACE("cannot open audio device for capture: %", snd_strerror(err));
+			LOG_TRACE("cannot open audio device for capture: {}", snd_strerror(err));
 			throw std::runtime_error("failed to open device for capture");
 		}
 
@@ -321,7 +321,7 @@ public:
 
 		/*err = snd_pcm_prepare(handle_);
 		if(err != 0) {
-			LOG_TRACE("cannot prepare device for capture: %", snd_strerror(err));
+			LOG_TRACE("cannot prepare device for capture: {}", snd_strerror(err));
 			throw std::runtime_error("cannot prepare device for capture");
 		}*/
 	}
@@ -335,7 +335,7 @@ public:
 		if(snd_pcm_state(handle_) == SND_PCM_STATE_PREPARED) {
 			int err = snd_pcm_start(handle_);
 			if(err != 0) {
-				LOG_TRACE("failed to start capture: %", snd_strerror(err));
+				LOG_TRACE("failed to start capture: {}", snd_strerror(err));
 				throw std::runtime_error("failed to start play");
 			}
 		}
@@ -347,7 +347,7 @@ public:
 			? snd_pcm_drop(handle_)
 			: snd_pcm_drain(handle_);
 		if(err != 0) {
-			LOG_TRACE("failed to stop capture: %", snd_strerror(err));
+			LOG_TRACE("failed to stop capture: {}", snd_strerror(err));
 			throw std::runtime_error("failed to stop capture");
 		}
 	}
@@ -372,20 +372,20 @@ public:
 		configure_avail_min(handle_, device_config_.format, samples);
 		int err = snd_pcm_prepare(handle_);
 		if(err != 0) {
-			LOG_TRACE("cannot prepare device for capture: %", snd_strerror(err));
+			LOG_TRACE("cannot prepare device for capture: {}", snd_strerror(err));
 			throw std::runtime_error("cannot prepare device for capture");
 		}
 
 		int res = snd_pcm_poll_descriptors_count(handle_);
 		if(res <= 0) {
-			LOG_TRACE("failed to get poll descriptors count from ALSA: %", snd_strerror(res));
+			LOG_TRACE("failed to get poll descriptors count from ALSA: {}", snd_strerror(res));
 			throw std::runtime_error("failed to get poll descriptors count from ALSA");
 		}
 		fds_.resize(res);
 
 		res = snd_pcm_poll_descriptors(handle_, fds_.data(), fds_.size());
 		if(res < 0) {
-			LOG_TRACE("failed to get poll descriptors from ALSA: %", snd_strerror(res));
+			LOG_TRACE("failed to get poll descriptors from ALSA: {}", snd_strerror(res));
 			throw std::runtime_error("failed to get poll descriptors from ALSA");
 		}
 	}
@@ -400,7 +400,7 @@ public:
 				if(samples == -EPIPE || samples == -ESTRPIPE) {
 					snd_pcm_recover(handle_, samples, 0);
 				} else {
-					LOG_TRACE("failed to read from capture device: %", snd_strerror(samples));
+					LOG_TRACE("failed to read from capture device: {}", snd_strerror(samples));
 					throw std::runtime_error("failed to read from capture device");
 				}
 				samples = 0;
@@ -469,7 +469,7 @@ adinfos alsa_audio_interface::enumerate_devices(audio_device_type type) const
 		free(desc);
 		free(name);
 
-		LOG_INFO("alsa pcm device: %:%:%", name_str, io_str, desc_str);
+		LOG_INFO("alsa pcm device: {}:{}:{}", name_str, io_str, desc_str);
 
 		if((type & audio_device_t::play) && (io_str.empty() || io_str == "Output")) {
 			devices.push_back(std::make_shared<alsa_device_info>(name_str, desc_str, true));

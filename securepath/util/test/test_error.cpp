@@ -18,14 +18,13 @@ TEST_CASE("error basics", "[error]") {
 	CHECK(std::string(err.code().category().name()) == "securepath error");
 
 	std::ostringstream os;
-	os << err;
+	std::print(os, "{}", err);
 	std::string res = os.str();
 
 	CHECK(res.find("error_msg") != std::string::npos);
 	CHECK(res.find("") != std::string::npos);
 	CHECK(res.find("securepath error") != std::string::npos);
 	CHECK(res.find(std::to_string((int)err.code().value())) != std::string::npos);
-
 }
 
 }

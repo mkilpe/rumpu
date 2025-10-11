@@ -47,7 +47,6 @@ TEST_CASE("asn_der string", "[asn_der]") {
 	CHECK(check<octet_vector>({}, {0x04, 0x00}));
 	CHECK(check<octet_vector>({0xFF, 0x00, 0x01, 0xE5, 0xDD}, {0x04, 0x05, 0xFF, 0x00, 0x01, 0xE5, 0xDD}));
 	CHECK(check<octet_vector>(octet_vector(12345, 'a')));
-
 }
 
 TEST_CASE("asn_der time_point", "[asn_der]") {

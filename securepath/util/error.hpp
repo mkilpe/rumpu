@@ -6,6 +6,7 @@
 #include <string>
 #include <system_error>
 #include <type_traits>
+#include <format>
 
 namespace securepath {
 
@@ -38,8 +39,6 @@ private:
 	std::string msg_;
 	std::string formatted_;
 };
-
-std::ostream& operator<<(std::ostream&, error const&);
 
 enum class errc {
 	not_an_error = 0,
@@ -128,6 +127,19 @@ private:
 };
 
 }
+
+template <>
+struct std::formatter<securepath::error> {
+    constexpr auto parse(std::format_parse_context& ctx) {
+        return ctx.begin();
+    }
+    auto format(securepath::error const& err, std::format_context& ctx) const {
+    	if(err) {
+    		return std::format_to(ctx.out(), "{}:{}: {} ({})", err.code().category().name(), err.code().value(), err.code().message(), err.message());
+		}
+		return std::format_to(ctx.out(), "no error");			
+    }
+};
 
 
 #endif

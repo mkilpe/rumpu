@@ -13,7 +13,7 @@ TEST_CASE("debug print log", "[debug_print][.]") {
 	std::remove(file.c_str());
 
 	log::backend::add_backend<log::backend::file_output>("util_test_1", file);
-	debug_print("msg % ab%", 1, 'c');
+	debug_print("msg {} ab{}", 1, 'c');
 	log::backend::remove("util_test_1");
 
 	std::ifstream ifs(file);

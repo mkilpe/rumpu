@@ -152,7 +152,7 @@ public:
 		DWORD write_pos;
 		HRESULT h = buffer_->GetCurrentPosition(&play_pos, &write_pos);
 		if( h != DS_OK ) {
-			LOG_TRACE("error: %", ::GetLastError());
+			LOG_TRACE("error: {}", ::GetLastError());
 			throw std::runtime_error("buffer get current position failed");
 		}
 		int size = play_pos - pos_;
@@ -281,7 +281,7 @@ public:
 		DWORD read_pos;
 		HRESULT h = buffer_->GetCurrentPosition(&capture_pos, &read_pos);
 		if(h != DS_OK) {
-			LOG_TRACE("error: %", ::GetLastError());
+			LOG_TRACE("error: {}", ::GetLastError());
 			throw std::runtime_error("buffer get current position failed");
 		}
 		int size = read_pos - pos_;
@@ -306,7 +306,7 @@ public:
 		std::vector<DSBPOSITIONNOTIFY> pnot;
 
 		if(!not_handle_) {
-			LOG_TRACE("error: %", ::GetLastError());
+			LOG_TRACE("error: {}", ::GetLastError());
 			throw std::runtime_error("failed to create notification handle");
 		}
 

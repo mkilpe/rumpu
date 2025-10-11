@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.10)
 
 project("rumpu")
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 get_filename_component(my_root_directory ${CMAKE_CURRENT_LIST_FILE} DIRECTORY)
@@ -17,10 +17,10 @@ find_package(Opus REQUIRED)
 #set(CMAKE_AUTOUIC ON)
 #set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
-#if(NOT CMAKE_BUILD_TYPE)
-#	set(CMAKE_BUILD_TYPE Debug)
-#	message("-- Enabling debug build")
-#endif()
+if(NOT CMAKE_BUILD_TYPE)
+	set(CMAKE_BUILD_TYPE Debug)
+	message("-- Enabling debug build") 
+endif()
 
 include_directories(${my_root_directory})
 link_directories(${my_root_directory}/lib)

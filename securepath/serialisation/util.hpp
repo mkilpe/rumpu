@@ -34,7 +34,7 @@ auto asn_der_deserialise(Stream& in) -> decltype(in.read(std::declval<char*>(), 
 
 #ifndef NDEBUG
 	} catch(serialisation_error const&) {
-		LOG_WARN("failed to deserialise type '%'", typeid(T).name());
+		LOG_WARN("failed to deserialise type '{}'", typeid(T).name());
 		throw;
 	}
 #endif

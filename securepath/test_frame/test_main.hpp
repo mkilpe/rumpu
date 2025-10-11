@@ -11,7 +11,7 @@ namespace securepath {
 int run_tests(int argc, char* args[]) {
 	std::vector<std::string_view> arguments{args, args+argc};
 	log::backend::add_backend<log::backend::file_output>("file", "debug.log");
-	LOG_INFO("Starting test: %", print_list_to_string(arguments, " ", "\""));
+	LOG_INFO("Starting test: {}", print_list_to_string(arguments, " ", "\""));
 	return Catch::Session().run(argc, args);
 }
 

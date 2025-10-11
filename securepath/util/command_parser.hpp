@@ -1,7 +1,7 @@
 #ifndef SECUREPATH_UTIL_COMMAND_PARSER_HEADER
 #define SECUREPATH_UTIL_COMMAND_PARSER_HEADER
 
-#include <securepath/util/print_util.hpp>
+#include "print_util.hpp"
 
 #include <optional>
 #include <map>
@@ -76,11 +76,11 @@ struct normal_command : command_base {
 		if(args.size() != 1) {
 			std::ostringstream out;
 			print_list(out, args, ",");
-			throw invalid_argument(securepath::print("invalid amount of arguments: [%]", out.str()));
+			throw invalid_argument(std::format("invalid amount of arguments: [{}]", out.str()));
 		}
 		std::istringstream in(args[0]);
 		if(!(in >> value_)) {
-			throw invalid_argument(securepath::print("failed to interpret argument '%'", args[0]));
+			throw invalid_argument(std::format("failed to interpret argument '{}'", args[0]));
 		}
 	}
 	virtual void print(std::ostream& o) const {
@@ -102,7 +102,7 @@ struct vector_command : command_base {
 			T temp;
 			std::istringstream in(v);
 			if(!(in >> temp)) {
-				throw invalid_argument(securepath::print("failed to interpret argument '%'", v));
+				throw invalid_argument(std::format("failed to interpret argument '{}'", v));
 			}
 			value_.push_back(temp);
 		}
@@ -125,13 +125,13 @@ struct optional_command : command_base {
 		if(args.size() > 1) {
 			std::ostringstream out;
 			print_list(out, args, ",");
-			throw invalid_argument(securepath::print("invalid amount of arguments: [%]", out.str()));
+			throw invalid_argument(std::format("invalid amount of arguments: [{}]", out.str()));
 		}
 		value_.emplace();
 		if(args.size() == 1) {
 			std::istringstream in(args[0]);
 			if(!(in >> *value_)) {
-				throw invalid_argument(securepath::print("failed to interpret argument '%'", args[0]));
+				throw invalid_argument(std::format("failed to interpret argument '{}'", args[0]));
 			}
 		}
 	}

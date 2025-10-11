@@ -29,6 +29,14 @@ struct host_port {
 	}
 };
 
-std::ostream& operator<<(std::ostream&, host_port const&);
-
 }
+
+template <>
+struct std::formatter<securepath::host_port> {
+    constexpr auto parse(std::format_parse_context& ctx) {
+        return ctx.begin();
+    }
+    auto format(securepath::host_port const& c, std::format_context& ctx) const {
+		return std::format_to(ctx.out(), "{}:{}", c.host, c.port);
+    }
+};

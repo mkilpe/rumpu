@@ -231,7 +231,7 @@ private:
 		asn_header header = decode_tag();
 		header.length = decode_length();
 		if(header.length > max_structure_size) {
-			LOG_WARN("received asn structure which has size bigger than the set maximum (% > %)", header.length, max_structure_size);
+			LOG_WARN("received asn structure which has size bigger than the set maximum ({} > {})", header.length, max_structure_size);
 			throw serialisation_error("asn structure too big");
 		}
 		return header;
@@ -258,7 +258,7 @@ private:
 	void decode_string(Type& s, std::optional<tag_info> tag, uint64_t default_tag) {
 		asn_header header = decode_header(get_asn_class(tag), get_tag(tag, default_tag));
 		s.resize(header.length);
-		s_.read(reinterpret_cast<std::uint8_t*>(&s[0]), s.size());
+		s_.read(reinterpret_cast<std::uint8_t*>(s.data()), s.size());
 	}
 
 	template<typename Type>

@@ -29,13 +29,6 @@ namespace securepath {
 		print_list(out, c, separator, quote);
 		return out.str();
 	}
-
-	template<typename... Params>
-	std::string print(char const* msg, Params const&... params) {
-		std::ostringstream out;
-		print(out, msg, params...);
-		return out.str();
-	}
 }
 
 #endif

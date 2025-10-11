@@ -69,19 +69,19 @@ void wav::load(std::istream& in) {
 		throw invalid_format("data chunk not found");
 	}
 	if(format_->bits_per_sample != 8 && format_->bits_per_sample != 16) {
-		LOG_INFO("invalid bits_per_sample: %", format_->bits_per_sample);
+		LOG_INFO("invalid bits_per_sample: {}", format_->bits_per_sample);
 		throw invalid_format("only 8 or 16 bits per sample is supported");
 	}
 }
 
 void wav::load_chunk(std::istream& in) {
-	LOG_TRACE("reading chunk header at offset %", in.tellg());
+	LOG_TRACE("reading chunk header at offset {}", std::size_t(in.tellg()));
 	octet_vector buf = read(in, chunk_header::size);
 
 	if(!buf.empty()) {
 		chunk_header h;
 		h.read(buf.data(), buf.size());
-		LOG_INFO("found chunk header '%' with size '%'", std::string(h.chunk_id, h.chunk_id+4), h.chunk_size);
+		LOG_INFO("found chunk header '{}' with size '{}'", std::string(h.chunk_id, h.chunk_id+4), h.chunk_size);
 		if(std::strncmp(reinterpret_cast<char const*>(h.chunk_id), "fmt ", 4) == 0) {
 			load_format_chunk(in, h.chunk_size);
 		} else if(std::strncmp(reinterpret_cast<char const*>(h.chunk_id), "data", 4) == 0) {

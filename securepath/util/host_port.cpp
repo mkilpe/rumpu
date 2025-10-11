@@ -16,8 +16,4 @@ bool host_port::is_valid() const {
 	return !host.empty() && port != 0;
 }
 
-std::ostream& operator<<(std::ostream& out, host_port const& hp) {
-	return out << hp.host << ":" << hp.port;
-}
-
 }

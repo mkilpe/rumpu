@@ -10,9 +10,9 @@ namespace securepath::log {
  *	Function is called by log macros (log.hpp)
  */
 template<typename... Args>
-void log_handler(log_info const& info, char const* format, Args const&... args) {
+void log_handler(log_info const& info, std::format_string<Args...> fmt, Args&&... args) {
 	if(backend::get_min_log_level() <= info.level) {
-		default_log(info, format, args...);
+		default_log(info, fmt, std::forward<Args>(args)...);
 	}
 }
 
@@ -21,9 +21,9 @@ void log_handler(log_info const& info, char const* format, Args const&... args) 
  *	See tutorial for usage examples.
  */
 template<typename Logger, typename... Args, typename = typename Logger::logger_type>
-void log_handler(log_info const& info, Logger& logger, char const* format, Args const&... args) {
+void log_handler(log_info const& info, Logger& logger, std::format_string<Args...> fmt, Args&&... args) {
 	if(logger.get_min_log_level() <= info.level) {
-		logger.log(info, format, args...);
+		logger.log(info, fmt, std::forward<Args>(args)...);
 	}
 }
 

@@ -95,37 +95,46 @@ struct tester_123 {
 		return "tester";
 	}
 };
-
-std::ostream& operator<<(std::ostream& out, tester_123 const& t) {
-	return out << t.to_string();
 }
+
+template <>
+struct std::formatter<securepath::log::test::tester_123> {
+    constexpr auto parse(std::format_parse_context& ctx) {
+        return ctx.begin();
+    }
+    auto format(const securepath::log::test::tester_123& t, std::format_context& ctx) const {
+        return std::format_to(ctx.out(), "{}", t.to_string());
+    }
+};
+
+namespace securepath::log::test {
 
 TEST_CASE("log print", "[util][log]") {
 
 	std::ostringstream os;
 	
-	print(os, "");
+	std::print(os, "");
 	check_and_clear(os, "");
 
-	print(os, "", 1, 1.1);
+	std::print(os, "", 1, 1.1);
 	check_and_clear(os, "");
 
-	print(os, "message");
+	std::print(os, "message");
 	check_and_clear(os, "message");
 
 	std::string s = "a";
-	print(os, "a % b % cc%%", s, 2, 1.2, true);
+	std::print(os, "a {} b {} cc{}{}", s, 2, 1.2, true);
 	check_and_clear(os, "a a b 2 cc1.21");
 
 	std::invalid_argument e("error msg");
-	print(os, "error: %", e.what());
+	std::print(os, "error: {}", e.what());
 	check_and_clear(os, "error: error msg");
 
-	print(os, "message", 1, 2, 3, 4, "msg", false);
+	std::print(os, "message", 1, 2, 3, 4, "msg", false);
 	check_and_clear(os, "message");
 
 	tester_123 t;
-	print(os, "%", t);
+	std::print(os, "{}", t);
 	check_and_clear(os, t.to_string());
 
 }

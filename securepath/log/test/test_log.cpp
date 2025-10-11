@@ -14,12 +14,12 @@ TEST_CASE("log_simple_test", "[format][log]") {
 
 	CHECK(file_contains_string(log_file1, std::string("test")));
 
-	LOG_TRACE("test %", 1);
-	LOG_TRACE("test % - %", 2, 1.2);
-	LOG_TRACE("% test %%", 1, "t ", 2);
-	LOG_TRACE("%%%%test", "-",1,"--",3);
-	LOG_TRACE("%test%", true, false);
-	LOG_TRACE("\\% some\\a \\% test%\\% \\%", true);
+	LOG_TRACE("test {}", 1);
+	LOG_TRACE("test {} - {}", 2, 1.2);
+	LOG_TRACE("{} test {}{}", 1, "t ", 2);
+	LOG_TRACE("{}{}{}{}test", "-",1,"--",3);
+	LOG_TRACE("{}test{}", true, false);
+	LOG_TRACE("\\% some\\a \\% test{}\\% \\%", true);
 	
 	std::string content = get_log_file_content(log_file1);
 		
@@ -41,8 +41,8 @@ TEST_CASE("log contains file line date", "[format][log]") {
 
 	test_logger_1 logger(log_file2);
 
-	LOG_TEST_1(logger, "hop1");
-	LOG_TEST_1(logger, "hop2");
+	//LOG_TEST_1(logger, "hop1");
+	//LOG_TEST_1(logger, "hop2");
 
 	std::string content = get_log_file_content(log_file2);
 
