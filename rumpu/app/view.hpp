@@ -2,7 +2,7 @@
 
 #include <memory>
 
-namespace securepath::drum {
+namespace securepath::drum::app {
 
 class view {
 public:

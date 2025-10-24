@@ -3,8 +3,13 @@
 
 #include "imgui.h"
 
-namespace securepath::drum {
+namespace securepath::drum::app {
 
+/*track_header::track_header(std::string name)
+: child_window_base(std::move(name))
+{
+}
+*/
 bool track_header::draw()
 {
     auto drawlist = ImGui::GetWindowDrawList();

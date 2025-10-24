@@ -4,9 +4,10 @@
 
 #include "imgui.h"
 
-namespace securepath::drum {
+namespace securepath::drum::app {
 
-track_list::track_list()
+track_list::track_list(std::string name)
+: child_window_base(std::move(name))
 {
 	add_track();
 	add_track();
@@ -18,16 +19,29 @@ void track_list::add_track()
 	std::size_t index = tracks_.size();
 	tracks_.push_back(
 		track_info{
-			child_window_ptr(new view_child_window(("pane " + std::to_string(index)).c_str(), view_ptr(new track_pane), ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse, {})),
-			child_window_ptr(new view_child_window(("track " + std::to_string(index)).c_str(), view_ptr(new track), ImGuiWindowFlags_NoSavedSettings, {}))
+			child_window_ptr{new track_pane(("pane " + std::to_string(index)).c_str())},
+			track_ptr{new track(("track " + std::to_string(index)).c_str())}
 		});
 	tracks_.back().pane->set_size({50, 75});
 	tracks_.back().track->set_size({1500, 75});
 }
 
-bool track_list::draw()
+void track_list::set_section(song* s, uint32_t section)
 {
-	if (ImGui::BeginTable("track_list", 2, ImGuiTableFlags_BordersH | ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg)) {
+	if(s) {
+		auto& secs = s->sections();
+		auto it = secs.find(section);
+		if(it != secs.end()) {
+			for(auto&& t : tracks_) {
+				//t
+			}
+		}
+	}
+}
+
+bool track_list::do_draw()
+{
+	if (ImGui::BeginTable("track_list_table", 2, ImGuiTableFlags_BordersH | ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg)) {
 		ImGui::TableSetupScrollFreeze(1, 0);
 		ImGui::TableNextRow();
 		ImGui::TableNextColumn();

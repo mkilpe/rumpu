@@ -2,9 +2,22 @@
 
 #include "imgui.h"
 
-namespace securepath::drum {
+namespace securepath::drum::app {
 
-bool track::draw()
+track::track(std::string name)
+: track_view(std::move(name), ImGuiWindowFlags_NoSavedSettings, {})
+{
+}
+
+void track::set_context(track_context context)
+{
+	context_ = context;
+}
+
+//uto const& bars = section_->tracks()[index.row()].bars();
+//			time_signature sig = song_->default_time_signature();
+
+bool track::do_draw()
 {
 	auto drawlist = ImGui::GetWindowDrawList();
 
@@ -26,6 +39,13 @@ bool track::draw()
 		end.y += 8;
 		drawlist->AddLine(tick_pos, end, IM_COL32(255,255,255,255), 1.0f);
 		tick_pos.x += 80;
+	}
+
+	if(context_.is_valid()) {
+		auto const& bars = context_.section->tracks()[context_.index].bars();
+		for(auto&& bar : bars) {
+
+		}
 	}
 
 	return true;

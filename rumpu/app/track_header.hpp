@@ -2,7 +2,7 @@
 
 #include "view.hpp"
 
-namespace securepath::drum {
+namespace securepath::drum::app {
 
 class track_header : public view {
 public:

@@ -5,13 +5,15 @@
 
 #include "imgui.h"
 
-namespace securepath::drum {
+namespace securepath::drum::app {
 
-rumpu::rumpu() : event_handler(static_cast<securepath::event_system::event_loop&>(*this)) {
+rumpu::rumpu() 
+: event_handler(static_cast<securepath::event_system::event_loop&>(*this))
+, song_({}, {3,4}, {60.0}) {
     ImGuiIO& io = ImGui::GetIO();
     io.Fonts->AddFontDefault();
 
-    windows_.push_back(child_window_ptr(new view_child_window("TrackList", view_ptr(new track_list()))));
+    windows_.push_back(child_window_ptr{new track_list("track_list")});
 }
 
 void rumpu::menu() {
@@ -58,8 +60,18 @@ bool rumpu::update() {
     
     menu();
 
-    for(auto&& w : windows_) {
-        w->draw();
+    if(!windows_.empty()) {
+        auto pos = ImGui::GetCursorPos();
+        auto size = ImGui::GetContentRegionAvail();
+        size.y /= windows_.size();
+
+        std::size_t i = 0;
+        for(auto&& w : windows_) {
+            pos.y += size.y*i;
+            ImGui::SetNextWindowPos(pos);
+            ImGui::SetNextWindowSize(size);
+            w->draw();
+        }
     }
 
     ImGui::End();
