@@ -4,9 +4,16 @@
 
 namespace securepath::drum::app {
 
-class track_header : public view {
+class track_header : public child_window_base {
 public:
-    bool draw() override;
+    track_header();
+    bool do_draw() override;
+
+    void set_context(song*, uint32_t section);
+
+private:
+    song* song_{};
+    uint32_t section_{};
 };
 
 }

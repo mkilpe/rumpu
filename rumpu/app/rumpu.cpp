@@ -3,6 +3,8 @@
 
 #include "track_list.hpp"
 
+#include <securepath/log/log.hpp>
+
 #include "imgui.h"
 
 namespace securepath::drum::app {
@@ -13,7 +15,36 @@ rumpu::rumpu()
     ImGuiIO& io = ImGui::GetIO();
     io.Fonts->AddFontDefault();
 
-    windows_.push_back(child_window_ptr{new track_list("track_list")});
+    //for testing
+    song_.add_instrument(instrument{});
+    auto id = song_.add_section();
+    song_.section_order().push_back(id);
+
+    if(auto section = song_.find_section(id)) {
+        section->set_length(10);
+        auto& tracks = section->tracks()[0];
+        size_t i = 0;
+        for(auto&& b : tracks.bars()) {
+            LOG_TRACE("hips");
+            if(++i % 4 == 0) {
+                for(std::size_t count = 0; count != song_.default_time_signature().beats_in_bar(); ++count) {
+                    b.beats.push_back({beat::hit});
+                }
+            } else {
+                LOG_TRACE("push");
+                b.beats.push_back({beat::hit});
+            }        
+        }
+    }
+
+    //if(auto section = song_.find_section(id)) {
+    //    section->tracks()[0];
+    //}
+
+    track_list_.reset(new track_list("track_list"));
+    windows_.push_back(track_list_.get());
+
+    track_list_->set_section(&song_, id);
 }
 
 void rumpu::menu() {

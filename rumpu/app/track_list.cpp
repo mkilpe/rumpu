@@ -9,9 +9,7 @@ namespace securepath::drum::app {
 track_list::track_list(std::string name)
 : child_window_base(std::move(name))
 {
-	add_track();
-	add_track();
-	add_track();
+	add_track();	
 }
 
 void track_list::add_track()
@@ -24,17 +22,17 @@ void track_list::add_track()
 		});
 	tracks_.back().pane->set_size({50, 75});
 	tracks_.back().track->set_size({1500, 75});
+
+	header_.set_size({1500, 20});
 }
 
 void track_list::set_section(song* s, uint32_t section)
 {
 	if(s) {
-		auto& secs = s->sections();
-		auto it = secs.find(section);
-		if(it != secs.end()) {
-			for(auto&& t : tracks_) {
-				//t
-			}
+		header_.set_context(s, section);
+		size_t i = 0;
+		for(auto&& t : tracks_) {
+			t.track->set_context(i++, s, section);
 		}
 	}
 }

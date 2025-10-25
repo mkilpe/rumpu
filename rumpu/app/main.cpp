@@ -9,15 +9,20 @@
 #endif
 #include <GLFW/glfw3.h> // Will drag system OpenGL headers
 
+#include <securepath/log/backend/backend.hpp>
+#include <securepath/log/backend/file_output.hpp>
+#include <securepath/log/log.hpp>
+
 #include "rumpu.hpp"
+
+#include <iostream>
 
 static void glfw_error_callback(int error, const char* description)
 {
     fprintf(stderr, "GLFW Error %d: %s\n", error, description);
 }
 
-int main() {
-
+int run_app() {
     glfwSetErrorCallback(glfw_error_callback);
     if (!glfwInit())
         return 1;
@@ -121,4 +126,15 @@ int main() {
 
     glfwDestroyWindow(window);
     glfwTerminate();
+
+    return 0;
+}
+
+int main() {
+    try {
+        securepath::log::backend::add_backend<securepath::log::backend::file_output>("file", "rumpu.log");
+        return run_app();    
+    } catch(std::exception const& ex) {
+        std::cout << "exception: " << ex.what() << std::endl;
+    }
 }

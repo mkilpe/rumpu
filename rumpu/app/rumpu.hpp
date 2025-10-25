@@ -6,6 +6,7 @@
 #include <securepath/event_system/event_loop.hpp>
 
 #include "child_window.hpp"
+#include "track_list.hpp"
 
 namespace securepath::drum::app {
 
@@ -23,8 +24,10 @@ private:
     bool show_window{true};
 
     mutable std::mutex mutex_;
-    std::vector<child_window_ptr> windows_;
     song song_;
+    std::unique_ptr<track_list> track_list_;
+    
+    std::vector<child_window*> windows_;
 };
 
 }

@@ -33,8 +33,9 @@ public:
 	std::deque<track>& tracks() { return tracks_; }
 	std::deque<track> const& tracks() const { return tracks_; }
 
-	void add_track() {
+	track& add_track() {
 		tracks_.push_back(track{length_});
+		return tracks_.back();
 	}
 
 	std::optional<section_bar_change> find_change(std::uint32_t index) const {
