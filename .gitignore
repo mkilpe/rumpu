@@ -24,4 +24,4 @@ CMakeDoxygenDefaults.cmake
 Doxyfile.Doxygen
 
 .asciidoctor
-config.hpp
+./config.hpp
