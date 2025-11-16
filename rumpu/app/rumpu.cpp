@@ -25,13 +25,11 @@ rumpu::rumpu()
         auto& tracks = section->tracks()[0];
         size_t i = 0;
         for(auto&& b : tracks.bars()) {
-            LOG_TRACE("hips");
             if(++i % 4 == 0) {
                 for(std::size_t count = 0; count != song_.default_time_signature().beats_in_bar(); ++count) {
                     b.beats.push_back({beat::hit});
                 }
             } else {
-                LOG_TRACE("push");
                 b.beats.push_back({beat::hit});
             }        
         }

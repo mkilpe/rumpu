@@ -11,12 +11,18 @@ public:
     virtual void set_context(size_t index, song*, uint32_t section) = 0;
 };
 
+struct track_draw_context;
+
 class track : public track_view {
 public:
     track(std::string name);
 
     bool do_draw() override;
     void set_context(size_t index, song*, uint32_t section) override;
+private:
+    void toggle_mark(track_draw_context& context, const ImVec2& rel_pos);
+    void handle_mouse(track_draw_context&);
+
 private:
     size_t index_{};
     song* song_{};

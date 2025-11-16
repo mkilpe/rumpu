@@ -22,10 +22,12 @@ bool track_header::do_draw()
     auto pos  = ImGui::GetCursorScreenPos();
     auto size = ImGui::GetWindowSize();
 
+    std::size_t lead_x = 10;
+
     if(song_) {
         if(auto sec = song_->find_section(section_)) {
 
-            float x = pos.x + (size.y/12.0)/2.0;
+            float x = pos.x + lead_x;
             std::size_t beat_per_bar = song_->default_time_signature().beats_in_bar();
             float inc = (size.x / sec->length()) / beat_per_bar;
 
