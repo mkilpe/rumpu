@@ -1,8 +1,7 @@
 
 #include "rumpu.hpp"
 
-#include "track_list.hpp"
-
+#include "events.hpp"
 #include <securepath/log/log.hpp>
 
 #include "imgui.h"
@@ -39,10 +38,10 @@ rumpu::rumpu()
     //    section->tracks()[0];
     //}
 
-    track_list_.reset(new track_list("track_list"));
-    windows_.push_back(track_list_.get());
+    track_edit_view_.reset(new track_edit_view(*this));
+    windows_.push_back(track_edit_view_.get());
 
-    track_list_->set_section(&song_, id);
+    track_edit_view_->set_context(&song_, id);
 }
 
 void rumpu::menu() {
@@ -109,10 +108,26 @@ bool rumpu::update() {
     return running_;
 }
 
+void rumpu::add_track(uint32_t section) {
+    std::unique_lock l{mutex_};
+    LOG_TRACE("add_track");
+    if(auto s = song_.find_section(section)) {
+        LOG_TRACE("add_track section {}", section);
+        auto& track = s->add_track();
+        for(auto&& b : track.bars()) {
+            for(std::size_t count = 0; count != song_.default_time_signature().beats_in_bar(); ++count) {
+                b.beats.push_back({beat::none});
+            }        
+        }
+        track_edit_view_->set_context(&song_, section);
+    }
+}
+
 void rumpu::handle_event(std::unique_ptr<securepath::event_system::event_base> ev) {
-    //dispatch(*ev        
-        //, event_dest<on_price_data>(&rumpu::on_price)
-    //    );
+    LOG_TRACE("event");
+    dispatch(*ev        
+        , event_dest<event::add_track>(&rumpu::add_track)
+        );
 }
 
 }

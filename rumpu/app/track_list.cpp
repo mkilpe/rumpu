@@ -1,6 +1,7 @@
 
 #include "track_list.hpp"
 #include "track_pane.hpp"
+#include <securepath/log/log.hpp>
 
 #include "imgui.h"
 
@@ -9,7 +10,6 @@ namespace securepath::drum::app {
 track_list::track_list(std::string name)
 : child_window_base(std::move(name))
 {
-	add_track();	
 }
 
 void track_list::add_track()
@@ -26,10 +26,30 @@ void track_list::add_track()
 	header_.set_size({1500, 20});
 }
 
-void track_list::set_section(song* s, uint32_t section)
+void track_list::set_track(drum::track const& t)
+{
+	add_track();
+}
+
+void track_list::update_tracks(song* s, uint32_t section) 
+{
+	 if(s) {
+        if(auto sec = s->find_section(section)) {
+        	LOG_TRACE("update tracks");
+        	// very un-optimal, please rewrite
+        	tracks_.clear();
+        	for(auto&& t : sec->tracks()) {
+        		set_track(t);
+        	}
+        }
+    }
+}
+
+void track_list::set_context(song* s, uint32_t section)
 {
 	if(s) {
 		header_.set_context(s, section);
+		update_tracks(s, section);
 		size_t i = 0;
 		for(auto&& t : tracks_) {
 			t.track->set_context(i++, s, section);

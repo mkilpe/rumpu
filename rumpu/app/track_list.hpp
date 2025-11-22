@@ -16,8 +16,10 @@ public:
     bool do_draw() override;
 
     void add_track();
-    void set_section(song*, uint32_t section);
-
+    void set_context(song*, uint32_t section);
+private:
+    void update_tracks(song* s, uint32_t section);
+    void set_track(drum::track const& t);
 private:
     struct track_info {
         child_window_ptr pane;
