@@ -130,39 +130,107 @@ struct drawer {
 	double bar_width{};	
 };
 
-void track::toggle_mark(track_draw_context& context, const ImVec2& rel_pos) {
-	std::size_t lead_x{10};
-	float bar_width = context.size.x / context.bar_count;
+struct bar_calc {
+	bar_calc(track_draw_context& context, const ImVec2& rel_pos)
+	: context(context)
+	, bar_width(context.size.x / context.bar_count)
+	, content_x(ImGui::GetScrollX() + rel_pos.x - lead_x)
+	, index(content_x / bar_width)
+	{
+	}
 
-	auto start_x = ImGui::GetScrollX();
-	auto content_x = start_x + rel_pos.x;
+	bar* find_bar() const {
+		return index < context.bars->size() ? &(*context.bars)[index] : nullptr;
+	}
 
-	content_x -= lead_x;
-	std::size_t low_index = content_x / bar_width;
-	std::size_t high_index = low_index+1;
-	
-	if(low_index < context.bars->size()) {
-		auto& beats = (*context.bars)[low_index].beats;
-		auto inner_pos = content_x - bar_width*low_index;		
+	beat* find_beat() const {
+		beat* res{};
+		if(index < context.bars->size()) {
+			auto& beats = (*context.bars)[index].beats;
+			std::size_t inner_index = calc_inner_index(index);
+			if(inner_index < beats.size()) {
+				res = &beats[inner_index];
+			}
+		}
+		return res;
+	}
+
+	std::size_t calc_inner_index(std::size_t index) const {
+		auto& beats = (*context.bars)[index].beats;
+		auto inner_pos = content_x - bar_width*index;		
 		float inner_factor = inner_pos / bar_width;
 		std::size_t beat_count = beats.empty() ? context.signature.beats_in_bar() : beats.size();
-		std::size_t inner_index = std::round(inner_factor * beat_count);
-		
-		beat* b{};
-		if(inner_index >= beats.size() && high_index < context.bars->size()) {
-			auto& high_beats = (*context.bars)[high_index].beats;
-			if(high_beats.empty()) {
-				high_beats.push_back(beat{beat::none});
-			}
-			b = &high_beats[0];			
-		} else {
-			if(beats.size() <= inner_index) {
-				beats.resize(inner_index+1);
-			}
-			b = &beats[inner_index];
-		}
-		b->action = b->action == beat::none ? beat::hit : beat::none;
+		return std::round(inner_factor * beat_count);
 	}
+
+	void toggle_mark() const {
+		std::size_t high_index = index+1;
+	
+		if(index < context.bars->size()) {
+			auto& beats = (*context.bars)[index].beats;
+			std::size_t inner_index = calc_inner_index(index);
+			
+			beat* b{};
+			if(inner_index >= beats.size() && high_index < context.bars->size()) {
+				auto& high_beats = (*context.bars)[high_index].beats;
+				if(high_beats.empty()) {
+					high_beats.push_back(beat{beat::none});
+				}
+				b = &high_beats[0];			
+			} else {
+				if(beats.size() <= inner_index) {
+					beats.resize(inner_index+1);
+				}
+				b = &beats[inner_index];
+			}
+			b->action = b->action == beat::none ? beat::hit : beat::none;
+		}
+	}
+
+	track_draw_context& context;
+	std::size_t lead_x{10};
+	float bar_width;
+	float content_x;
+	std::size_t index;
+};
+
+void track::context_menu(track_draw_context& context)
+{
+	ImGuiIO& io = ImGui::GetIO();
+	ImVec2 drag_delta = ImGui::GetMouseDragDelta(ImGuiMouseButton_Right);
+    auto context_name = name() + "_context";
+    if (drag_delta.x == 0.0f && drag_delta.y == 0.0f) {
+        ImGui::OpenPopupOnItemClick(context_name.c_str(), ImGuiPopupFlags_MouseButtonRight);
+    }
+    if (ImGui::BeginPopup(context_name.c_str())) {
+    	if (ImGui::MenuItem("Split beat")) {
+    		bar_calc bc(context, ImVec2{io.MousePos.x - context.pos.x, io.MousePos.y - context.pos.y});
+    		if(auto b = bc.find_beat()) {
+
+    		}
+    	}
+		if (ImGui::MenuItem("Divide beat")) {
+    		
+    	}
+		if (ImGui::MenuItem("Divide bar")) {
+    		bar_calc bc(context, ImVec2{io.MousePos.x - context.pos.x, io.MousePos.y - context.pos.y});
+    		if(auto b = bc.find_bar()) {
+    			b->beats.resize(7);
+    		}
+    	}
+    	if (ImGui::MenuItem("Clear bar")) {
+    		bar_calc bc(context, ImVec2{io.MousePos.x - context.pos.x, io.MousePos.y - context.pos.y});
+    		if(auto b = bc.find_bar()) {
+    			for(auto&& beat : b->beats) {
+    				beat.action = beat::none;
+    				beat.division.clear();
+    				//clear other data too?
+    			}
+    		}
+    	}
+
+        ImGui::EndPopup();
+    }
 }
 
 void track::handle_mouse(track_draw_context& context) {
@@ -170,21 +238,14 @@ void track::handle_mouse(track_draw_context& context) {
 	
 	ImGui::InvisibleButton((name()+"_mouse_canvas").c_str(), context.size, ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonRight);
 	bool hovered = ImGui::IsItemHovered();
-    //bool active = ImGui::IsItemActive();
     
     if (hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
     {
-    	toggle_mark(context, ImVec2{io.MousePos.x - context.pos.x, io.MousePos.y - context.pos.y});
+    	bar_calc bc(context, ImVec2{io.MousePos.x - context.pos.x, io.MousePos.y - context.pos.y});
+    	bc.toggle_mark();
     }
 
-    ImVec2 drag_delta = ImGui::GetMouseDragDelta(ImGuiMouseButton_Right);
-    auto context_name = name() + "_context";
-    if (drag_delta.x == 0.0f && drag_delta.y == 0.0f) {
-        ImGui::OpenPopupOnItemClick(context_name.c_str(), ImGuiPopupFlags_MouseButtonRight);
-    }
-    if (ImGui::BeginPopup(context_name.c_str())) {        
-        ImGui::EndPopup();
-    }
+    context_menu(context);
 }
 
 bool track::do_draw()

@@ -20,8 +20,9 @@ public:
     bool do_draw() override;
     void set_context(size_t index, song*, uint32_t section) override;
 private:
-    void toggle_mark(track_draw_context& context, const ImVec2& rel_pos);
+    void toggle_mark(track_draw_context&, const ImVec2& rel_pos);
     void handle_mouse(track_draw_context&);
+    void context_menu(track_draw_context&);
 
 private:
     size_t index_{};
