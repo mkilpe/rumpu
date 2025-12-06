@@ -143,46 +143,52 @@ struct bar_calc {
 		return index < context.bars->size() ? &(*context.bars)[index] : nullptr;
 	}
 
+	struct beat_index {
+		std::size_t bar_index{};
+		float index_pos{};
+	};
+
+	beat* find_beat_impl(beat_index bi) const {
+		beat* prev{};
+		float prev_pos{};
+		while(bi.bar_index < context.bar_count) {
+			auto& beats = (*context.bars)[bi.bar_index].beats;
+			if(!beats.empty()) {
+				float beat_pos_inc = bar_width / beats.size();
+				auto pos = bi.index_pos;
+				for(auto&& b : beats) {
+					if(b.division.empty()) {
+						if(pos >= x_content) {	
+							return !prev || (pos - x_content) >= (x_content - prev_pos) ? &b : prev;
+						}
+					} else {
+						auto fb = find_beat_div(b.division);
+						if()
+					}
+					pos += beat_pos_inc;
+					prev = &b;
+					prev_pos = pos;
+				}
+			}			
+			++bi.bar_index;
+			bi.index_pos += bar_width;
+		}
+	}
+
 	beat* find_beat() const {
 		beat* res{};
 		if(index < context.bars->size()) {
-			auto& beats = (*context.bars)[index].beats;
-			std::size_t inner_index = calc_inner_index(index);
-			if(inner_index < beats.size()) {
-				res = &beats[inner_index];
+			a
+			if(!beats.empty()) {
+				res = find_beat_impl(beat_index{index, bar_width*index});
 			}
 		}
 		return res;
 	}
 
-	std::size_t calc_inner_index(std::size_t index) const {
-		auto& beats = (*context.bars)[index].beats;
-		auto inner_pos = content_x - bar_width*index;		
-		float inner_factor = inner_pos / bar_width;
-		std::size_t beat_count = beats.empty() ? context.signature.beats_in_bar() : beats.size();
-		return std::round(inner_factor * beat_count);
-	}
 
 	void toggle_mark() const {
-		std::size_t high_index = index+1;
-	
-		if(index < context.bars->size()) {
-			auto& beats = (*context.bars)[index].beats;
-			std::size_t inner_index = calc_inner_index(index);
-			
-			beat* b{};
-			if(inner_index >= beats.size() && high_index < context.bars->size()) {
-				auto& high_beats = (*context.bars)[high_index].beats;
-				if(high_beats.empty()) {
-					high_beats.push_back(beat{beat::none});
-				}
-				b = &high_beats[0];			
-			} else {
-				if(beats.size() <= inner_index) {
-					beats.resize(inner_index+1);
-				}
-				b = &beats[inner_index];
-			}
+		if(beat* b = find_beat()) {
 			b->action = b->action == beat::none ? beat::hit : beat::none;
 		}
 	}
