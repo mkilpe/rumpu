@@ -28,6 +28,7 @@ private:
     size_t index_{};
     song* song_{};
     uint32_t section_{};
+    ImVec2 mouse_pos_{};
 };
 
 using track_ptr = std::unique_ptr<track_view>;

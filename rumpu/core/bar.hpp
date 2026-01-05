@@ -39,6 +39,10 @@ struct beat {
 		vol += hit_data.rand_volume.value;
 		return vol;
 	}
+
+	beat data() const {
+		return beat{action, {}, hit_data, stop_data};
+	}
 };
 
 struct bar {
