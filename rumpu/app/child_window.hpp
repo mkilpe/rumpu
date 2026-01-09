@@ -13,6 +13,7 @@ public:
     virtual bool is_visible() const = 0;
     virtual void set_visible(bool show) = 0;
     virtual void set_size(const ImVec2& size) = 0;
+    virtual ImVec2 size() const = 0;
 protected:
     virtual bool do_draw() = 0;
 };
@@ -29,6 +30,10 @@ public:
     
     void set_size(const ImVec2& size) override {
         size_ = size;
+    }
+
+    ImVec2 size() const override {
+        return size_;
     }
 
     bool draw() final {

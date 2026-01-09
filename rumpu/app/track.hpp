@@ -9,6 +9,7 @@ class track_view : public child_window_base {
 public:
     using child_window_base::child_window_base;
     virtual void set_context(size_t index, song*, uint32_t section) = 0;
+    virtual void zoom(float) = 0;
 };
 
 struct track_draw_context;
@@ -19,6 +20,8 @@ public:
 
     bool do_draw() override;
     void set_context(size_t index, song*, uint32_t section) override;
+    void set_size(const ImVec2& size) override;
+    void zoom(float) override;
 private:
     void toggle_mark(track_draw_context&, const ImVec2& rel_pos);
     void handle_mouse(track_draw_context&);
@@ -29,6 +32,8 @@ private:
     song* song_{};
     uint32_t section_{};
     ImVec2 mouse_pos_{};
+    float zoom_{1.0f};
+    ImVec2 original_size_{};
 };
 
 using track_ptr = std::unique_ptr<track_view>;

@@ -246,17 +246,60 @@ void track::context_menu(track_draw_context& context)
     			b->division.front() = b->data();
     		}
     	}
-		if (ImGui::MenuItem("Divide beat")) {
-    		bar_calc bc(context, ImVec2{mouse_pos_.x - context.pos.x, mouse_pos_.y - context.pos.y});
-    		if(auto b = bc.find_beat()) {
-				    			
+		//if (ImGui::MenuItem("Divide beat")) {
+		if (ImGui::BeginMenu("Divide beat"))
+        {
+        	std::size_t amount = 0;
+            if(ImGui::MenuItem("2")) {
+				amount = 2;
+            }
+            if(ImGui::MenuItem("3")) {
+				amount = 3;
+            }
+            if(ImGui::MenuItem("4")) {
+				amount = 4;
+            }
+            if(ImGui::MenuItem("5")) {
+				amount = 5;
+            }
+            if(ImGui::MenuItem("...")) {
+            	//open dialog..
+            }
+            if(amount) {
+    			bar_calc bc(context, ImVec2{mouse_pos_.x - context.pos.x, mouse_pos_.y - context.pos.y});
+    			if(auto b = bc.find_beat()) {
+				    b->division.resize(amount);
+				    b->division.front() = b->data();
+    			}
     		}
+    		ImGui::EndMenu(); 
     	}
-		if (ImGui::MenuItem("Divide bar")) {
-    		bar_calc bc(context, ImVec2{mouse_pos_.x - context.pos.x, mouse_pos_.y - context.pos.y});
-    		if(auto b = bc.find_bar()) {
-    			b->beats.resize(7);
+		//if (ImGui::MenuItem("Divide bar")) {
+		if (ImGui::BeginMenu("Divide bar"))
+        {
+        	std::size_t amount = 0;
+            if(ImGui::MenuItem("2")) {
+				amount = 2;
+            }
+            if(ImGui::MenuItem("3")) {
+				amount = 3;
+            }
+            if(ImGui::MenuItem("4")) {
+				amount = 4;
+            }
+            if(ImGui::MenuItem("5")) {
+				amount = 5;
+            }
+            if(ImGui::MenuItem("...")) {
+            	//open dialog..
+            }
+            if(amount) {
+    			bar_calc bc(context, ImVec2{mouse_pos_.x - context.pos.x, mouse_pos_.y - context.pos.y});
+    			if(auto b = bc.find_bar()) {
+    				b->beats.resize(amount);
+    			}
     		}
+            ImGui::EndMenu();        
     	}
     	if (ImGui::MenuItem("Clear bar")) {
     		bar_calc bc(context, ImVec2{mouse_pos_.x - context.pos.x, mouse_pos_.y - context.pos.y});
@@ -288,6 +331,20 @@ void track::handle_mouse(track_draw_context& context) {
     }
 
     context_menu(context);
+}
+
+void track::set_size(const ImVec2& size) 
+{
+	original_size_ = size;
+	child_window_base::set_size(size);
+}
+
+void track::zoom(float z)
+{
+	zoom_ = z;
+	auto size = original_size_;
+	size.x *= zoom_;
+	child_window_base::set_size(size);
 }
 
 bool track::do_draw()

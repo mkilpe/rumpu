@@ -27,6 +27,8 @@ private:
     };
     track_header header_; 
     std::vector<track_info> tracks_;
+
+    float zoom_{1.0f};
 };
 
 }

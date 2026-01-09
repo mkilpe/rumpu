@@ -59,6 +59,20 @@ void track_list::set_context(song* s, uint32_t section)
 
 bool track_list::do_draw()
 {
+	ImGuiIO& io = ImGui::GetIO();
+
+	bool zoom_changed = false;
+	if(io.MouseWheel) {
+		zoom_changed = true;
+		zoom_ += 0.05 * io.MouseWheel;
+		if(zoom_ > 20.0) {
+			zoom_ = 20.0;
+		}
+		if(zoom_ < 0.10) {
+			zoom_ = 0.10;
+		}		
+	}
+
 	if (ImGui::BeginTable("track_list_table", 2, ImGuiTableFlags_BordersH | ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg)) {
 		ImGui::TableSetupScrollFreeze(1, 0);
 		ImGui::TableNextRow();
@@ -70,6 +84,9 @@ bool track_list::do_draw()
 			ImGui::TableNextColumn();
 			v.pane->draw();
 			ImGui::TableNextColumn();
+			if(zoom_changed) {
+				v.track->zoom(zoom_);
+			}
 			v.track->draw();
 		}
 		ImGui::EndTable();
