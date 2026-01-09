@@ -123,10 +123,18 @@ void rumpu::add_track(uint32_t section) {
     }
 }
 
+void rumpu::play_song(uint32_t section) {
+}
+
+void rumpu::stop_song(uint32_t section) {
+}
+
 void rumpu::handle_event(std::unique_ptr<securepath::event_system::event_base> ev) {
     LOG_TRACE("event");
     dispatch(*ev        
         , event_dest<event::add_track>(&rumpu::add_track)
+        , event_dest<event::play_song>(&rumpu::play_song)
+        , event_dest<event::stop_song>(&rumpu::stop_song)
         );
 }
 

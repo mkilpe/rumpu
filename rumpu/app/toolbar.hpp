@@ -15,6 +15,7 @@ public:
     void set_context(song*, uint32_t section);
 
 private:
+    template<typename Event>
     void button(const std::string& label);
 
 private:

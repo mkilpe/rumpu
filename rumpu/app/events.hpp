@@ -8,4 +8,12 @@ struct add_track {
     typedef void type(std::uint32_t section);
 };
 
+struct play_song {
+    typedef void type(std::uint32_t section);
+};
+
+struct stop_song {
+    typedef void type(std::uint32_t section);
+};
+
 }

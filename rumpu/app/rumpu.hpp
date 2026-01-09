@@ -20,6 +20,8 @@ public:
 private:
     void menu();
     void add_track(uint32_t section);
+    void play_song(uint32_t section);
+    void stop_song(uint32_t section);
 private:
     bool running_{true};
     bool show_window{true};

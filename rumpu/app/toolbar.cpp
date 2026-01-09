@@ -19,23 +19,26 @@ void toolbar::set_context(song* s, uint32_t section)
     section_ = section;
 }
 
+template<typename Event>
 void toolbar::button(const std::string& label) {
     ImGui::Button(label.c_str());
     if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
-        LOG_TRACE("button clicked");
         if(song_) {
-            handler_.emit<event::add_track>(section_);
+            handler_.emit<Event>(section_);
         }
     }   
 }
 
 bool toolbar::do_draw()
 {
-    if (ImGui::BeginTable("toolbar_table", 1, ImGuiTableFlags_ScrollY)) {
+    if (ImGui::BeginTable("toolbar_table", 3, ImGuiTableFlags_ScrollY | ImGuiTableFlags_SizingFixedFit)) {
         ImGui::TableNextRow();
         ImGui::TableNextColumn();
-        button("Add track");
- 
+        button<event::add_track>("Add track");
+        ImGui::TableNextColumn();
+        button<event::play_song>("Play");
+        ImGui::TableNextColumn();
+        button<event::stop_song>("Stop");
         ImGui::EndTable();
     }
     return true;
