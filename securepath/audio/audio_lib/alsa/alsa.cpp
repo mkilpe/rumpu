@@ -192,14 +192,19 @@ public:
 	void start() {
 		LOG_TRACE("ALSA: start");
 
-		if(snd_pcm_state(handle_) == SND_PCM_STATE_PREPARED) {
-			int err = snd_pcm_start(handle_);
+		auto state = snd_pcm_state(handle_);
+		if(state != SND_PCM_STATE_PREPARED) {
+			int err = snd_pcm_prepare(handle_);
 			if(err != 0) {
-				LOG_TRACE("failed to start play: {}", snd_strerror(err));
-				throw std::runtime_error("failed to start play");
+				LOG_TRACE("failed to prepare play: {}", snd_strerror(err));
+				throw std::runtime_error("failed to prepare play");
 			}
 		}
-
+		int err = snd_pcm_start(handle_);
+		if(err != 0) {
+			LOG_TRACE("failed to start play: {}", snd_strerror(err));
+			throw std::runtime_error("failed to start play");
+		}
 	}
 
 	void stop(stop_type s) {
