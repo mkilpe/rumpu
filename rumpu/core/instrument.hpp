@@ -10,6 +10,7 @@ public:
 	instrument() = default;
 	instrument(std::string const& file);
 
+	bool is_valid() const;
 	std::string const& name() const;
 	drum_sample const& sample_to_play() const;
 	drum::volume const& volume() const;

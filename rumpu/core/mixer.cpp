@@ -292,7 +292,12 @@ struct mixer::impl {
 		if(data.action == beat::hit) {
 			info.audio_pos = 0;
 			info.falloff = std::nullopt;
-			info.current_audio = song_->instruments()[index].sample_to_play().buffer();
+			auto& instrument = song_->instruments()[index];
+			if(instrument.is_valid()) {
+				info.current_audio = instrument.sample_to_play().buffer();
+			} else {
+				info.current_audio = {};
+			}			
 			info.current_audio_volume = data.volume;
 		} else if(info.current_audio) {
 			info.falloff = data.falloff;
@@ -352,6 +357,7 @@ std::size_t mixer::process(float* buffer, std::size_t samples)  {
 		std::fill(buffer, buffer+samples, 0.0f);
 
 		while(ret < samples && impl_->is_playing()) {
+			std::shared_lock l{impl_->song_->mutex};
 			std::uint32_t samples_to_process = std::min<std::uint32_t>(impl_->pos_.samples-impl_->pos_.sample_pos, samples-ret);
 			for(std::size_t i = 0; i != impl_->infos_.size(); ++i) {
 				impl_->process_track(buffer+ret, i, samples_to_process);

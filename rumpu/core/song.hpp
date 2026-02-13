@@ -9,6 +9,7 @@
 #include <iterator>
 #include <map>
 #include <vector>
+#include <shared_mutex>
 
 namespace securepath::drum {
 
@@ -46,6 +47,9 @@ public:
 	section* find_section(std::uint32_t);
 	std::uint32_t add_section(std::optional<section> = std::nullopt);
 	void add_section(std::uint32_t id);
+
+public:
+	mutable std::shared_mutex mutex;
 
 private:
 	// information about this song

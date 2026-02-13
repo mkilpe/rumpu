@@ -294,6 +294,7 @@ struct mixer::impl {
 		if(data.action == beat::hit) {
 			info.audio_pos = 0;
 			info.falloff = std::nullopt;
+			auto& instrument = song_->instruments()[index];
 			info.current_audio = song_->instruments()[index].sample_to_play().buffer();
 			info.current_audio_volume = data.volume;
 		} else if(info.current_audio) {

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <rumpu/core/song.hpp>
+#include <rumpu/core/player.hpp>
 
 #include <securepath/event_system/event_handler.hpp>
 #include <securepath/event_system/event_loop.hpp>
@@ -22,13 +23,18 @@ private:
     void add_track(uint32_t section);
     void play_song(uint32_t section);
     void stop_song(uint32_t section);
+    void player_pos_changed();
+
+    void show_about() const;
 private:
     bool running_{true};
     bool show_window{true};
+    mutable bool show_about_{};
 
     mutable std::mutex mutex_;
     song song_;
     std::unique_ptr<track_edit_view> track_edit_view_;
+    player player_;
     
     std::vector<child_window*> windows_;
 };

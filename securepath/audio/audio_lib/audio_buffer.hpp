@@ -17,6 +17,7 @@ class audio_buffer {
 public:
 	typedef std::uint_fast32_t uint;
 
+	audio_buffer();
 	audio_buffer(audio_format f, std::size_t samples);
 	audio_buffer(audio_format f, octet_vector const& data);
 	audio_buffer(audio_buffer&&);
@@ -65,10 +66,10 @@ public:
 	void dump(std::ostream&);
 private:
 	audio_format format_;
-	void* p_;
-	std::size_t bytes_per_sample_;
-	std::size_t samples_;
-	std::size_t used_samples_;
+	void* p_ {};
+	std::size_t bytes_per_sample_ {};
+	std::size_t samples_ {};
+	std::size_t used_samples_ {};
 	std::unique_ptr<audio_buffer_base> ptr_;
 };
 

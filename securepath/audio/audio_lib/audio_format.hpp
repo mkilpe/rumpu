@@ -58,14 +58,12 @@ inline bool operator==(audio_format a1, audio_format a2) {
 		&& a1.endian == a2.endian;
 }
 
-struct device_config {
+struct device_config final {
 	device_config(audio_format f, std::size_t buf_size)
 	: format(f)
 	, buffer_size(buf_size)
 	, period_size(buffer_size/2)
 	{}
-
-	virtual ~device_config() {}
 
 	audio_format format;
 	std::size_t buffer_size; //in samples

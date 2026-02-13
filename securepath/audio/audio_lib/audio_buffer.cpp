@@ -101,10 +101,8 @@ audio_buffer::audio_buffer(audio_format f, octet_vector const& data)
 audio_buffer::audio_buffer(audio_buffer&&) = default;
 audio_buffer& audio_buffer::operator=(audio_buffer&&) = default;
 
-audio_buffer::~audio_buffer()
-{
-
-}
+audio_buffer::audio_buffer() = default;
+audio_buffer::~audio_buffer() = default;
 
 void audio_buffer::consume_samples(uint samples) {
 	if(samples == used_samples_) {

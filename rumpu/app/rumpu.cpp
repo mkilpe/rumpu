@@ -10,7 +10,9 @@ namespace securepath::drum::app {
 
 rumpu::rumpu() 
 : event_handler(static_cast<securepath::event_system::event_loop&>(*this))
-, song_({}, {3,4}, {60.0}) {
+, song_({}, {3,4}, {60.0})
+, player_(*this)
+{
     ImGuiIO& io = ImGui::GetIO();
     io.Fonts->AddFontDefault();
 
@@ -47,6 +49,11 @@ rumpu::rumpu()
 void rumpu::menu() {
     if (ImGui::BeginMenuBar()) {
         if (ImGui::BeginMenu("File")) {
+            if (ImGui::MenuItem("Open..."))  { 
+            }
+            if (ImGui::MenuItem("Save"))  { 
+            }
+            ImGui::Separator();
             if (ImGui::MenuItem("Close"))  { 
                 running_ = false; 
             }
@@ -54,7 +61,7 @@ void rumpu::menu() {
         }
         if (ImGui::BeginMenu("Views")) {
             for(auto&& w : windows_) {
-                if (ImGui::MenuItem(w->name().c_str(), nullptr, w->is_visible()))  {
+                if (ImGui::MenuItem(w->name().c_str(), nullptr, w->is_visible())) {
                     w->set_visible(!w->is_visible());
                 }
             }
@@ -63,6 +70,13 @@ void rumpu::menu() {
         if (ImGui::BeginMenu("Options")) {
             if (ImGui::MenuItem("Settings")) {
 
+            }
+            ImGui::EndMenu();
+        }
+        if (ImGui::BeginMenu("Help")) {
+            ImGui::Separator();
+            if (ImGui::MenuItem("About")) {
+                show_about();
             }
             ImGui::EndMenu();
         }
@@ -124,18 +138,32 @@ void rumpu::add_track(uint32_t section) {
 }
 
 void rumpu::play_song(uint32_t section) {
+    player_.play(&song_, false, section);
 }
 
 void rumpu::stop_song(uint32_t section) {
+    player_.stop();
+}
+
+void rumpu::player_pos_changed() {
+    LOG_TRACE("play pos changed");
 }
 
 void rumpu::handle_event(std::unique_ptr<securepath::event_system::event_base> ev) {
-    LOG_TRACE("event");
     dispatch(*ev        
         , event_dest<event::add_track>(&rumpu::add_track)
         , event_dest<event::play_song>(&rumpu::play_song)
         , event_dest<event::stop_song>(&rumpu::stop_song)
+        , event_dest<drum::event::player_pos_changed>(&rumpu::player_pos_changed)
         );
+}
+
+void rumpu::show_about() const
+{
+    if (ImGui::Begin("About", &show_about_, ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::Text("some");
+        ImGui::End();
+    }
 }
 
 }

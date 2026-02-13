@@ -1,6 +1,6 @@
 #include "alsa.hpp"
-#include <voice/audiolib/audio_device_modes.hpp>
-#include <voice/audiolib/util.hpp>
+#include <securepath/audio/audio_lib/audio_device_modes.hpp>
+#include <securepath/audio/audio_lib/util.hpp>
 
 #include <securepath/log/log.hpp>
 
@@ -276,7 +276,7 @@ public:
 		}
 
 		return revents & POLLOUT;
-	}
+	}	
 
 	virtual std::size_t write(audio_buffer& b) {
 		int samples = snd_pcm_writei(handle_, b.begin<uint8_t>(), b.used_samples());

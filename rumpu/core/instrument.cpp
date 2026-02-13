@@ -8,6 +8,10 @@ instrument::instrument(std::string const& file)
 	samples_.push_back(load_drum_sample(file));
 }
 
+bool instrument::is_valid() const {
+	return !samples_.empty();
+}
+
 drum_sample const& instrument::sample_to_play() const {
 	return samples_.front();
 	//t: later on allow to select randomly from multiple samples

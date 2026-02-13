@@ -1,7 +1,7 @@
 #ifndef SECUREPATH_AUDIO_ALSA_HEADER
 #define SECUREPATH_AUDIO_ALSA_HEADER
 
-#include "audio_interface.hpp"
+#include "../audio_interface.hpp"
 
 namespace securepath::audio {
 
