@@ -55,6 +55,7 @@ inline bool operator==(audio_format a1, audio_format a2) {
 	return a1.type == a2.type
 		&& a1.channels == a2.channels
 		&& a1.bits_per_sample == a2.bits_per_sample
+		&& a1.samples_per_second == a2.samples_per_second
 		&& a1.endian == a2.endian;
 }
 

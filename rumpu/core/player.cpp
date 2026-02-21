@@ -16,7 +16,7 @@ player::player(event_system::event_handler& h, audio::device_config const& confi
 {
 	auto interface = audio::create_default_audio_interface();
 	if(interface) {
-		out_ = interface->play_device(config);		
+		out_ = interface->play_device(config);
 	}
 	if(!out_) {
 		throw std::runtime_error("Failed to find audio play device");
@@ -32,7 +32,10 @@ player::~player() {
 		std::unique_lock l{mutex_};
 		running_ = false;
 		if(out_) {
-			out_->stop();
+			try {
+				out_->stop();
+			} catch(...) 
+			{}
 		}
 	}
 	cond_.notify_one();
@@ -43,12 +46,16 @@ void player::play(song const* s, bool, std::uint32_t section) {
 	std::unique_lock l{mutex_};
 	song_ = s;
 	if(out_) {
+		auto sample_rate = out_->config().format.samples_per_second;
+		// ensure instrument samples are loaded at the correct sample rate
+		const_cast<song*>(song_)->load_instruments(sample_rate);
 		if(section) {
-			mixer_.emplace(*song_, section, out_->config().format.samples_per_second);
+			mixer_.emplace(*song_, section, sample_rate);
 		} else {
-			mixer_.emplace(*song_, out_->config().format.samples_per_second);
+			mixer_.emplace(*song_, sample_rate);
 		}
 		out_->start();
+		write_data();
 		cond_.notify_one();
 	}
 }
@@ -76,7 +83,7 @@ float player::gain() const {
 	return gain_;
 }
 
-void player::write_data() {
+void player::write_data() {	
 	std::size_t process = std::min<std::size_t>(out_->avail(), buffer_.free_samples());
 	if(process) {
 		float* start = &*buffer_.free_begin<float>();
@@ -85,17 +92,14 @@ void player::write_data() {
 			buffer_.conserve_samples(samples);
 			std::for_each(start, start+samples, [&](float& v)
 			{
-				if(v != 0) {
-					LOG_TRACE("value1: {}", v);
-				}
-				v *= gain_;				
+				v *= gain_;
 			});
 			size_t res = out_->write(buffer_);
-			if(res != samples*sizeof(float)) {
+			if(res != static_cast<size_t>(samples)) {
 				LOG_WARN("could not write all to buffer");
 			}
 		} else {
-			stop();
+			internal_stop();
 		}
 		handler_.emit<event::player_pos_changed>();
 	}
@@ -105,7 +109,11 @@ void player::play_entry() {
 	std::unique_lock l{mutex_};
 	while(running_) {
 		if(mixer_ && out_) {
-			if(out_->wait()) {
+			auto out = out_;
+			l.unlock();
+			out->wait();
+			l.lock();
+			if(running_ && out_ && mixer_) {
 				try {
 					write_data();
 				} catch(const std::exception& ex) {
@@ -120,9 +128,14 @@ void player::play_entry() {
 
 void player::stop() {
 	std::unique_lock l{mutex_};
+	internal_stop();
+}
+
+void player::internal_stop() {
 	if(out_) {
 		out_->stop();
 		mixer_ = std::nullopt;
+		buffer_.set_used_samples(0);
 		handler_.emit<event::player_pos_changed>();
 	}
 }

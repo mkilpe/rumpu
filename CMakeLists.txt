@@ -36,3 +36,5 @@ add_subdirectory(rumpu)
 
 # base libs
 add_subdirectory(securepath)
+
+add_subdirectory(test)

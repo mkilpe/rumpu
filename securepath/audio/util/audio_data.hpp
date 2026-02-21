@@ -21,10 +21,13 @@ public:
 	audio_data(audio::audio_buffer const& buffer);
 
 	void load(std::string const& file, file_format = auto_format);
+	void load(std::string const& file, audio::audio_format format, file_format = auto_format);
 	void save(std::string const& file, file_format = auto_format);
 
 	audio::audio_format format() const;
 	octet_vector data() const; //interlaced data for multiple channels
+private:
+	void reformat(audio::audio_format const& target);
 private:
 	audio::audio_format format_;
 	octet_vector data_;

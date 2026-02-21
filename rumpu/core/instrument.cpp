@@ -30,9 +30,9 @@ void instrument::set_volume(drum::volume const& v) {
 }
 
 void instrument::load_samples(std::uint32_t sample_rate) {
-	for(auto& v : samples_) {
-		v.load_sample(sample_rate);
-	}
+	for(auto&& s : samples_) {
+		s.load_sample(sample_rate);
+	}	
 }
 
 }

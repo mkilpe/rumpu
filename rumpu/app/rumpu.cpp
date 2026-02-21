@@ -17,7 +17,7 @@ rumpu::rumpu()
     io.Fonts->AddFontDefault();
 
     //for testing
-    song_.add_instrument(instrument{});
+    song_.add_instrument(instrument{"test_kick.wav"});
     auto id = song_.add_section();
     song_.section_order().push_back(id);
 
@@ -125,16 +125,9 @@ bool rumpu::update() {
 void rumpu::add_track(uint32_t section) {
     std::unique_lock l{mutex_};
     LOG_TRACE("add_track");
-    if(auto s = song_.find_section(section)) {
-        LOG_TRACE("add_track section {}", section);
-        auto& track = s->add_track();
-        for(auto&& b : track.bars()) {
-            for(std::size_t count = 0; count != song_.default_time_signature().beats_in_bar(); ++count) {
-                b.beats.push_back({beat::none});
-            }        
-        }
-        track_edit_view_->set_context(&song_, section);
-    }
+    // for testing
+    song_.add_instrument(instrument{"test_kick.wav"});
+    track_edit_view_->set_context(&song_, section);
 }
 
 void rumpu::play_song(uint32_t section) {

@@ -13,6 +13,8 @@ bin
 *.depends
 
 CMakeCache.txt
+CTestTestfile.cmake
+DartConfiguration.tcl
 Makefile
 CMakeFiles
 cmake_install.cmake
@@ -25,3 +27,6 @@ Doxyfile.Doxygen
 
 .asciidoctor
 ./config.hpp
+test
+catch2
+build_*

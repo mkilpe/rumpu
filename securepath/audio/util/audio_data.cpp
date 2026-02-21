@@ -1,7 +1,9 @@
 #include "audio_data.hpp"
 #include "detail/wav.hpp"
 
+#include <cstring>
 #include <fstream>
+#include <vector>
 
 namespace securepath::audio {
 
@@ -20,6 +22,85 @@ audio_data::audio_data(audio::audio_buffer const& buffer)
 : format_(buffer.format())
 , data_(buffer.begin<std::uint8_t>(), buffer.begin<std::uint8_t>() + buffer.size())
 {
+}
+
+static_assert(sizeof(float) == 4);
+
+static float read_sample(std::uint8_t const* src, audio::audio_format const& fmt) {
+	switch(fmt.type) {
+	case audio::char_t:  return static_cast<std::int8_t>(*src) / 128.0f;
+	case audio::uchar_t: return (*src - 128) / 128.0f;
+	case audio::short_t: { std::int16_t v; std::memcpy(&v, src, sizeof(v)); return v / 32768.0f; }
+	case audio::float_t: { float v; std::memcpy(&v, src, sizeof(v)); return v; }
+	}
+	return 0.f;
+}
+
+static void write_sample(std::uint8_t* dst, float v, audio::audio_format const& fmt) {
+	v = std::clamp(v, -1.0f, 1.0f);
+	switch(fmt.type) {
+	case audio::char_t:  *reinterpret_cast<std::int8_t*>(dst) = std::int8_t(v * 127); break;
+	case audio::uchar_t: *dst = std::uint8_t((v + 1.0f) * 127.5f); break;
+	case audio::short_t: { auto s = std::int16_t(v * 32767); std::memcpy(dst, &s, sizeof(s)); break; }
+	case audio::float_t: std::memcpy(dst, &v, sizeof(v)); break;
+	}
+}
+
+static float mix_channels(float const* channels, std::uint32_t count) {
+	float v = 0.f;
+	for(std::uint32_t i = 0; i != count; ++i) {
+		v += channels[i];
+	}
+	return v / float(count);
+}
+
+static float remap_channel(float const* src_channels, std::uint32_t src_ch, std::uint32_t dst_ch, std::uint32_t ch) {
+	if(dst_ch < src_ch) {
+		return mix_channels(src_channels, src_ch);
+	}
+	if(ch < src_ch) {
+		return src_channels[ch];
+	}
+	return src_channels[0];
+}
+
+void audio_data::reformat(audio::audio_format const& target) {
+	constexpr size_t max_channels = 16;
+	if(format_.channels >= max_channels) {
+		throw std::runtime_error("Too many channels, only 16 supported");
+	}
+
+	std::uint32_t src_stride = format_.bits_per_sample / 8;
+	std::uint32_t dst_stride = target.bits_per_sample / 8;
+	std::size_t src_frame = src_stride * format_.channels;
+	std::size_t dst_frame = dst_stride * target.channels;
+	std::size_t num_frames = data_.size() / src_frame;
+
+	octet_vector out(num_frames * dst_frame);
+
+	for(std::size_t f = 0; f != num_frames; ++f) {
+		auto* src = data_.data() + f * src_frame;
+		auto* dst = out.data() + f * dst_frame;
+
+		float channels[max_channels];
+		for(std::uint32_t c = 0; c != format_.channels; ++c) {
+			channels[c] = read_sample(src + c * src_stride, format_);
+		}
+
+		for(std::uint32_t c = 0; c != target.channels; ++c) {
+			write_sample(dst + c * dst_stride, remap_channel(channels, format_.channels, target.channels, c), target);
+		}
+	}
+
+	data_ = std::move(out);
+	format_ = target;
+}
+
+void audio_data::load(std::string const& file, audio::audio_format format, file_format ff) {
+	load(file, ff);
+	if(format_ != format) {
+		reformat(format);
+	}	
 }
 
 void audio_data::load(std::string const& file, file_format ff) {

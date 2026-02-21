@@ -34,6 +34,7 @@ public:
 	float gain() const;
 
 private:
+	void internal_stop();
 	void play_entry();
 	void write_data();
 
@@ -41,7 +42,7 @@ private:
 	mutable std::mutex mutex_;
 	std::condition_variable cond_;	
 	event_system::event_handler& handler_;
-	std::unique_ptr<audio::audio_play_device> out_;
+	std::shared_ptr<audio::audio_play_device> out_;
 	song const* song_;
 	std::optional<mixer> mixer_;
 	audio::audio_buffer buffer_;

@@ -18,7 +18,7 @@ public:
 	sample_buffer buffer() const { return buffer_; }
 	std::uint32_t sample_rate() const { return sample_rate_; }
 
-	bool load_sample(std::uint32_t sample_rate);
+	void load_sample(std::uint32_t sample_rate);
 
 private:
 	std::string source_file_;
