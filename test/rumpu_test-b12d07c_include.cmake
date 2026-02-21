@@ -1,0 +1,5 @@
+if(EXISTS "/home/mikael/dev/rumpu/test/rumpu_test-b12d07c_tests.cmake")
+  include("/home/mikael/dev/rumpu/test/rumpu_test-b12d07c_tests.cmake")
+else()
+  add_test(rumpu_test_NOT_BUILT-b12d07c rumpu_test_NOT_BUILT-b12d07c)
+endif()

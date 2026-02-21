@@ -27,6 +27,6 @@ Doxyfile.Doxygen
 
 .asciidoctor
 ./config.hpp
-test
+oi
 catch2
 build_*
