@@ -43,6 +43,7 @@ rumpu::rumpu()
     track_edit_view_.reset(new track_edit_view(*this));
     windows_.push_back(track_edit_view_.get());
 
+    current_section_ = id;
     track_edit_view_->set_context(&song_, id);
 }
 
@@ -56,6 +57,16 @@ void rumpu::menu() {
             ImGui::Separator();
             if (ImGui::MenuItem("Close"))  { 
                 running_ = false; 
+            }
+            ImGui::EndMenu();
+        }
+        if (ImGui::BeginMenu("Sections")) {
+            for (auto const& [id, section] : song_.sections()) {
+                std::string label = "Section " + std::to_string(id);
+                bool is_selected = (id == current_section_);
+                if (ImGui::MenuItem(label.c_str(), nullptr, is_selected)) {
+                    select_section_impl(id);
+                }
             }
             ImGui::EndMenu();
         }
@@ -130,6 +141,25 @@ void rumpu::add_track(uint32_t section) {
     track_edit_view_->set_context(&song_, section);
 }
 
+void rumpu::select_section_impl(uint32_t section_id) {
+    current_section_ = section_id;
+    track_edit_view_->set_context(&song_, section_id);
+}
+
+void rumpu::select_section(uint32_t section_id) {
+    std::unique_lock l{mutex_};
+    select_section_impl(section_id);
+}
+
+void rumpu::add_section() {
+    std::unique_lock l{mutex_};
+    LOG_TRACE("add_section");
+    auto id = song_.add_section();
+    song_.section_order().push_back(id);
+    current_section_ = id;
+    track_edit_view_->set_context(&song_, id);
+}
+
 void rumpu::play_song(uint32_t section) {
     player_.play(&song_, false, section);
 }
@@ -143,10 +173,12 @@ void rumpu::player_pos_changed() {
 }
 
 void rumpu::handle_event(std::unique_ptr<securepath::event_system::event_base> ev) {
-    dispatch(*ev        
+    dispatch(*ev
         , event_dest<event::add_track>(&rumpu::add_track)
         , event_dest<event::play_song>(&rumpu::play_song)
         , event_dest<event::stop_song>(&rumpu::stop_song)
+        , event_dest<event::select_section>(&rumpu::select_section)
+        , event_dest<event::add_section>(&rumpu::add_section)
         , event_dest<drum::event::player_pos_changed>(&rumpu::player_pos_changed)
         );
 }

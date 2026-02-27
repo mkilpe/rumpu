@@ -16,4 +16,12 @@ struct stop_song {
     typedef void type(std::uint32_t section);
 };
 
+struct select_section {
+    typedef void type(std::uint32_t section_id);
+};
+
+struct add_section {
+    typedef void type();
+};
+
 }

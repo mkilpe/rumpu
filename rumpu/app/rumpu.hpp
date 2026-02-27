@@ -23,6 +23,9 @@ private:
     void add_track(uint32_t section);
     void play_song(uint32_t section);
     void stop_song(uint32_t section);
+    void select_section(uint32_t section_id);
+    void select_section_impl(uint32_t section_id);
+    void add_section();
     void player_pos_changed();
 
     void show_about() const;
@@ -30,6 +33,7 @@ private:
     bool running_{true};
     bool show_window{true};
     mutable bool show_about_{};
+    uint32_t current_section_{};
 
     mutable std::mutex mutex_;
     song song_;

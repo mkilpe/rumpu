@@ -31,7 +31,7 @@ void toolbar::button(const std::string& label) {
 
 bool toolbar::do_draw()
 {
-    if (ImGui::BeginTable("toolbar_table", 3, ImGuiTableFlags_ScrollY | ImGuiTableFlags_SizingFixedFit)) {
+    if (ImGui::BeginTable("toolbar_table", 3, ImGuiTableFlags_SizingFixedFit)) {
         ImGui::TableNextRow();
         ImGui::TableNextColumn();
         button<event::add_track>("Add track");
