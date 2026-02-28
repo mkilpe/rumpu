@@ -67,10 +67,42 @@ audio::length_type player::current_play_time() const {
 		: audio::length_type{};
 }
 
-int player::current_play_bar() const {
+std::uint32_t player::current_play_bar() const {
 	std::unique_lock l{mutex_};
-	//return mixer_ ? mixer_->currently_playing_bar() : 0;
-	return 0;
+	return mixer_ ? mixer_->currently_playing_bar() : 0;
+}
+
+bool player::is_playing() const {
+	std::unique_lock l{mutex_};
+	return mixer_ && mixer_->is_playing();
+}
+
+std::uint32_t player::current_section_id() const {
+	std::unique_lock l{mutex_};
+	return mixer_ ? mixer_->currently_playing_section() : 0;
+}
+
+play_status player::get_status() const {
+	std::unique_lock l{mutex_};
+	play_status status;
+	if (!mixer_ || !mixer_->is_playing()) {
+		return status;
+	}
+	status.playing      = true;
+	status.current_bar  = mixer_->currently_playing_bar();
+	status.section_id   = mixer_->currently_playing_section();
+	status.current_time = audio::length_type{uint32_t(mixer_->play_position()*1000)}
+	                    - audio::samples_to_length(out_->config().format, out_->buffer_size() - out_->avail());
+	if (song_) {
+		if (auto const* sec = song_->find_section(status.section_id)) {
+			status.total_bars = sec->length();
+			auto ts     = song_->default_time_signature();
+			auto bpm    = song_->default_tempo().value;
+			auto bar_ms = static_cast<long long>(ts.beats_in_bar() * 60000.0f / bpm);
+			status.total_time = std::chrono::milliseconds{bar_ms * status.total_bars};
+		}
+	}
+	return status;
 }
 
 void player::set_gain(float v) {

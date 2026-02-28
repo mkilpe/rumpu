@@ -371,7 +371,6 @@ std::size_t mixer::process(float* buffer, std::size_t samples)  {
 
 	return ret;
 }
-/*
 std::uint32_t mixer::currently_playing_bar() const {
 	return impl_->pos_.bar_pos;
 }
@@ -379,7 +378,11 @@ std::uint32_t mixer::currently_playing_bar() const {
 std::uint32_t mixer::currently_playing_section() const {
 	return impl_->pos_.section_id;
 }
-*/
+
+bool mixer::is_playing() const {
+	return impl_->is_playing();
+}
+
 float mixer::play_position() const {
 	return impl_->pos_.time_pos;
 }

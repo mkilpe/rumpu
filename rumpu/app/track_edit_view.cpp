@@ -12,6 +12,11 @@ track_edit_view::track_edit_view(event_system::event_handler& h)
 , track_list_("track_list")
 {}
 
+void track_edit_view::set_play_status(play_status const& s)
+{
+    toolbar_.set_play_status(s);
+}
+
 void track_edit_view::set_context(song* s, uint32_t section)
 {
     toolbar_.set_context(s, section);

@@ -14,6 +14,7 @@ public:
     bool do_draw() override;
 
     void set_context(song*, uint32_t section);
+    void set_play_status(play_status const&);
 
 private:
     toolbar toolbar_;

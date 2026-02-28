@@ -7,11 +7,21 @@
 #include "mixer.hpp"
 #include "song.hpp"
 
+#include <chrono>
 #include <mutex>
 #include <condition_variable>
 #include <thread>
 
 namespace securepath::drum {
+
+struct play_status {
+	bool playing{};
+	std::chrono::milliseconds current_time{};
+	std::chrono::milliseconds total_time{};
+	std::uint32_t section_id{};
+	std::uint32_t current_bar{};
+	std::uint32_t total_bars{};
+};
 
 namespace event {
 	struct player_pos_changed {
@@ -21,14 +31,18 @@ namespace event {
 
 class player {
 public:
-	player(event_system::event_handler& h, audio::device_config const& config = {{audio::float_t}, 16000});
+	player(event_system::event_handler& h, audio::device_config const& config = {{audio::float_t}, 8000});
 	~player();
 
 	void play(song const*, bool loop = false, std::uint32_t section = 0);
 	void stop();
 
 	audio::length_type current_play_time() const;
-	int current_play_bar() const;
+	std::uint32_t current_play_bar() const;
+
+	bool is_playing() const;
+	std::uint32_t current_section_id() const;
+	play_status get_status() const;
 
 	void set_gain(float);
 	float gain() const;

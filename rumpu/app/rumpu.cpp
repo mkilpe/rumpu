@@ -2,6 +2,7 @@
 #include "rumpu.hpp"
 
 #include "events.hpp"
+#include "toolbar.hpp"
 #include <securepath/log/log.hpp>
 
 #include "imgui.h"
@@ -144,6 +145,7 @@ void rumpu::add_track(uint32_t section) {
 void rumpu::select_section_impl(uint32_t section_id) {
     current_section_ = section_id;
     track_edit_view_->set_context(&song_, section_id);
+    player_pos_changed();
 }
 
 void rumpu::select_section(uint32_t section_id) {
@@ -170,6 +172,7 @@ void rumpu::stop_song(uint32_t section) {
 
 void rumpu::player_pos_changed() {
     LOG_TRACE("play pos changed");
+    track_edit_view_->set_play_status(player_.get_status());
 }
 
 void rumpu::handle_event(std::unique_ptr<securepath::event_system::event_base> ev) {
