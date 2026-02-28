@@ -4,6 +4,7 @@
 
 #include "track.hpp"
 #include "track_header.hpp"
+#include "track_pane.hpp"
 #include "child_window.hpp"
 
 #include <vector>
@@ -22,7 +23,7 @@ private:
     void set_track(drum::track const& t);
 private:
     struct track_info {
-        child_window_ptr pane;
+        std::unique_ptr<track_pane> pane;
         track_ptr track;
     };
     track_header header_; 

@@ -2,7 +2,9 @@
 #include "rumpu.hpp"
 
 #include "events.hpp"
+#include "native_file_dialog.hpp"
 #include "toolbar.hpp"
+#include <rumpu/core/song_file.hpp>
 #include <securepath/log/log.hpp>
 
 #include "imgui.h"
@@ -52,13 +54,38 @@ rumpu::rumpu()
 void rumpu::menu() {
     if (ImGui::BeginMenuBar()) {
         if (ImGui::BeginMenu("File")) {
-            if (ImGui::MenuItem("Open..."))  { 
+            if (ImGui::MenuItem("Open...")) {
+                open_project_file_dialog([this](std::string path) {
+                    if (!path.empty()) {
+                        event_system::event_handler::emit<event::open_project>(std::move(path));
+                    }
+                });
             }
-            if (ImGui::MenuItem("Save"))  { 
+            if (ImGui::MenuItem("Save")) {
+                if (!current_file_.empty()) {
+                    try {
+                        save_song_file(current_file_, song_);
+                    } catch(std::exception const& e) {
+                        LOG_WARN("save_song_file failed: {}", e.what());
+                    }
+                } else {
+                    save_project_file_dialog([this](std::string path) {
+                        if (!path.empty()) {
+                            event_system::event_handler::emit<event::save_project>(std::move(path));
+                        }
+                    });
+                }
+            }
+            if (ImGui::MenuItem("Save As...")) {
+                save_project_file_dialog([this](std::string path) {
+                    if (!path.empty()) {
+                        event_system::event_handler::emit<event::save_project>(std::move(path));
+                    }
+                });
             }
             ImGui::Separator();
-            if (ImGui::MenuItem("Close"))  { 
-                running_ = false; 
+            if (ImGui::MenuItem("Close"))  {
+                running_ = false;
             }
             ImGui::EndMenu();
         }
@@ -184,6 +211,31 @@ void rumpu::stop_song(uint32_t section) {
     player_.stop();
 }
 
+void rumpu::open_project(std::string path) {
+    std::unique_lock l{mutex_};
+    try {
+        player_.stop();
+        song_ = load_song_file(path);
+        current_file_ = path;
+        auto const& order = song_.section_order();
+        uint32_t section_id = order.empty() ? 0 : order.front();
+        current_section_ = section_id;
+        track_edit_view_->set_context(&song_, section_id);
+    } catch(std::exception const& e) {
+        LOG_WARN("load_song_file failed: {}", e.what());
+    }
+}
+
+void rumpu::save_project(std::string path) {
+    std::unique_lock l{mutex_};
+    try {
+        save_song_file(path, song_);
+        current_file_ = path;
+    } catch(std::exception const& e) {
+        LOG_WARN("save_song_file failed: {}", e.what());
+    }
+}
+
 void rumpu::player_pos_changed() {
     LOG_TRACE("play pos changed");
     track_edit_view_->set_play_status(player_.get_status());
@@ -197,6 +249,8 @@ void rumpu::handle_event(std::unique_ptr<securepath::event_system::event_base> e
         , event_dest<event::stop_song>(&rumpu::stop_song)
         , event_dest<event::select_section>(&rumpu::select_section)
         , event_dest<event::add_section>(&rumpu::add_section)
+        , event_dest<event::open_project>(&rumpu::open_project)
+        , event_dest<event::save_project>(&rumpu::save_project)
         , event_dest<drum::event::player_pos_changed>(&rumpu::player_pos_changed)
         );
 }

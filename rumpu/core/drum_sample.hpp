@@ -20,6 +20,9 @@ public:
 
 	void load_sample(std::uint32_t sample_rate);
 
+	template<typename Ar>
+	friend Ar& serialise(Ar&, drum_sample&);
+
 private:
 	std::string source_file_;
 

@@ -28,11 +28,14 @@ private:
     void select_section_impl(uint32_t section_id);
     void add_section();
     void add_instrument(std::string path);
+    void open_project(std::string path);
+    void save_project(std::string path);
     void player_pos_changed();
 
     void show_about() const;
 private:
     bool running_{true};
+    std::string current_file_;
     bool show_window{true};
     mutable bool show_about_{};
     uint32_t current_section_{};

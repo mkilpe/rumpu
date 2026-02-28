@@ -54,6 +54,9 @@ public:
 		}
 	}
 
+	template<typename Ar>
+	friend Ar& serialise(Ar&, section&);
+
 private:
 	std::string name_;
 	// length of this section in bars

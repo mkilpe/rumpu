@@ -17,7 +17,7 @@ void track_list::add_track()
 	std::size_t index = tracks_.size();
 	tracks_.push_back(
 		track_info{
-			child_window_ptr{new track_pane(("pane " + std::to_string(index)).c_str())},
+			std::unique_ptr<track_pane>{new track_pane(("pane " + std::to_string(index)).c_str())},
 			track_ptr{new track(("track " + std::to_string(index)).c_str())}
 		});
 	tracks_.back().pane->set_size({50, 75});
@@ -54,6 +54,7 @@ void track_list::set_context(song* s, uint32_t section)
 		update_tracks(s, section);
 		size_t i = 0;
 		for(auto&& t : tracks_) {
+			t.pane->set_context(s, i);
 			t.track->set_context(i++, s, section);
 		}
 	}

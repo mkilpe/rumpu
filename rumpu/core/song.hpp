@@ -26,6 +26,8 @@ public:
 
 	song() = default;
 	song(song_metainfo info, time_signature, tempo);
+	song(song&&) noexcept;
+	song& operator=(song&&) noexcept;
 
 	time_signature default_time_signature() const;
 	tempo default_tempo() const;
@@ -47,6 +49,9 @@ public:
 	section* find_section(std::uint32_t);
 	std::uint32_t add_section(std::optional<section> = std::nullopt);
 	void add_section(std::uint32_t id);
+
+	template<typename Ar>
+	friend Ar& serialise(Ar&, song&);
 
 public:
 	mutable std::shared_mutex mutex;

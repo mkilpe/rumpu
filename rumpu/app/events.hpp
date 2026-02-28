@@ -29,4 +29,12 @@ struct add_section {
     typedef void type();
 };
 
+struct open_project {
+    typedef void type(std::string path);
+};
+
+struct save_project {
+    typedef void type(std::string path);
+};
+
 }

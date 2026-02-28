@@ -20,6 +20,9 @@ public:
 	/// returns the lower part of the time signature (4 in the 3/4)
 	std::uint16_t beat_type() const { return beat_type_; }
 
+	template<typename Ar>
+	friend Ar& serialise(Ar&, time_signature&);
+
 private:
 	std::uint16_t beats_in_bar_{};
 	std::uint16_t beat_type_{};

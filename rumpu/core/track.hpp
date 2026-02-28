@@ -29,6 +29,9 @@ public:
 	void set_length(std::uint32_t l) {
 		bars_.resize(l);
 	}
+	template<typename Ar>
+	friend Ar& serialise(Ar&, track&);
+
 private:
 	std::deque<bar> bars_;
 	std::map<std::uint32_t, volume_slide> volume_slides_;
