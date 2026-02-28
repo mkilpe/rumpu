@@ -205,9 +205,11 @@ public:
 			LOG_TRACE("failed to start play: {}", snd_strerror(err));
 			throw std::runtime_error("failed to start play");
 		}
+		running_ = true;
 	}
 
 	void stop(stop_type s) {
+		running_ = false;
 		int err = s == stop_type::force
 			? snd_pcm_drop(handle_)
 			: snd_pcm_drain(handle_);
@@ -270,18 +272,16 @@ public:
 	bool wait() {
 		unsigned short revents = 0;
 
-		while(!(revents & (POLLERR|POLLOUT))) {
-			if(poll(fds_.data(), fds_.size(), -1) > 0) {
+		while(running_ && !(revents & (POLLERR|POLLOUT))) {
+			if(poll(fds_.data(), fds_.size(), 20) > 0) {
 				if(snd_pcm_poll_descriptors_revents(handle_, fds_.data(), fds_.size(), &revents) != 0) {
 					LOG_TRACE("snd_pcm_poll_descriptors_revents failed");
 				}
-			} else {
-				LOG_TRACE("poll failed");
 			}
 		}
 
 		return revents & POLLOUT;
-	}	
+	}
 
 	virtual std::size_t write(audio_buffer& b) {
 		int samples = snd_pcm_writei(handle_, b.begin<uint8_t>(), b.used_samples());
@@ -307,8 +307,8 @@ public:
 private:
 	device_config device_config_;
 	snd_pcm_t* handle_;
-
 	std::vector<pollfd> fds_;
+	std::atomic<bool> running_ = false;
 };
 
 class alsa_capture_device : public audio_capture_device  {
