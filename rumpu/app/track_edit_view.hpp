@@ -3,6 +3,7 @@
 #include "view.hpp"
 #include "toolbar.hpp"
 #include "section_view.hpp"
+#include "section_info_view.hpp"
 #include "track_list.hpp"
 
 namespace securepath::drum::app {
@@ -17,6 +18,7 @@ public:
 private:
     toolbar toolbar_;
     section_view section_view_;
+    section_info_view section_info_view_;
     track_list track_list_;
 };
 

@@ -12,6 +12,7 @@
 #include <cstdint>
 #include <optional>
 #include <map>
+#include <string>
 
 namespace securepath::drum {
 
@@ -28,6 +29,9 @@ public:
 	, tracks_(tracks, track{length_})
 	{
 	}
+
+	std::string const& name() const { return name_; }
+	void set_name(std::string n) { name_ = std::move(n); }
 
 	std::uint32_t length() const { return length_; }
 	std::deque<track>& tracks() { return tracks_; }
@@ -51,6 +55,7 @@ public:
 	}
 
 private:
+	std::string name_;
 	// length of this section in bars
 	std::uint32_t length_{};
 	// the actual bar data for the tracks

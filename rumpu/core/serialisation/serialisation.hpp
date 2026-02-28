@@ -60,7 +60,7 @@ void serialise(Ar& ar, section_bar_change& d) {
 template<typename Ar>
 void serialise(Ar& ar, section& d) {
 	serialisation::sequence<Ar> seq(ar);
-	seq & d.length_ & d.tracks_ & d.changes_;
+	seq & d.name_ & d.length_ & d.tracks_ & d.changes_;
 }
 
 template<typename Ar>

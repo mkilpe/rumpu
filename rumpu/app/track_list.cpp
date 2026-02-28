@@ -22,8 +22,10 @@ void track_list::add_track()
 		});
 	tracks_.back().pane->set_size({50, 75});
 	tracks_.back().track->set_size({1500, 75});
+	tracks_.back().track->zoom(zoom_);
 
 	header_.set_size({1500, 20});
+	header_.zoom(zoom_);
 }
 
 void track_list::set_track(drum::track const& t)
@@ -79,6 +81,9 @@ bool track_list::do_draw()
 		ImGui::TableNextColumn();
 		ImGui::TableNextColumn();
 		header_.draw();
+		if(zoom_changed) {
+			header_.zoom(zoom_);
+		}
 		for(auto&& v : tracks_) {
 			ImGui::TableNextRow();
 			ImGui::TableNextColumn();

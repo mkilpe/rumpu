@@ -16,6 +16,7 @@ void track_edit_view::set_context(song* s, uint32_t section)
 {
     toolbar_.set_context(s, section);
     section_view_.set_context(s, section);
+    section_info_view_.set_context(s, section);
     track_list_.set_context(s, section);
 }
 
@@ -28,6 +29,9 @@ bool track_edit_view::do_draw()
         ImGui::TableNextRow();
         ImGui::TableNextColumn();
         section_view_.do_draw();
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        section_info_view_.do_draw();
         ImGui::TableNextRow();
         ImGui::TableNextColumn();
         track_list_.do_draw();

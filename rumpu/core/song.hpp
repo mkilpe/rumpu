@@ -52,6 +52,8 @@ public:
 	mutable std::shared_mutex mutex;
 
 private:
+	void populate_default_beats(section&);
+
 	// information about this song
 	song_metainfo info_;
 

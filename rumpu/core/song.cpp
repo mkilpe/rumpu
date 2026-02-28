@@ -73,6 +73,14 @@ section* song::find_section(std::uint32_t id) {
 	return it != sections_.end() ? &it->second : nullptr;
 }
 
+void song::populate_default_beats(section& sec) {
+	for(auto& t : sec.tracks()) {
+		for(auto& b : t.bars()) {
+			b.beats.resize(default_time_signature_.beats_in_bar());
+		}
+	}
+}
+
 std::uint32_t song::add_section(std::optional<section> s) {
 	std::uint32_t index = sections_.size()+1;
 	if(s) {
@@ -81,11 +89,19 @@ std::uint32_t song::add_section(std::optional<section> s) {
 		//t: take the default length from settings or from previous section?
 		sections_[index] = section{4, static_cast<std::uint32_t>(instruments_.size())};
 	}
+	if(sections_[index].name().empty()) {
+		sections_[index].set_name("Section " + std::to_string(index));
+	}
+	populate_default_beats(sections_[index]);
 	return index;
 }
 
 void song::add_section(std::uint32_t id) {
 	sections_[id] = section{4, static_cast<std::uint32_t>(instruments_.size())};
+	if(sections_[id].name().empty()) {
+		sections_[id].set_name("Section " + std::to_string(id));
+	}
+	populate_default_beats(sections_[id]);
 }
 
 }
