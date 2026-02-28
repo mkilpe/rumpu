@@ -9,8 +9,9 @@
 
 namespace securepath::drum::app {
 
-rumpu::rumpu() 
+rumpu::rumpu()
 : event_handler(static_cast<securepath::event_system::event_loop&>(*this))
+, add_instrument_dialog_(*this)
 , song_({}, {3,4}, {60.0})
 , player_(*this)
 {
@@ -79,6 +80,12 @@ void rumpu::menu() {
             }
             ImGui::EndMenu();
         }
+        if (ImGui::BeginMenu("Instruments")) {
+            if (ImGui::MenuItem("Add instrument...")) {
+                add_instrument_dialog_.open();
+            }
+            ImGui::EndMenu();
+        }
         if (ImGui::BeginMenu("Options")) {
             if (ImGui::MenuItem("Settings")) {
 
@@ -113,6 +120,7 @@ bool rumpu::update() {
     ImGui::Begin("Rumpu", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_MenuBar);
     
     menu();
+    add_instrument_dialog_.do_draw();
 
     if(!windows_.empty()) {
         auto pos = ImGui::GetCursorPos();
@@ -153,6 +161,12 @@ void rumpu::select_section(uint32_t section_id) {
     select_section_impl(section_id);
 }
 
+void rumpu::add_instrument(std::string path) {
+    std::unique_lock l{mutex_};
+    song_.add_instrument(instrument{path});
+    track_edit_view_->set_context(&song_, current_section_);
+}
+
 void rumpu::add_section() {
     std::unique_lock l{mutex_};
     LOG_TRACE("add_section");
@@ -178,6 +192,7 @@ void rumpu::player_pos_changed() {
 void rumpu::handle_event(std::unique_ptr<securepath::event_system::event_base> ev) {
     dispatch(*ev
         , event_dest<event::add_track>(&rumpu::add_track)
+        , event_dest<event::add_instrument>(&rumpu::add_instrument)
         , event_dest<event::play_song>(&rumpu::play_song)
         , event_dest<event::stop_song>(&rumpu::stop_song)
         , event_dest<event::select_section>(&rumpu::select_section)

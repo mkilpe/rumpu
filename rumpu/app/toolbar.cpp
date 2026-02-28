@@ -38,8 +38,8 @@ bool toolbar::do_draw()
 {
     if (ImGui::BeginTable("toolbar_table", 2, ImGuiTableFlags_SizingFixedFit)) {
         ImGui::TableNextRow();
-        ImGui::TableNextColumn();
-        button<event::add_track>("Add track");
+        //ImGui::TableNextColumn();
+        //button<event::add_track>("Add track");
         ImGui::TableNextColumn();
         ImGui::BeginGroup();
         button<event::play_song>("Play");

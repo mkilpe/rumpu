@@ -52,8 +52,11 @@ song_metainfo const& song::meta_info() const {
 
 void song::add_instrument(instrument inst) {
 	instruments_.push_back(std::move(inst));
-	for(auto& t : sections_) {
-		t.second.add_track();
+	for(auto& [id, sec] : sections_) {
+		auto& t = sec.add_track();
+		for(auto& b : t.bars()) {
+			b.beats.resize(default_time_signature_.beats_in_bar());
+		}
 	}
 }
 

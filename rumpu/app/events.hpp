@@ -1,8 +1,13 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
 
 namespace securepath::drum::app::event {
+
+struct add_instrument {
+    typedef void type(std::string path);
+};
 
 struct add_track {
     typedef void type(std::uint32_t section);
