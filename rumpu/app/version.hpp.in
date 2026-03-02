@@ -1,0 +1,7 @@
+#pragma once
+
+namespace securepath::drum::app {
+
+inline constexpr char version[] = "@RUMPU_VERSION_FULL@";
+
+}

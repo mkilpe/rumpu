@@ -2,6 +2,7 @@ file(GLOB SRC *.cpp *.hpp)
 
 file(READ "${CMAKE_SOURCE_DIR}/LICENSE" LICENSE_TEXT)
 configure_file(license.hpp.in "${CMAKE_CURRENT_BINARY_DIR}/license.hpp" @ONLY)
+configure_file(version.hpp.in "${CMAKE_CURRENT_BINARY_DIR}/version.hpp" @ONLY)
 
 file(GLOB IMGUI_SRC ../../submodules/imgui/*.cpp ../../submodules/imgui/*.h ../../submodules/imgui-knobs/*.cpp ../../submodules/imgui-knobs/*.h)
 file(GLOB IMGUI_BACKEND_SRC ../../submodules/imgui/backends/imgui_impl_glfw.cpp ../../submodules/imgui/backends/imgui_impl_opengl3.cpp)

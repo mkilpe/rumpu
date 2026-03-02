@@ -1,6 +1,7 @@
 
 #include "about_dialog.hpp"
 #include "license.hpp"
+#include "version.hpp"
 
 #include "imgui.h"
 
@@ -20,6 +21,7 @@ void about_dialog::do_draw() {
     ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, {0.5f, 0.5f});
     ImGui::SetNextWindowSize({500, 300}, ImGuiCond_Appearing);
     if (ImGui::BeginPopupModal("About Rumpu", nullptr)) {
+        ImGui::Text("Rumpu %s", version);
         ImGui::SeparatorText("License");
         ImGui::InputTextMultiline("##license", const_cast<char*>(license_text), sizeof(license_text),
             ImVec2(-1, -ImGui::GetFrameHeightWithSpacing()), ImGuiInputTextFlags_ReadOnly);

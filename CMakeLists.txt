@@ -2,6 +2,32 @@ cmake_minimum_required(VERSION 3.10)
 
 project("rumpu")
 
+set(RUMPU_VERSION_MAJOR 0)
+set(RUMPU_VERSION_MINOR 1)
+set(RUMPU_VERSION_PATCH 0)
+set(RUMPU_VERSION_LABEL "" CACHE STRING "Optional pre-release label, e.g. alpha, beta.1")
+
+set(RUMPU_VERSION "${RUMPU_VERSION_MAJOR}.${RUMPU_VERSION_MINOR}.${RUMPU_VERSION_PATCH}")
+if(RUMPU_VERSION_LABEL)
+    string(APPEND RUMPU_VERSION "-${RUMPU_VERSION_LABEL}")
+endif()
+
+find_package(Git QUIET)
+if(Git_FOUND)
+    execute_process(
+        COMMAND ${GIT_EXECUTABLE} rev-parse --short HEAD
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        OUTPUT_VARIABLE RUMPU_GIT_HASH
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+    )
+endif()
+if(NOT RUMPU_GIT_HASH)
+    set(RUMPU_GIT_HASH "unknown")
+endif()
+
+set(RUMPU_VERSION_FULL "${RUMPU_VERSION}+${RUMPU_GIT_HASH}")
+
 set(CMAKE_CXX_STANDARD 26)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
