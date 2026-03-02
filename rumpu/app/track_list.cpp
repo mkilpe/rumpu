@@ -7,8 +7,9 @@
 
 namespace securepath::drum::app {
 
-track_list::track_list(std::string name)
+track_list::track_list(std::string name, event_system::event_handler& h)
 : child_window_base(std::move(name))
+, handler_(h)
 {
 }
 
@@ -54,7 +55,7 @@ void track_list::set_context(song* s, uint32_t section)
 		update_tracks(s, section);
 		size_t i = 0;
 		for(auto&& t : tracks_) {
-			t.pane->set_context(s, i);
+			t.pane->set_context(handler_, s, i);
 			t.track->set_context(i++, s, section);
 		}
 	}

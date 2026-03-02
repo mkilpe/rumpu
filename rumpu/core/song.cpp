@@ -88,6 +88,19 @@ void song::add_instrument(instrument inst) {
 	}
 }
 
+void song::remove_instrument(std::size_t index) {
+	if(index >= instruments_.size()) {
+		return;
+	}
+	instruments_.erase(instruments_.begin() + index);
+	for(auto& [id, sec] : sections_) {
+		auto& tracks = sec.tracks();
+		if(index < tracks.size()) {
+			tracks.erase(tracks.begin() + index);
+		}
+	}
+}
+
 void song::load_instruments(std::uint32_t sample_rate) {
 	for(auto& i : instruments_) {
 		i.load_samples(sample_rate);

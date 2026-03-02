@@ -43,6 +43,7 @@ public:
 	song_metainfo const& meta_info() const;
 
 	void add_instrument(instrument);
+	void remove_instrument(std::size_t index);
 	void load_instruments(std::uint32_t sample_rate = 44100);
 
 	section const* find_section(std::uint32_t) const;

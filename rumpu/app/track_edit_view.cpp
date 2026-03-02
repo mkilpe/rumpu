@@ -9,7 +9,7 @@ track_edit_view::track_edit_view(event_system::event_handler& h)
 : child_window_base("track_edit_view", ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse, {})
 , toolbar_(h)
 , section_view_(h)
-, track_list_("track_list")
+, track_list_("track_list", h)
 {}
 
 void track_edit_view::set_play_status(play_status const& s)

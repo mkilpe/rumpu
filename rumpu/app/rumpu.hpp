@@ -28,6 +28,7 @@ private:
     void select_section_impl(uint32_t section_id);
     void add_section();
     void add_instrument(std::string path);
+    void remove_track(std::size_t index);
     void open_project(std::string path);
     void save_project(std::string path);
     void player_pos_changed();

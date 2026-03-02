@@ -29,6 +29,10 @@ struct add_section {
     typedef void type();
 };
 
+struct remove_track {
+    typedef void type(std::size_t index);
+};
+
 struct open_project {
     typedef void type(std::string path);
 };

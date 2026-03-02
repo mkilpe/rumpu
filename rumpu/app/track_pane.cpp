@@ -1,7 +1,10 @@
 #include "track_pane.hpp"
+#include "events.hpp"
 
 #include "imgui.h"
 #include "imgui-knobs.h"
+
+#include <cmath>
 
 namespace securepath::drum::app {
 
@@ -9,9 +12,14 @@ track_pane::track_pane(std::string name)
 : child_window_base(std::move(name), ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse, {})
 {}
 
-void track_pane::set_context(song* s, std::size_t instrument_index) {
+void track_pane::set_context(event_system::event_handler& h, song* s, std::size_t instrument_index) {
+    handler_ = &h;
     song_ = s;
     instrument_index_ = instrument_index;
+    if(s && instrument_index < s->instruments().size()) {
+        float vol = s->instruments()[instrument_index].volume().value;
+        gain_ = 20.0f * std::log10(std::max(vol, 1e-6f));
+    }
 }
 
 bool track_pane::do_draw()
@@ -40,11 +48,28 @@ bool track_pane::do_draw()
         ImGui::SameLine();
     }
 
-    if (ImGuiKnobs::Knob("Gain", &gain_, -6.0f, 6.0f, 0.1f, "%.1f", ImGuiKnobVariant_Tick, 30)) {
+    if (ImGuiKnobs::Knob("Gain", &gain_, -6.0f, 6.0f, 0.1f, "%.1fdB", ImGuiKnobVariant_Tick, 30)) {
+        if(song_ && instrument_index_ < song_->instruments().size()) {
+            drum::volume v = song_->instruments()[instrument_index_].volume();
+            v.value = std::pow(10.0f, gain_ / 20.0f);
+            song_->instruments()[instrument_index_].set_volume(v);
+        }
     }
     if (ImGui::IsItemActive() && ImGui::IsMouseDoubleClicked(0)) {
-       gain_ = 0;
+        gain_ = 0.0f;
+        if(song_ && instrument_index_ < song_->instruments().size()) {
+            drum::volume v = song_->instruments()[instrument_index_].volume();
+            v.value = 1.0f;
+            song_->instruments()[instrument_index_].set_volume(v);
+        }
     }
+    if (ImGui::BeginPopupContextWindow()) {
+        if (ImGui::MenuItem("Remove track") && handler_) {
+            handler_->emit<event::remove_track>(instrument_index_);
+        }
+        ImGui::EndPopup();
+    }
+
     return true;
 }
 

@@ -211,6 +211,12 @@ void rumpu::stop_song(uint32_t section) {
     player_.stop();
 }
 
+void rumpu::remove_track(std::size_t index) {
+    std::unique_lock l{mutex_};
+    song_.remove_instrument(index);
+    track_edit_view_->set_context(&song_, current_section_);
+}
+
 void rumpu::open_project(std::string path) {
     std::unique_lock l{mutex_};
     try {
@@ -249,6 +255,7 @@ void rumpu::handle_event(std::unique_ptr<securepath::event_system::event_base> e
         , event_dest<event::stop_song>(&rumpu::stop_song)
         , event_dest<event::select_section>(&rumpu::select_section)
         , event_dest<event::add_section>(&rumpu::add_section)
+        , event_dest<event::remove_track>(&rumpu::remove_track)
         , event_dest<event::open_project>(&rumpu::open_project)
         , event_dest<event::save_project>(&rumpu::save_project)
         , event_dest<drum::event::player_pos_changed>(&rumpu::player_pos_changed)

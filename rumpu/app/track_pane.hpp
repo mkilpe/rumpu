@@ -2,6 +2,7 @@
 
 #include "child_window.hpp"
 #include <rumpu/core/song.hpp>
+#include <securepath/event_system/event_handler.hpp>
 
 namespace securepath::drum::app {
 
@@ -10,10 +11,11 @@ public:
     track_pane(std::string name);
 
     bool do_draw() override;
-    void set_context(song*, std::size_t instrument_index);
+    void set_context(event_system::event_handler&, song*, std::size_t instrument_index);
 
 private:
     float gain_{};
+    event_system::event_handler* handler_{};
     song* song_{};
     std::size_t instrument_index_{};
 };
