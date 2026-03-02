@@ -122,7 +122,7 @@ void rumpu::menu() {
         if (ImGui::BeginMenu("Help")) {
             ImGui::Separator();
             if (ImGui::MenuItem("About")) {
-                show_about();
+                about_dialog_.open();
             }
             ImGui::EndMenu();
         }
@@ -147,6 +147,7 @@ bool rumpu::update() {
     ImGui::Begin("Rumpu", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_MenuBar);
     
     menu();
+    about_dialog_.do_draw();
     add_instrument_dialog_.do_draw();
 
     if(!windows_.empty()) {
@@ -262,12 +263,5 @@ void rumpu::handle_event(std::unique_ptr<securepath::event_system::event_base> e
         );
 }
 
-void rumpu::show_about() const
-{
-    if (ImGui::Begin("About", &show_about_, ImGuiWindowFlags_AlwaysAutoResize)) {
-        ImGui::Text("some");
-        ImGui::End();
-    }
-}
 
 }

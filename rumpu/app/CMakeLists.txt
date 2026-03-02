@@ -1,4 +1,8 @@
 file(GLOB SRC *.cpp *.hpp)
+
+file(READ "${CMAKE_SOURCE_DIR}/LICENSE" LICENSE_TEXT)
+configure_file(license.hpp.in "${CMAKE_CURRENT_BINARY_DIR}/license.hpp" @ONLY)
+
 file(GLOB IMGUI_SRC ../../submodules/imgui/*.cpp ../../submodules/imgui/*.h ../../submodules/imgui-knobs/*.cpp ../../submodules/imgui-knobs/*.h)
 file(GLOB IMGUI_BACKEND_SRC ../../submodules/imgui/backends/imgui_impl_glfw.cpp ../../submodules/imgui/backends/imgui_impl_opengl3.cpp)
 
@@ -14,6 +18,7 @@ elseif(WIN32)
 endif()
 
 add_executable(rumpu ${SRC} ${IMGUI_SRC} ${IMGUI_BACKEND_SRC})
+target_include_directories(rumpu PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
 target_link_libraries(rumpu rumpu_core event_system glfw OpenGL::GL)
 
 if(UNIX AND NOT APPLE)

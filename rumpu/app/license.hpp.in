@@ -1,0 +1,7 @@
+#pragma once
+
+namespace securepath::drum::app {
+
+inline constexpr char license_text[] = R"license(@LICENSE_TEXT@)license";
+
+}

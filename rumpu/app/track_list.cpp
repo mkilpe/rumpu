@@ -66,7 +66,7 @@ bool track_list::do_draw()
 	ImGuiIO& io = ImGui::GetIO();
 
 	bool zoom_changed = false;
-	if(io.MouseWheel) {
+	if(io.MouseWheel && ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows)) {
 		zoom_changed = true;
 		zoom_ += 0.05 * io.MouseWheel;
 		if(zoom_ > 20.0) {
