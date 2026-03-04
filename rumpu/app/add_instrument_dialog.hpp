@@ -16,7 +16,7 @@ private:
     event_system::event_handler& handler_;
     bool open_{};
     bool browsing_{};
-    char path_buf_[512]{};
+    std::string path_;
 
     std::mutex result_mutex_;
     bool has_result_{};

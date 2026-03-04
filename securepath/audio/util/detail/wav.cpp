@@ -17,7 +17,7 @@ static octet_vector read(std::istream& in, std::size_t size) {
 
 void wav::save(std::ostream& out, audio::audio_format const& format) {
 
-	if(format.endian != audio::little_endian) {
+	if(format.endian != std::endian::little) {
 		throw invalid_format("unsupported endian type");
 	}
 	if(format.type != audio::uchar_t && format.type != audio::short_t) {
@@ -117,7 +117,7 @@ audio::audio_format wav::format() const {
 		, format_->channels
 		, format_->bits_per_sample
 		, format_->sample_rate
-		, audio::little_endian };
+		, std::endian::little };
 }
 
 }

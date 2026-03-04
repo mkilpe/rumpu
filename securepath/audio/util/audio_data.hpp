@@ -23,6 +23,7 @@ public:
 	void load(std::string const& file, file_format = auto_format);
 	void load(std::string const& file, audio::audio_format format, file_format = auto_format);
 	void save(std::string const& file, file_format = auto_format);
+	void save(std::string const& file, audio::audio_format const& format, file_format = auto_format);
 
 	audio::audio_format format() const;
 	octet_vector data() const; //interlaced data for multiple channels

@@ -136,6 +136,14 @@ void audio_data::save(std::string const& file, file_format ff) {
 	}
 }
 
+void audio_data::save(std::string const& file, audio::audio_format const& format, file_format ff) {
+	audio_data copy = *this;
+	if(copy.format_ != format) {
+		copy.reformat(format);
+	}
+	copy.save(file, ff);
+}
+
 audio::audio_format audio_data::format() const {
 	return format_;
 }

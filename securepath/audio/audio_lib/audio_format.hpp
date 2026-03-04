@@ -5,6 +5,7 @@
 #include <securepath/serialisation/serialiser.hpp>
 #include <securepath/serialisation/deserialiser.hpp>
 
+#include <bit>
 #include <cstdint>
 #include <cstddef>
 #include <iosfwd>
@@ -32,17 +33,12 @@ auto& serialise(serialisation::deserialiser& s, sample_type& v) {
 	return s;
 }
 
-enum endian_type {
-	little_endian,
-	big_endian
-};
-
 struct audio_format {
 	sample_type type = short_t;
 	std::uint32_t channels = 1;
 	std::uint32_t bits_per_sample = 16;
 	std::uint32_t samples_per_second = 24000;
-	int endian = little_endian;
+	std::endian endian = std::endian::little;
 
 	template<typename Ser>
 	void serialise(Ser& s) {
@@ -80,8 +76,7 @@ struct std::formatter<securepath::audio::audio_format> {
     }
     auto format(const securepath::audio::audio_format& c, std::format_context& ctx) const {
     	char const* sample_type_name[4] = {"char_t", "uchar_t" , "short_t", "float_t"};
-		char const* endian_type_name[2] = {"little", "big"};
-        return std::format_to(ctx.out(), "[{}, {}, {}, {}, {}]", sample_type_name[c.type], c.channels, c.bits_per_sample, c.samples_per_second, endian_type_name[c.endian]);
+        return std::format_to(ctx.out(), "[{}, {}, {}, {}, {}]", sample_type_name[c.type], c.channels, c.bits_per_sample, c.samples_per_second, c.endian == std::endian::little ? "little" : "big");
     }
 };
 

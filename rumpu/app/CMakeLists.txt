@@ -6,8 +6,10 @@ configure_file(version.hpp.in "${CMAKE_CURRENT_BINARY_DIR}/version.hpp" @ONLY)
 
 file(GLOB IMGUI_SRC ../../submodules/imgui/*.cpp ../../submodules/imgui/*.h ../../submodules/imgui-knobs/*.cpp ../../submodules/imgui-knobs/*.h)
 file(GLOB IMGUI_BACKEND_SRC ../../submodules/imgui/backends/imgui_impl_glfw.cpp ../../submodules/imgui/backends/imgui_impl_opengl3.cpp)
+set(IMGUI_STDLIB_SRC ../../submodules/imgui/misc/cpp/imgui_stdlib.cpp ../../submodules/imgui/misc/cpp/imgui_stdlib.h)
 
 include_directories(../../submodules/imgui)
+include_directories(../../submodules/imgui/misc/cpp)
 include_directories(../../submodules/imgui-knobs)
 
 if(UNIX AND NOT APPLE)
@@ -18,7 +20,7 @@ elseif(WIN32)
     list(REMOVE_ITEM SRC ${CMAKE_CURRENT_SOURCE_DIR}/native_file_dialog_linux.cpp)
 endif()
 
-add_executable(rumpu ${SRC} ${IMGUI_SRC} ${IMGUI_BACKEND_SRC})
+add_executable(rumpu ${SRC} ${IMGUI_SRC} ${IMGUI_BACKEND_SRC} ${IMGUI_STDLIB_SRC})
 target_include_directories(rumpu PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
 target_link_libraries(rumpu rumpu_core event_system glfw OpenGL::GL)
 

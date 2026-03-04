@@ -8,6 +8,7 @@
 
 #include "about_dialog.hpp"
 #include "add_instrument_dialog.hpp"
+#include "export_dialog.hpp"
 #include "child_window.hpp"
 #include "track_edit_view.hpp"
 
@@ -40,6 +41,7 @@ private:
     uint32_t current_section_{};
     about_dialog about_dialog_;
     add_instrument_dialog add_instrument_dialog_;
+    export_dialog export_dialog_;
 
     mutable std::mutex mutex_;
     song song_;

@@ -76,6 +76,9 @@ void rumpu::menu() {
                     });
                 }
             }
+            if (ImGui::MenuItem("Export...")) {
+                export_dialog_.open(&song_);
+            }
             if (ImGui::MenuItem("Save As...")) {
                 save_project_file_dialog([this](std::string path) {
                     if (!path.empty()) {
@@ -149,6 +152,7 @@ bool rumpu::update() {
     menu();
     about_dialog_.do_draw();
     add_instrument_dialog_.do_draw();
+    export_dialog_.do_draw();
 
     if(!windows_.empty()) {
         auto pos = ImGui::GetCursorPos();

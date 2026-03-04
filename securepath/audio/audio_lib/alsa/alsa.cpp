@@ -60,11 +60,12 @@ snd_pcm_format_t format_map[][2] =
 
 snd_pcm_format_t map_to_alsa_format(audio_format const& f) {
 	if(f.type < 0 || f.type >= sizeof(format_map)/sizeof(snd_pcm_format_t[2])
-		|| f.endian < 0 || f.endian >= 2)
+		|| (f.endian != std::endian::little && f.endian != std::endian::big))
 	{
 		throw std::runtime_error("invalid format");
 	}
-	return format_map[f.type][f.endian];
+	std::size_t const endian_idx = f.endian == std::endian::little ? 0 : 1;
+	return format_map[f.type][endian_idx];
 }
 
 device_config configure(snd_pcm_t* handle, device_config config) {

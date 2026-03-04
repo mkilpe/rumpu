@@ -1,29 +1,12 @@
 #include "export.hpp"
-#include "mixer.hpp"
 
 #include <securepath/audio/util/audio_data.hpp>
 #include <securepath/log/log.hpp>
-#include <securepath/util/byte_order.hpp>
-#include <securepath/util/timer.hpp>
 
+#include <cstring>
 #include <deque>
 
 namespace securepath::drum {
-
-static void export_as_wav(std::string const& file, audio::audio_format const& format, octet_vector const& data) {
-	audio::audio_data ad(format, std::move(data));
-	ad.save(file, audio::audio_data::wav);
-}
-
-static octet_vector resample(std::deque<float> const& song_data) {
-	octet_vector data(song_data.size()*2);
-	for(std::size_t i = 0; i != song_data.size(); ++i) {
-		int64_t evalue = song_data[i]*32767;
-		int16_t value = static_cast<int16_t>(std::clamp<int64_t>(evalue, -32768, 32767));
-		securepath::to_endian<std::int16_t, endian::little>(&data[i*2], value);
-	}
-	return data;
-}
 
 static void peak_normalise(std::deque<float>& song_data) {
 	float min{}, max{};
@@ -38,24 +21,40 @@ static void peak_normalise(std::deque<float>& song_data) {
 	}
 }
 
-void export_as_wav(std::string const& file, song const& s, export_options ops) {
-	timer t;
+constexpr std::size_t chunk_size = 50000;
 
-	audio::audio_format af{audio::short_t, 1, 16, 44100, audio::little_endian};
+wav_exporter::wav_exporter(std::string file, song const& s, export_options opts)
+	: file_(std::move(file))
+	, opts_(opts)
+	, mix_(s, opts_.format.samples_per_second)
+{}
 
-	std::deque<float> song_data;
-	mixer mix(s, false, af.samples_per_second);
-	std::size_t size{};
-	float arr[50000];
-	while((size = mix.process(arr, 50000))) {
-		song_data.insert(song_data.end(), arr, arr+size);
+bool wav_exporter::process() {
+	if(!mixing_done_) {
+		float arr[chunk_size];
+		std::size_t const size = mix_.process(arr, chunk_size);
+		if(size) {
+			song_data_.insert(song_data_.end(), arr, arr + size);
+			return true;
+		}
+		mixing_done_ = true;
 	}
-	if(ops.gain_control == export_options::peak_normalise) {
-		peak_normalise(song_data);
-	}
-	export_as_wav(file, af, resample(song_data));
 
-	LOG_TRACE("exporting song as wav took {}ms", t.elapsed_milliseconds());
+	if(opts_.gain_control == export_options::peak_normalise) {
+		peak_normalise(song_data_);
+	}
+
+	octet_vector float_data(song_data_.size() * sizeof(float));
+	auto* dst = float_data.data();
+	for(float v : song_data_) {
+		std::memcpy(dst, &v, sizeof(float));
+		dst += sizeof(float);
+	}
+
+	audio::audio_format const float_fmt{audio::float_t, 1, 32, opts_.format.samples_per_second, std::endian::native};
+	audio::audio_data ad(float_fmt, std::move(float_data));
+	ad.save(file_, opts_.format);
+	return false;
 }
 
 }
