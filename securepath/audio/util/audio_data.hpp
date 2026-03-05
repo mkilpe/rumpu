@@ -28,7 +28,7 @@ public:
 	audio::audio_format format() const;
 	octet_vector data() const; //interlaced data for multiple channels
 private:
-	void reformat(audio::audio_format const& target);
+	void resample(audio::audio_format const& target);
 private:
 	audio::audio_format format_;
 	octet_vector data_;

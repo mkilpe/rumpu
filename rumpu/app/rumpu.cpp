@@ -76,15 +76,15 @@ void rumpu::menu() {
                     });
                 }
             }
-            if (ImGui::MenuItem("Export...")) {
-                export_dialog_.open(&song_);
-            }
             if (ImGui::MenuItem("Save As...")) {
                 save_project_file_dialog([this](std::string path) {
                     if (!path.empty()) {
                         event_system::event_handler::emit<event::save_project>(std::move(path));
                     }
                 });
+            }
+            if (ImGui::MenuItem("Export...")) {
+                export_dialog_.open(&song_);
             }
             ImGui::Separator();
             if (ImGui::MenuItem("Close"))  {

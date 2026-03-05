@@ -10,7 +10,8 @@
 namespace securepath::drum::app {
 
 section_view::section_view(event_system::event_handler& h)
-: handler_(h)
+: child_window_base("section_view", ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse, {})
+, handler_(h)
 {}
 
 void section_view::set_context(song* s, uint32_t section) {
@@ -18,9 +19,9 @@ void section_view::set_context(song* s, uint32_t section) {
     current_section_ = section;
 }
 
-void section_view::do_draw() {
+bool section_view::do_draw() {
     if (!song_) {
-        return;
+        return false;
     }
 
     auto const& order = song_->section_order();
@@ -49,6 +50,7 @@ void section_view::do_draw() {
             ImGui::PopStyleColor();
         }
     }
+    return true;
 }
 
 }

@@ -83,7 +83,7 @@ static float remap_channel(float const* src_channels, std::uint32_t src_ch, std:
 	return src_channels[0];
 }
 
-void audio_data::reformat(audio::audio_format const& target) {
+void audio_data::resample(audio::audio_format const& target) {
 	constexpr size_t max_channels = 16;
 	if(format_.channels >= max_channels) {
 		throw std::runtime_error("Too many channels, only 16 supported");
@@ -118,7 +118,7 @@ void audio_data::reformat(audio::audio_format const& target) {
 void audio_data::load(std::string const& file, audio::audio_format format, file_format ff) {
 	load(file, ff);
 	if(format_ != format) {
-		reformat(format);
+		resample(format);
 	}	
 }
 
@@ -158,7 +158,7 @@ void audio_data::save(std::string const& file, file_format ff) {
 void audio_data::save(std::string const& file, audio::audio_format const& format, file_format ff) {
 	audio_data copy = *this;
 	if(copy.format_ != format) {
-		copy.reformat(format);
+		copy.resample(format);
 	}
 	copy.save(file, ff);
 }
