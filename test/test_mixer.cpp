@@ -16,7 +16,7 @@ static void add_kick_pattern(song& s) {
 	beat b;
 	b.action = beat::hit;
 	b.hit_data.volume = volume{false, 1.0f};
-	sec.tracks()[0].bars()[0].beats.push_back(b);
+	sec.tracks()[0].bars()[0].beats[0] = b;
 }
 
 TEST_CASE("mixer produces no audio for empty song", "[mixer]") {

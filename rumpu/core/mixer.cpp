@@ -93,13 +93,16 @@ struct mixer::impl {
 	impl(init, song const& s, std::uint32_t sample_rate)
 	: song_(&s)
 	, pos_{sample_rate}
-	, infos_(song_->instruments().size())
 	{
 		pos_.global_tempo_slide = song_->global_tempo_slide();
 		pos_.current_timing = song_->default_time_signature();
 		pos_.current_tempo = song_->default_tempo();
-		for(std::size_t i = 0; i != infos_.size(); ++i) {
-			infos_[i].volume = song_->instruments()[i].volume();
+		if(!s.sections().empty()) {
+			auto const& tracks = s.sections().begin()->second.tracks();
+			infos_.resize(tracks.size());
+			for(std::size_t i = 0; i != infos_.size(); ++i) {
+				infos_[i].volume = s.instruments()[tracks[i].instrument_index()].volume();
+			}
 		}
 	}
 
@@ -280,19 +283,19 @@ struct mixer::impl {
 					buffer += s;
 				}
 				if(d && processed < samples) {
-					set_current_track_audio(index, info, *d);
+					set_current_track_audio(section_->tracks()[index].instrument_index(), info, *d);
 					info.actions.pop_front();
 				}
 			}
 		}
 	}
 
-	void set_current_track_audio(std::size_t index, track_info& info, action_data const& data) {
+	void set_current_track_audio(std::size_t instrument_index, track_info& info, action_data const& data) {
 		assert(data.action != beat::none);
 		if(data.action == beat::hit) {
 			info.audio_pos = 0;
 			info.falloff = std::nullopt;
-			auto& instrument = song_->instruments()[index];
+			auto& instrument = song_->instruments()[instrument_index];
 			if(instrument.is_valid()) {
 				info.current_audio = instrument.sample_to_play().buffer();
 			} else {

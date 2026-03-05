@@ -34,11 +34,9 @@ public:
 
 	std::optional<delta_tempo> global_tempo_slide() const;
 
-	sections_type& sections();
-	section_order_type const& section_order() const;
-	section_order_type& section_order();
-	std::vector<instrument> const& instruments() const;
-	std::vector<instrument>& instruments();
+	auto& sections(this auto& self) { return self.sections_; }
+	auto& section_order(this auto& self) { return self.section_order_; }
+	auto& instruments(this auto& self) { return self.instruments_; }
 	volume_accent_info const& accent_rules() const;
 	song_metainfo const& meta_info() const;
 
@@ -46,8 +44,10 @@ public:
 	void remove_instrument(std::size_t index);
 	void load_instruments(std::uint32_t sample_rate = 44100);
 
-	section const* find_section(std::uint32_t) const;
-	section* find_section(std::uint32_t);
+	auto* find_section(this auto& self, std::uint32_t id) {
+		auto it = self.sections_.find(id);
+		return it != self.sections_.end() ? &it->second : nullptr;
+	}
 	std::uint32_t add_section(std::optional<section> = std::nullopt);
 	void add_section(std::uint32_t id);
 

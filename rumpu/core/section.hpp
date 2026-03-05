@@ -24,21 +24,21 @@ struct section_bar_change {
 
 class section {
 public:
-	section(std::uint32_t length = 0, std::uint32_t tracks = 0)
+	section(std::uint32_t length = 0, std::uint32_t num_tracks = 0)
 	: length_(length)
-	, tracks_(tracks, track{length_})
 	{
+		for (std::uint32_t i = 0; i < num_tracks; ++i)
+			tracks_.emplace_back(i, length_);
 	}
 
 	std::string const& name() const { return name_; }
 	void set_name(std::string n) { name_ = std::move(n); }
 
 	std::uint32_t length() const { return length_; }
-	std::deque<track>& tracks() { return tracks_; }
-	std::deque<track> const& tracks() const { return tracks_; }
+	auto& tracks(this auto& self) { return self.tracks_; }
 
-	track& add_track() {
-		tracks_.push_back(track{length_});
+	track& add_track(std::size_t instrument_index) {
+		tracks_.emplace_back(instrument_index, length_);
 		return tracks_.back();
 	}
 

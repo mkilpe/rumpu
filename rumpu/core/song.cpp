@@ -50,26 +50,6 @@ std::optional<delta_tempo> song::global_tempo_slide() const {
 	return tempo_slide_;
 }
 
-song::sections_type& song::sections() {
-	return sections_;
-}
-
-song::section_order_type const& song::section_order() const {
-	return section_order_;
-}
-
-song::section_order_type& song::section_order() {
-	return section_order_;
-}
-
-std::vector<instrument> const& song::instruments() const {
-	return instruments_;
-}
-
-std::vector<instrument>& song::instruments() {
-	return instruments_;
-}
-
 volume_accent_info const& song::accent_rules() const {
 	return accent_info_;
 }
@@ -79,9 +59,10 @@ song_metainfo const& song::meta_info() const {
 }
 
 void song::add_instrument(instrument inst) {
+	std::size_t idx = instruments_.size();
 	instruments_.push_back(std::move(inst));
 	for(auto& [id, sec] : sections_) {
-		auto& t = sec.add_track();
+		auto& t = sec.add_track(idx);
 		for(auto& b : t.bars()) {
 			b.beats.resize(default_time_signature_.beats_in_bar());
 		}
@@ -95,9 +76,12 @@ void song::remove_instrument(std::size_t index) {
 	instruments_.erase(instruments_.begin() + index);
 	for(auto& [id, sec] : sections_) {
 		auto& tracks = sec.tracks();
-		if(index < tracks.size()) {
-			tracks.erase(tracks.begin() + index);
-		}
+		std::erase_if(tracks, [index](track const& t) {
+			return t.instrument_index() == index;
+		});
+		for(auto& t : tracks)
+			if(t.instrument_index() > index)
+				t.set_instrument_index(t.instrument_index() - 1);
 	}
 }
 
@@ -105,16 +89,6 @@ void song::load_instruments(std::uint32_t sample_rate) {
 	for(auto& i : instruments_) {
 		i.load_samples(sample_rate);
 	}
-}
-
-section const* song::find_section(std::uint32_t id) const {
-	auto it = sections_.find(id);
-	return it != sections_.end() ? &it->second : nullptr;
-}
-
-section* song::find_section(std::uint32_t id) {
-	auto it = sections_.find(id);
-	return it != sections_.end() ? &it->second : nullptr;
 }
 
 void song::populate_default_beats(section& sec) {

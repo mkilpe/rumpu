@@ -53,10 +53,12 @@ void track_list::set_context(song* s, uint32_t section)
 	if(s) {
 		header_.set_context(s, section);
 		update_tracks(s, section);
-		size_t i = 0;
-		for(auto&& t : tracks_) {
-			t.pane->set_context(handler_, s, i);
-			t.track->set_context(i++, s, section);
+		if(auto sec = s->find_section(section)) {
+			auto const& core_tracks = sec->tracks();
+			for(std::size_t i = 0; i < tracks_.size() && i < core_tracks.size(); ++i) {
+				tracks_[i].pane->set_context(handler_, s, core_tracks[i].instrument_index());
+				tracks_[i].track->set_context(i, s, section);
+			}
 		}
 	}
 }

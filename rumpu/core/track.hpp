@@ -17,9 +17,16 @@ public:
 	: bars_(length)
 	{
 	}
+	track(std::size_t instrument_index, std::uint32_t length)
+	: instrument_index_(instrument_index)
+	, bars_(length)
+	{
+	}
 
-	std::deque<bar>& bars() { return bars_; }
-	std::deque<bar> const& bars() const { return bars_; }
+	auto& bars(this auto& self) { return self.bars_; }
+
+	std::size_t instrument_index() const { return instrument_index_; }
+	void set_instrument_index(std::size_t i) { instrument_index_ = i; }
 
 	std::optional<volume_slide> find_volume_slide(std::uint32_t index) const {
 		auto it = volume_slides_.find(index);
@@ -33,6 +40,7 @@ public:
 	friend Ar& serialise(Ar&, track&);
 
 private:
+	std::size_t instrument_index_{};
 	std::deque<bar> bars_;
 	std::map<std::uint32_t, volume_slide> volume_slides_;
 };

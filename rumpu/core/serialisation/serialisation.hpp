@@ -124,7 +124,7 @@ template<typename Ar> Ar& serialise(Ar& ar, time_signature const& d) { return se
 template<typename Ar>
 Ar& serialise(Ar& ar, track& d) {
 	serialisation::sequence<Ar> seq(ar);
-	seq & d.bars_ & d.volume_slides_;
+	seq & d.instrument_index_ & d.bars_ & d.volume_slides_;
 	return ar;
 }
 template<typename Ar> Ar& serialise(Ar& ar, track const& d) { return serialise(ar, const_cast<track&>(d)); }
