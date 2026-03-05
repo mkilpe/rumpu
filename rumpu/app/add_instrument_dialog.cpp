@@ -23,15 +23,46 @@ void add_instrument_dialog::on_file_selected(std::string path) {
     has_result_ = true;
 }
 
-void add_instrument_dialog::do_draw() {
-    {
-        std::lock_guard l{result_mutex_};
-        if (has_result_) {
-            path_ = std::move(result_path_);
-            has_result_ = false;
-            browsing_ = false;
-        }
+void add_instrument_dialog::collect_result() {
+    std::lock_guard l{result_mutex_};
+    if (has_result_) {
+        path_ = std::move(result_path_);
+        has_result_ = false;
+        browsing_ = false;
     }
+}
+
+void add_instrument_dialog::draw_content() {
+    ImGui::Text("WAV file path:");
+    ImGui::InputText("##path", &path_);
+    ImGui::SameLine();
+
+    bool const was_browsing = browsing_;
+    if (was_browsing) {
+        ImGui::BeginDisabled();
+    }
+    if (ImGui::Button("Browse...")) {
+        browsing_ = true;
+        open_wav_file_dialog([this](std::string path) {
+            on_file_selected(std::move(path));
+        });
+    }
+    if (was_browsing) {
+        ImGui::EndDisabled();
+    }
+
+    if (ImGui::Button("Add")) {
+        handler_.emit<event::add_instrument>(path_);
+        ImGui::CloseCurrentPopup();
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Cancel")) {
+        ImGui::CloseCurrentPopup();
+    }
+}
+
+bool add_instrument_dialog::draw() {
+    collect_result();
 
     if (open_) {
         ImGui::OpenPopup("Add instrument");
@@ -39,35 +70,10 @@ void add_instrument_dialog::do_draw() {
     }
 
     if (ImGui::BeginPopupModal("Add instrument", nullptr, ImGuiWindowFlags_None)) {
-        ImGui::Text("WAV file path:");
-        ImGui::InputText("##path", &path_);
-        ImGui::SameLine();
-
-        bool const was_browsing = browsing_;
-        if (was_browsing) {
-            ImGui::BeginDisabled();
-        }
-        if (ImGui::Button("Browse...")) {
-            browsing_ = true;
-            open_wav_file_dialog([this](std::string path) {
-                on_file_selected(std::move(path));
-            });
-        }
-        if (was_browsing) {
-            ImGui::EndDisabled();
-        }
-
-        if (ImGui::Button("Add")) {
-            handler_.emit<event::add_instrument>(path_);
-            ImGui::CloseCurrentPopup();
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("Cancel")) {
-            ImGui::CloseCurrentPopup();
-        }
-
+        draw_content();
         ImGui::EndPopup();
     }
+    return true;
 }
 
 }

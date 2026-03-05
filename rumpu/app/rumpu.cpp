@@ -150,9 +150,9 @@ bool rumpu::update() {
     ImGui::Begin("Rumpu", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_MenuBar);
     
     menu();
-    about_dialog_.do_draw();
-    add_instrument_dialog_.do_draw();
-    export_dialog_.do_draw();
+    about_dialog_.draw();
+    add_instrument_dialog_.draw();
+    export_dialog_.draw();
 
     if(!windows_.empty()) {
         auto pos = ImGui::GetCursorPos();

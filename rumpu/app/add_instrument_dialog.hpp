@@ -1,17 +1,20 @@
 #pragma once
+#include "view.hpp"
 #include <securepath/event_system/event_handler.hpp>
 #include <mutex>
 #include <string>
 
 namespace securepath::drum::app {
 
-class add_instrument_dialog {
+class add_instrument_dialog : public view {
 public:
     explicit add_instrument_dialog(event_system::event_handler&);
     void open();
-    void do_draw();
+    bool draw() override;
 private:
     void on_file_selected(std::string path);
+    void collect_result();
+    void draw_content();
 
     event_system::event_handler& handler_;
     bool open_{};

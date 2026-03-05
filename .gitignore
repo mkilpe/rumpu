@@ -30,3 +30,6 @@ Doxyfile.Doxygen
 oi
 catch2
 build_*
+
+rumpu/app/license.hpp
+rumpu/app/version.hpp

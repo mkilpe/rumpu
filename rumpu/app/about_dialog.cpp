@@ -11,7 +11,7 @@ void about_dialog::open() {
     open_ = true;
 }
 
-void about_dialog::do_draw() {
+bool about_dialog::draw() {
     if (open_) {
         ImGui::OpenPopup("About Rumpu");
         open_ = false;
@@ -30,6 +30,7 @@ void about_dialog::do_draw() {
         }
         ImGui::EndPopup();
     }
+    return true;
 }
 
 }

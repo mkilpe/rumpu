@@ -1,5 +1,6 @@
 #pragma once
 
+#include "view.hpp"
 #include <rumpu/core/export.hpp>
 #include <rumpu/core/song.hpp>
 #include <mutex>
@@ -8,12 +9,16 @@
 
 namespace securepath::drum::app {
 
-class export_dialog {
+class export_dialog : public view {
 public:
     void open(song const*);
-    void do_draw();
+    bool draw() override;
 private:
     void on_file_selected(std::string path);
+    void collect_file_result();
+    void tick_export();
+    void draw_content();
+    void draw_idle_content();
     void start_export();
 
     song const* song_{};
