@@ -55,7 +55,7 @@ struct endian_convert<endian::big> {
 		for( std::size_t i{}; i != sizeof(T); ++i, shift += 8 ) {
 			value |= static_cast<T>(source[sizeof(T)-i-1]) << shift;
 		}
-		return static_cast<T>(value);;
+		return static_cast<T>(value);
 	}
 };
 

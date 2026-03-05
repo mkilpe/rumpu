@@ -1,6 +1,7 @@
 #include "audio_data.hpp"
 #include "detail/wav.hpp"
 
+#include <bit>
 #include <cstring>
 #include <fstream>
 #include <vector>
@@ -26,12 +27,30 @@ audio_data::audio_data(audio::audio_buffer const& buffer)
 
 static_assert(sizeof(float) == 4);
 
+template<typename T>
+static T read_value(std::uint8_t const* src, std::endian endian) {
+	T v;
+	std::memcpy(&v, src, sizeof(T));
+	if (endian != std::endian::native) {
+		v = std::byteswap(v);
+	}
+	return v;
+}
+
+template<typename T>
+static void write_value(std::uint8_t* dst, T v, std::endian endian) {
+	if (endian != std::endian::native) {
+		v = std::byteswap(v);
+	}
+	std::memcpy(dst, &v, sizeof(T));
+}
+
 static float read_sample(std::uint8_t const* src, audio::audio_format const& fmt) {
 	switch(fmt.type) {
 	case audio::char_t:  return static_cast<std::int8_t>(*src) / 128.0f;
 	case audio::uchar_t: return (*src - 128) / 128.0f;
-	case audio::short_t: { std::int16_t v; std::memcpy(&v, src, sizeof(v)); return v / 32768.0f; }
-	case audio::float_t: { float v; std::memcpy(&v, src, sizeof(v)); return v; }
+	case audio::short_t: return read_value<std::int16_t>(src, fmt.endian) / 32768.0f;
+	case audio::float_t: return std::bit_cast<float>(read_value<std::uint32_t>(src, fmt.endian));
 	}
 	return 0.f;
 }
@@ -41,8 +60,8 @@ static void write_sample(std::uint8_t* dst, float v, audio::audio_format const& 
 	switch(fmt.type) {
 	case audio::char_t:  *reinterpret_cast<std::int8_t*>(dst) = std::int8_t(v * 127); break;
 	case audio::uchar_t: *dst = std::uint8_t((v + 1.0f) * 127.5f); break;
-	case audio::short_t: { auto s = std::int16_t(v * 32767); std::memcpy(dst, &s, sizeof(s)); break; }
-	case audio::float_t: std::memcpy(dst, &v, sizeof(v)); break;
+	case audio::short_t: write_value<std::int16_t>(dst, std::int16_t(v * 32767), fmt.endian); break;
+	case audio::float_t: write_value<std::uint32_t>(dst, std::bit_cast<std::uint32_t>(v), fmt.endian); break;
 	}
 }
 
