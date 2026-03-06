@@ -263,7 +263,10 @@ void track::context_menu(track_draw_context& context)
 				amount = 5;
             }
             if(ImGui::MenuItem("...")) {
-            	//open dialog..
+            	divide_dialog_open_ = true;
+            	divide_dialog_target_ = divide_target::beat;
+            	divide_amount_ = 2;
+            	divide_mouse_pos_ = mouse_pos_;
             }
             if(amount) {
     			bar_calc bc(context, ImVec2{mouse_pos_.x - context.pos.x, mouse_pos_.y - context.pos.y});
@@ -272,9 +275,8 @@ void track::context_menu(track_draw_context& context)
 				    b->division.front() = b->data();
     			}
     		}
-    		ImGui::EndMenu(); 
+    		ImGui::EndMenu();
     	}
-		//if (ImGui::MenuItem("Divide bar")) {
 		if (ImGui::BeginMenu("Divide bar"))
         {
         	std::size_t amount = 0;
@@ -291,7 +293,10 @@ void track::context_menu(track_draw_context& context)
 				amount = 5;
             }
             if(ImGui::MenuItem("...")) {
-            	//open dialog..
+            	divide_dialog_open_ = true;
+            	divide_dialog_target_ = divide_target::bar;
+            	divide_amount_ = 2;
+            	divide_mouse_pos_ = mouse_pos_;
             }
             if(amount) {
     			bar_calc bc(context, ImVec2{mouse_pos_.x - context.pos.x, mouse_pos_.y - context.pos.y});
@@ -299,7 +304,7 @@ void track::context_menu(track_draw_context& context)
     				b->beats.resize(amount);
     			}
     		}
-            ImGui::EndMenu();        
+            ImGui::EndMenu();
     	}
     	if (ImGui::MenuItem("Clear bar")) {
     		bar_calc bc(context, ImVec2{mouse_pos_.x - context.pos.x, mouse_pos_.y - context.pos.y});
@@ -347,12 +352,49 @@ void track::zoom(float z)
 	child_window_base::set_size(size);
 }
 
+void track::divide_dialog(track_draw_context& context)
+{
+	auto popup_name = "Divide##" + name();
+
+	if(divide_dialog_open_) {
+		ImGui::OpenPopup(popup_name.c_str());
+		divide_dialog_open_ = false;
+	}
+
+	if(ImGui::BeginPopupModal(popup_name.c_str(), nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+		bool const is_beat = divide_dialog_target_ == divide_target::beat;
+		ImGui::Text("Divide %s into:", is_beat ? "beat" : "bar");
+		ImGui::SliderInt("##n", &divide_amount_, 2, 16);
+
+		if(ImGui::Button("OK")) {
+			bar_calc bc(context, ImVec2{divide_mouse_pos_.x - context.pos.x, divide_mouse_pos_.y - context.pos.y});
+			if(is_beat) {
+				if(auto b = bc.find_beat()) {
+					b->division.resize(divide_amount_);
+					b->division.front() = b->data();
+				}
+			} else {
+				if(auto b = bc.find_bar()) {
+					b->beats.resize(divide_amount_);
+				}
+			}
+			ImGui::CloseCurrentPopup();
+		}
+		ImGui::SameLine();
+		if(ImGui::Button("Cancel")) {
+			ImGui::CloseCurrentPopup();
+		}
+		ImGui::EndPopup();
+	}
+}
+
 bool track::do_draw()
-{	
+{
 	if(song_) {
 		if(track_draw_context context{*song_, index_, section_}) {
 			// mouse interaction
 			handle_mouse(context);
+			divide_dialog(context);
 
 			drawer d(context);
 			d.draw_center_line();

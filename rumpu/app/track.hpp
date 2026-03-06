@@ -26,6 +26,7 @@ private:
     void toggle_mark(track_draw_context&, const ImVec2& rel_pos);
     void handle_mouse(track_draw_context&);
     void context_menu(track_draw_context&);
+    void divide_dialog(track_draw_context&);
 
 private:
     size_t index_{};
@@ -34,6 +35,12 @@ private:
     ImVec2 mouse_pos_{};
     float zoom_{1.0f};
     ImVec2 original_size_{};
+
+    enum class divide_target { beat, bar };
+    bool divide_dialog_open_{false};
+    divide_target divide_dialog_target_{};
+    int divide_amount_{2};
+    ImVec2 divide_mouse_pos_{};
 };
 
 using track_ptr = std::unique_ptr<track_view>;
