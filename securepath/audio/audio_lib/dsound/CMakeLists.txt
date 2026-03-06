@@ -1,3 +1,3 @@
-file(GLOB BACKEND_SRC *.cpp *.hpp)
+file(GLOB BACKEND_SRC dsound/*.cpp dsound/*.hpp)
 target_sources(audio PRIVATE ${BACKEND_SRC})
-target_link_libraries(audio Dsound dxguid)
+target_link_libraries(audio dsound dxguid)

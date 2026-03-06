@@ -31,7 +31,7 @@ namespace event {
 
 class player {
 public:
-	player(event_system::event_handler& h, audio::device_config const& config = {{audio::float_t}, 8000});
+	player(event_system::event_handler& h, audio::device_config const& config = {{audio::float_t, 1, 32, 24000}, 8000});
 	~player();
 
 	void play(song const*, bool loop = false, std::uint32_t section = 0);

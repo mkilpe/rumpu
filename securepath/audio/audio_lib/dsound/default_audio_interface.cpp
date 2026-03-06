@@ -1,5 +1,5 @@
 
-#include "audio_interface.hpp"
+#include "../audio_interface.hpp"
 #include "dsound.hpp"
 
 namespace securepath::audio {

@@ -1,7 +1,7 @@
 #ifndef SECUREPATH_AUDIO_DSOUND_HEADER
 #define SECUREPATH_AUDIO_DSOUND_HEADER
 
-#include "audio_interface.hpp"
+#include "../audio_interface.hpp"
 
 namespace securepath::audio {
 

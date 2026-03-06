@@ -1,6 +1,6 @@
 #include "dsound.hpp"
-#include <voice/audiolib/audio_device_modes.hpp>
-#include <voice/audiolib/util.hpp>
+#include "../audio_device_modes.hpp"
+#include "../util.hpp"
 
 #include <securepath/log/log.hpp>
 
@@ -9,9 +9,10 @@
 #include <chrono>
 #include <thread>
 
-#include <Windows.h>
+#include <windows.h>
 #include <mmsystem.h>
-#include <DSound.h>
+#include <mmreg.h>
+#include <dsound.h>
 
 #ifdef _MSC_VER
 #	pragma comment( lib, "Dsound.lib" )
@@ -60,7 +61,7 @@ public:
 			throw std::runtime_error("failed to set cooperative level");
 		}
 		std::memset(&format_, 0, sizeof(format_));
-		format_.wFormatTag = WAVE_FORMAT_PCM;
+		format_.wFormatTag = (config_.format.type == sample_type::float_t) ? WAVE_FORMAT_IEEE_FLOAT : WAVE_FORMAT_PCM;
 		format_.nChannels = config_.format.channels;
 		format_.wBitsPerSample = config_.format.bits_per_sample;
 		format_.nSamplesPerSec = config_.format.samples_per_second;
@@ -159,7 +160,7 @@ public:
 		if( size < 0 ) {
 			size += buffer_size_in_bytes_;
 		}
-		return size;
+		return size / format_.nBlockAlign;
 	}
 
 	std::size_t write_to_buffer(uint8_t const* buf, std::size_t size) {
@@ -184,16 +185,16 @@ public:
 	}
 
 	virtual std::size_t write(audio_buffer& b) {
-		std::size_t size = avail();
+		std::size_t size = avail() * format_.nBlockAlign;
 		if( pos_ == 0 && !started_ ) {
-			size = std::min<int>(b.used_size(), buffer_size_in_bytes_);
+			size = std::min<std::size_t>(b.used_size(), buffer_size_in_bytes_);
 		}
 		std::size_t consumed = 0;
 		if( size ) {
 			consumed = write_to_buffer(b.begin<uint8_t>(), std::min<std::size_t>( size, b.used_size() ));
 			b.consume(consumed);
 		}
-		return 8*consumed / config_.format.bits_per_sample;
+		return consumed / format_.nBlockAlign;
 	}
 private:
 	device_config config_;
@@ -391,7 +392,7 @@ adinfos dsound_audio_interface::enumerate_devices(audio_device_type type) const 
 		enum_calltype callback = [&](LPGUID guid, LPCWSTR desc) {
 			devices.push_back(std::make_shared<dsound_device_info>(guid, desc, true));
 		};
-		if(FAILED(::DirectSoundEnumerate(&audio::enumerate_devices, &callback))) {
+		if(FAILED(::DirectSoundEnumerateW(&audio::enumerate_devices, &callback))) {
 			throw std::runtime_error("failed to enumerate audio devices");
 		}
 	}
@@ -399,7 +400,7 @@ adinfos dsound_audio_interface::enumerate_devices(audio_device_type type) const 
 		enum_calltype callback = [&](LPGUID guid, LPCWSTR desc) {
 			devices.push_back(std::make_shared<dsound_device_info>(guid, desc, false));
 		};
-		if(FAILED(::DirectSoundCaptureEnumerate(&audio::enumerate_devices, &callback))) {
+		if(FAILED(::DirectSoundCaptureEnumerateW(&audio::enumerate_devices, &callback))) {
 			throw std::runtime_error("failed to enumerate audio devices");
 		}
 	}
