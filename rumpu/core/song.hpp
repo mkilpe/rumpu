@@ -50,6 +50,7 @@ public:
 	}
 	std::uint32_t add_section(std::optional<section> = std::nullopt);
 	void add_section(std::uint32_t id);
+	void remove_section(std::uint32_t id);
 
 	template<typename Ar>
 	friend Ar& serialise(Ar&, song&);

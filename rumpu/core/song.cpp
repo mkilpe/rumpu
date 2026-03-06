@@ -98,14 +98,17 @@ std::uint32_t song::add_section(std::optional<section> s) {
 	std::uint32_t index = sections_.size()+1;
 	if(s) {
 		sections_[index] = std::move(*s);
+		if(sections_[index].name().empty()) {
+			sections_[index].set_name("Section " + std::to_string(index));
+		}
 	} else {
 		//t: take the default length from settings or from previous section?
 		sections_[index] = section{4, static_cast<std::uint32_t>(instruments_.size())};
+		if(sections_[index].name().empty()) {
+			sections_[index].set_name("Section " + std::to_string(index));
+		}
+		populate_default_beats(sections_[index]);
 	}
-	if(sections_[index].name().empty()) {
-		sections_[index].set_name("Section " + std::to_string(index));
-	}
-	populate_default_beats(sections_[index]);
 	return index;
 }
 
@@ -115,6 +118,11 @@ void song::add_section(std::uint32_t id) {
 		sections_[id].set_name("Section " + std::to_string(id));
 	}
 	populate_default_beats(sections_[id]);
+}
+
+void song::remove_section(std::uint32_t id) {
+	sections_.erase(id);
+	std::erase(section_order_, id);
 }
 
 }

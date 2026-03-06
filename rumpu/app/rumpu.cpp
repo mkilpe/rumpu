@@ -94,6 +94,22 @@ void rumpu::menu() {
             ImGui::EndMenu();
         }
         if (ImGui::BeginMenu("Sections")) {
+            if (ImGui::MenuItem("Clone section")) {
+                if (auto* sec = song_.find_section(current_section_)) {
+                    auto id = song_.add_section(*sec);
+                    song_.section_order().push_back(id);
+                    current_section_ = id;
+                    track_edit_view_->set_context(&song_, id);
+                }
+            }
+            if (ImGui::MenuItem("Remove section", nullptr, false, song_.sections().size() > 1)) {
+                auto it = song_.sections().find(current_section_);
+                song_.remove_section(current_section_);
+                if (!song_.sections().empty()) {
+                    select_section_impl(song_.sections().begin()->first);
+                }
+            }
+            ImGui::Separator();
             for (auto const& [id, section] : song_.sections()) {
                 std::string label = "Section " + std::to_string(id);
                 bool is_selected = (id == current_section_);
