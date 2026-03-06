@@ -56,6 +56,16 @@ bool track_header::do_draw()
                     end.y += 5;
                 }
                 drawlist->AddLine(tick_pos, end, color, 1.0f);
+
+                if((i - 1) % beat_per_bar == 0) {
+                    float bar_width = inc * beat_per_bar;
+                    auto label = std::to_string((i - 1) / beat_per_bar + 1);
+                    auto text_size = ImGui::CalcTextSize(label.c_str());
+                    if(bar_width > text_size.x) {
+                        drawlist->AddText(ImVec2(tick_pos.x + 2, tick_pos.y + 10), IM_COL32(200,200,200,255), label.c_str());
+                    }
+                }
+
                 tick_pos.x += inc;
             }
         }

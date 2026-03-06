@@ -36,3 +36,4 @@ rumpu/app/license.hpp
 rumpu/app/version.hpp
 
 local-plan.txt
+test/export.wav

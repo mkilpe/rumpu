@@ -32,6 +32,8 @@ private:
     std::vector<track_info> tracks_;
 
     float zoom_{1.0f};
+    song* song_{};
+    uint32_t section_{};
 };
 
 }

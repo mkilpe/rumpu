@@ -31,7 +31,7 @@ bool section_info_view::do_draw() {
     ImGui::SetNextItemWidth(80);
     int length = section->length();
     if(ImGui::InputInt("bars", &length, 1)) {
-        if(length >= 1)
+        if(length >= 1 && length <= 1024)
             section->set_length(length);
     }
     return true;

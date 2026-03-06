@@ -48,7 +48,7 @@ bool track_pane::do_draw()
         ImGui::SameLine();
     }
 
-    if (ImGuiKnobs::Knob("Gain", &gain_, -6.0f, 6.0f, 0.1f, "%.1fdB", ImGuiKnobVariant_Tick, 30)) {
+    if (ImGuiKnobs::Knob("Gain", &gain_, -6.0f, 6.0f, 0.1f, "%.1f", ImGuiKnobVariant_Tick, 30)) {
         if(song_ && instrument_index_ < song_->instruments().size()) {
             drum::volume v = song_->instruments()[instrument_index_].volume();
             v.value = std::pow(10.0f, gain_ / 20.0f);

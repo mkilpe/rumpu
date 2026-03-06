@@ -83,10 +83,15 @@ void export_dialog::draw_idle_content() {
 }
 
 void export_dialog::draw_content() {
+    auto format_progress = [this] {
+        auto total_ms = static_cast<long long>(exporter_->progress() * 1000);
+        auto s = total_ms / 1000;
+        ImGui::Text("Exporting... %lld:%02lld.%03lld", s / 60, s % 60, total_ms % 1000);
+    };
     if (state_ == state::exporting) {
-        ImGui::Text("Exporting... %.3fs", exporter_->progress());
+        format_progress();
     } else if (state_ == state::done) {
-        ImGui::Text("Exporting... %.3fs", exporter_->progress());
+        format_progress();
         ImGui::Text("Export complete.");
         if (ImGui::Button("Close")) {
             state_ = state::idle;

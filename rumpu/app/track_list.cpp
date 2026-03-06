@@ -2,6 +2,7 @@
 #include "track_list.hpp"
 #include "track_pane.hpp"
 #include <securepath/log/log.hpp>
+#include <algorithm>
 
 #include "imgui.h"
 
@@ -25,7 +26,7 @@ void track_list::add_track()
 	tracks_.back().track->set_size({1500, 75});
 	tracks_.back().track->zoom(zoom_);
 
-	header_.set_size({1500, 20});
+	header_.set_size({1500, 22});
 	header_.zoom(zoom_);
 }
 
@@ -50,6 +51,8 @@ void track_list::update_tracks(song* s, uint32_t section)
 
 void track_list::set_context(song* s, uint32_t section)
 {
+	song_ = s;
+	section_ = section;
 	if(s) {
 		header_.set_context(s, section);
 		update_tracks(s, section);
@@ -67,16 +70,23 @@ bool track_list::do_draw()
 {
 	ImGuiIO& io = ImGui::GetIO();
 
+	float max_zoom = 20.0f;
+	if(song_) {
+		if(auto* sec = song_->find_section(section_)) {
+			max_zoom = std::max(20.0f, sec->length() / 3.0f);
+		}
+	}
+
 	bool zoom_changed = false;
 	if(io.MouseWheel && ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows)) {
 		zoom_changed = true;
-		zoom_ += 0.05 * io.MouseWheel;
-		if(zoom_ > 20.0) {
-			zoom_ = 20.0;
+		zoom_ += 0.05f * (max_zoom / 20.0f) * io.MouseWheel;
+		if(zoom_ > max_zoom) {
+			zoom_ = max_zoom;
 		}
 		if(zoom_ < 0.10) {
 			zoom_ = 0.10;
-		}		
+		}
 	}
 
 	if (ImGui::BeginTable("track_list_table", 2, ImGuiTableFlags_BordersH | ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg)) {
