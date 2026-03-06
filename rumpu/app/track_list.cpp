@@ -21,7 +21,7 @@ void track_list::add_track()
 			std::unique_ptr<track_pane>{new track_pane(("pane " + std::to_string(index)).c_str())},
 			track_ptr{new track(("track " + std::to_string(index)).c_str())}
 		});
-	tracks_.back().pane->set_size({50, 75});
+	tracks_.back().pane->set_size({60, 75});
 	tracks_.back().track->set_size({1500, 75});
 	tracks_.back().track->zoom(zoom_);
 

@@ -212,6 +212,12 @@ struct bar_calc {
 
 
 	void toggle_mark() const {
+		if(index < context.bars->size()) {
+			auto& bar = (*context.bars)[index];
+			if(bar.beats.empty()) {
+				bar.beats.resize(context.signature.beats_in_bar());
+			}
+		}
 		if(beat* b = find_beat()) {
 			b->action = b->action == beat::none ? beat::hit : beat::none;
 		}

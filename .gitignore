@@ -34,3 +34,5 @@ build-windows/
 
 rumpu/app/license.hpp
 rumpu/app/version.hpp
+
+local-plan.txt
