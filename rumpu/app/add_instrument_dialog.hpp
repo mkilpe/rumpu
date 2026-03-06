@@ -20,6 +20,7 @@ private:
     bool open_{};
     bool browsing_{};
     std::string path_;
+    std::string name_;
 
     std::mutex result_mutex_;
     bool has_result_{};

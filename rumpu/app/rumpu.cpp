@@ -14,6 +14,7 @@ namespace securepath::drum::app {
 rumpu::rumpu()
 : event_handler(static_cast<securepath::event_system::event_loop&>(*this))
 , add_instrument_dialog_(*this)
+, add_track_dialog_(*this)
 , song_({}, {3,4}, {60.0})
 , player_(*this)
 {
@@ -152,6 +153,7 @@ bool rumpu::update() {
     menu();
     about_dialog_.draw();
     add_instrument_dialog_.draw();
+    add_track_dialog_.draw();
     export_dialog_.draw();
 
     if(!windows_.empty()) {
@@ -174,12 +176,19 @@ bool rumpu::update() {
     return running_;
 }
 
-void rumpu::add_track(uint32_t section) {
+void rumpu::add_track(uint32_t section, std::size_t instrument_index) {
     std::unique_lock l{mutex_};
-    LOG_TRACE("add_track");
-    // for testing
-    song_.add_instrument(instrument{"test_kick.wav"});
+    for(auto& [id, sec] : song_.sections()) {
+        auto& t = sec.add_track(instrument_index);
+        for(auto& b : t.bars()) {
+            b.beats.resize(song_.default_time_signature().beats_in_bar());
+        }
+    }
     track_edit_view_->set_context(&song_, section);
+}
+
+void rumpu::open_add_track_dialog(uint32_t section) {
+    add_track_dialog_.open(&song_, section);
 }
 
 void rumpu::select_section_impl(uint32_t section_id) {
@@ -193,10 +202,13 @@ void rumpu::select_section(uint32_t section_id) {
     select_section_impl(section_id);
 }
 
-void rumpu::add_instrument(std::string path) {
+void rumpu::add_instrument(std::string path, std::string name) {
     std::unique_lock l{mutex_};
-    song_.add_instrument(instrument{path});
-    track_edit_view_->set_context(&song_, current_section_);
+    instrument inst{path};
+    if (!name.empty()) {
+        inst.set_name(std::move(name));
+    }
+    song_.add_instrument(std::move(inst));
 }
 
 void rumpu::add_section() {
@@ -255,6 +267,7 @@ void rumpu::player_pos_changed() {
 void rumpu::handle_event(std::unique_ptr<securepath::event_system::event_base> ev) {
     dispatch(*ev
         , event_dest<event::add_track>(&rumpu::add_track)
+        , event_dest<event::open_add_track_dialog>(&rumpu::open_add_track_dialog)
         , event_dest<event::add_instrument>(&rumpu::add_instrument)
         , event_dest<event::play_song>(&rumpu::play_song)
         , event_dest<event::stop_song>(&rumpu::stop_song)

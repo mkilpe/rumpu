@@ -8,6 +8,7 @@
 
 #include "about_dialog.hpp"
 #include "add_instrument_dialog.hpp"
+#include "add_track_dialog.hpp"
 #include "export_dialog.hpp"
 #include "child_window.hpp"
 #include "track_edit_view.hpp"
@@ -23,13 +24,14 @@ public:
 
 private:
     void menu();
-    void add_track(uint32_t section);
+    void add_track(uint32_t section, std::size_t instrument_index);
+    void open_add_track_dialog(uint32_t section);
     void play_song(uint32_t section);
     void stop_song(uint32_t section);
     void select_section(uint32_t section_id);
     void select_section_impl(uint32_t section_id);
     void add_section();
-    void add_instrument(std::string path);
+    void add_instrument(std::string path, std::string name);
     void remove_track(std::size_t index);
     void open_project(std::string path);
     void save_project(std::string path);
@@ -41,6 +43,7 @@ private:
     uint32_t current_section_{};
     about_dialog about_dialog_;
     add_instrument_dialog add_instrument_dialog_;
+    add_track_dialog add_track_dialog_;
     export_dialog export_dialog_;
 
     mutable std::mutex mutex_;

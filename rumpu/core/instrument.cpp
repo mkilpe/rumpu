@@ -25,6 +25,10 @@ drum::volume const& instrument::volume() const {
 	return volume_;
 }
 
+void instrument::set_name(std::string name) {
+	name_ = std::move(name);
+}
+
 void instrument::set_volume(drum::volume const& v) {
 	volume_ = v;
 }

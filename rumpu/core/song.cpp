@@ -58,15 +58,10 @@ song_metainfo const& song::meta_info() const {
 	return info_;
 }
 
-void song::add_instrument(instrument inst) {
+std::size_t song::add_instrument(instrument inst) {
 	std::size_t idx = instruments_.size();
 	instruments_.push_back(std::move(inst));
-	for(auto& [id, sec] : sections_) {
-		auto& t = sec.add_track(idx);
-		for(auto& b : t.bars()) {
-			b.beats.resize(default_time_signature_.beats_in_bar());
-		}
-	}
+	return idx;
 }
 
 void song::remove_instrument(std::size_t index) {

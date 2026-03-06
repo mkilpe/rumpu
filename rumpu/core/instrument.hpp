@@ -15,6 +15,7 @@ public:
 	drum_sample const& sample_to_play() const;
 	drum::volume const& volume() const;
 
+	void set_name(std::string name);
 	void set_volume(drum::volume const&);
 	void load_samples(std::uint32_t sample_rate);
 
