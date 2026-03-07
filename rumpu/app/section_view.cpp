@@ -101,6 +101,19 @@ bool section_view::do_draw() {
         }
     }
 
+    // Invisible drop target after the last button so items can be dragged to the end
+    if (!order.empty()) {
+        ImGui::SameLine();
+        ImGui::InvisibleButton("##drop_end", ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetFrameHeight()));
+        if (ImGui::BeginDragDropTarget()) {
+            if (auto const* payload = ImGui::AcceptDragDropPayload("SECTION_ORDER")) {
+                drag_source = *static_cast<int const*>(payload->Data);
+                drag_target = static_cast<int>(order.size() - 1);
+            }
+            ImGui::EndDragDropTarget();
+        }
+    }
+
     // Apply reorder after the loop to avoid mutating during iteration
     if (drag_source >= 0 && drag_target >= 0 && drag_source != drag_target) {
         auto val = order[drag_source];
