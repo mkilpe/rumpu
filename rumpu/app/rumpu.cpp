@@ -275,11 +275,13 @@ void rumpu::new_song(std::string name, time_signature ts, float tempo) {
     track_edit_view_->set_context(&song_, id);
 }
 
-void rumpu::update_song_properties(std::string name, std::string author, std::string notes, time_signature ts, float tempo) {
+void rumpu::update_song_properties(std::string name, std::string author, std::string notes, time_signature ts, float tempo, float rand_offset_ms, float rand_volume_percent) {
     std::unique_lock l{mutex_};
     song_.set_metainfo(song_metainfo{std::move(name), std::move(author), std::move(notes)});
     song_.set_default_time_signature(ts);
     song_.set_default_tempo(drum::tempo{tempo});
+    song_.set_rand_offset(rand_hit_offset{rand_offset_ms});
+    song_.set_rand_volume(rand_hit_volume{rand_volume_percent});
 }
 
 void rumpu::player_pos_changed() {

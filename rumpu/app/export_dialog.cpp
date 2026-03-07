@@ -77,7 +77,7 @@ void export_dialog::draw_idle_content() {
     }
     if (path_empty) { ImGui::EndDisabled(); }
     ImGui::SameLine();
-    if (ImGui::Button("Cancel")) {
+    if (ImGui::Button("Cancel") || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
         ImGui::CloseCurrentPopup();
     }
 }

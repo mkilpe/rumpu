@@ -38,7 +38,7 @@ private:
     void open_project(std::string path);
     void save_project(std::string path);
     void new_song(std::string name, time_signature ts, float tempo);
-    void update_song_properties(std::string name, std::string author, std::string notes, time_signature ts, float tempo);
+    void update_song_properties(std::string name, std::string author, std::string notes, time_signature ts, float tempo, float rand_offset_ms, float rand_volume_percent);
     void player_pos_changed();
 
 private:

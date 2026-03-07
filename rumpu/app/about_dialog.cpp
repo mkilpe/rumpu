@@ -25,7 +25,7 @@ bool about_dialog::draw() {
         ImGui::SeparatorText("License");
         ImGui::InputTextMultiline("##license", const_cast<char*>(license_text), sizeof(license_text),
             ImVec2(-1, -ImGui::GetFrameHeightWithSpacing()), ImGuiInputTextFlags_ReadOnly);
-        if (ImGui::Button("Close")) {
+        if (ImGui::Button("Close") || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
             ImGui::CloseCurrentPopup();
         }
         ImGui::EndPopup();

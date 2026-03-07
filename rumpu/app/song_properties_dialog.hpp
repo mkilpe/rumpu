@@ -20,6 +20,8 @@ private:
     int beats_{4};
     int beat_type_{4};
     float tempo_{120.0f};
+    float rand_offset_ms_{};
+    float rand_volume_percent_{};
 };
 
 }

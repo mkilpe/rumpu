@@ -52,6 +52,7 @@ template<typename Ar> Ar& serialise(Ar& ar, bar const& d) { return serialise(ar,
 template<typename Ar>
 Ar& serialise(Ar& ar, rand_hit_volume& d) {
 	serialisation::sequence<Ar> seq(ar);
+	seq & d.max_percent;
 	return ar;
 }
 template<typename Ar> Ar& serialise(Ar& ar, rand_hit_volume const& d) { return serialise(ar, const_cast<rand_hit_volume&>(d)); }
@@ -59,6 +60,7 @@ template<typename Ar> Ar& serialise(Ar& ar, rand_hit_volume const& d) { return s
 template<typename Ar>
 Ar& serialise(Ar& ar, rand_hit_offset& d) {
 	serialisation::sequence<Ar> seq(ar);
+	seq & d.max_ms;
 	return ar;
 }
 template<typename Ar> Ar& serialise(Ar& ar, rand_hit_offset const& d) { return serialise(ar, const_cast<rand_hit_offset&>(d)); }

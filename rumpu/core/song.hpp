@@ -8,6 +8,7 @@
 #include <cassert>
 #include <iterator>
 #include <map>
+#include <random>
 #include <vector>
 #include <shared_mutex>
 
@@ -43,6 +44,14 @@ public:
 	void set_metainfo(song_metainfo info);
 	void set_default_time_signature(time_signature ts);
 	void set_default_tempo(tempo t);
+
+	rand_hit_offset const& rand_offset() const;
+	rand_hit_volume const& rand_volume() const;
+	void set_rand_offset(rand_hit_offset);
+	void set_rand_volume(rand_hit_volume);
+
+	void randomise_beats();
+	void randomise_beat(beat&);
 
 	std::size_t add_instrument(instrument);
 	void remove_instrument(std::size_t index);
@@ -94,6 +103,9 @@ private:
 
 	// global tempo slide
 	std::optional<delta_tempo> tempo_slide_;
+
+	// rng for randomisation
+	std::mt19937 rng_{std::random_device{}()};
 };
 
 }

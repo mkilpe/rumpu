@@ -42,7 +42,7 @@ void add_track_dialog::draw_content() {
         ImGui::EndDisabled();
     }
     ImGui::SameLine();
-    if (ImGui::Button("Cancel")) {
+    if (ImGui::Button("Cancel") || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
         ImGui::CloseCurrentPopup();
     }
 }

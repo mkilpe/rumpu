@@ -165,22 +165,18 @@ struct mixer::impl {
 
 	void push_info_action(track_info& info, std::int32_t sample_pos, beat const& b) {
 		if(b.action == beat::hit) {
-			std::int32_t adj_offset = sample_pos + pos_.samples*b.hit_data.rand_hit_offset;
+			std::int32_t adj_offset = sample_pos + static_cast<std::int32_t>(b.hit_data.rand_hit_offset / 1000.0f * pos_.sample_rate);
 			// don't allow negative offsets here, those are handled by looking up the next bar afterwards
 			if(adj_offset >= 0) {
 				if(std::uint32_t(adj_offset) >= pos_.samples) {
 					adj_offset = pos_.samples-1;
 				}
 				info.actions.push_back(
-					action_data{static_cast<std::uint32_t>(adj_offset), b.action, calc_action_volume(info, b)});
+					action_data{static_cast<std::uint32_t>(adj_offset), b.action, info.volume.value * b.combined_hit_volume()});
 			}
 		} else if(b.action == beat::stop) {
 			info.actions.push_back(action_data{0, b.action, 0.0f, b.stop_data.falloff});
 		}
-	}
-
-	float calc_action_volume(track_info const& info, beat const& b) {
-		return info.volume.value*b.combined_hit_volume();
 	}
 
 	void update_track_volume(track const& t, track_info& info) {
@@ -229,9 +225,9 @@ struct mixer::impl {
 					value = &b.beats.front();
 				}
 				if(value && value->action == beat::hit && value->hit_data.rand_hit_offset < 0) {
-					std::int32_t adj_offset = pos_.samples + pos_.samples*value->hit_data.rand_hit_offset;
+					std::int32_t adj_offset = pos_.samples + static_cast<std::int32_t>(value->hit_data.rand_hit_offset / 1000.0f * pos_.sample_rate);
 					info.actions.push_back(
-						action_data{static_cast<std::uint32_t>(adj_offset), value->action, calc_action_volume(info, *value)});
+						action_data{static_cast<std::uint32_t>(adj_offset), value->action, info.volume.value * value->combined_hit_volume()});
 				}
 			}
 		}

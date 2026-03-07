@@ -51,7 +51,7 @@ struct save_project {
 };
 
 struct update_song_properties {
-    typedef void type(std::string name, std::string author, std::string notes, time_signature ts, float tempo);
+    typedef void type(std::string name, std::string author, std::string notes, time_signature ts, float tempo, float rand_offset_ms, float rand_volume_percent);
 };
 
 }

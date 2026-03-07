@@ -27,6 +27,7 @@ private:
     void handle_mouse(track_draw_context&);
     void context_menu(track_draw_context&);
     void divide_dialog(track_draw_context&);
+    void beat_properties_dialog(track_draw_context&);
 
 private:
     size_t index_{};
@@ -41,6 +42,10 @@ private:
     divide_target divide_dialog_target_{};
     int divide_amount_{2};
     ImVec2 divide_mouse_pos_{};
+
+    bool beat_props_open_{false};
+    ImVec2 beat_props_mouse_pos_{};
+    beat* beat_props_beat_{};
 };
 
 using track_ptr = std::unique_ptr<track_view>;

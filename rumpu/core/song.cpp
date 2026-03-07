@@ -70,6 +70,56 @@ void song::set_default_tempo(tempo t) {
 	default_tempo_ = t;
 }
 
+rand_hit_offset const& song::rand_offset() const {
+	return rand_offset_;
+}
+
+rand_hit_volume const& song::rand_volume() const {
+	return rand_volume_;
+}
+
+void song::set_rand_offset(rand_hit_offset v) {
+	rand_offset_ = v;
+	randomise_beats();
+}
+
+void song::set_rand_volume(rand_hit_volume v) {
+	rand_volume_ = v;
+	randomise_beats();
+}
+
+void song::randomise_beat(beat& b) {
+	if(b.action == beat::hit) {
+		if(rand_offset_.max_ms > 0) {
+			std::uniform_real_distribution<float> dist(-rand_offset_.max_ms, rand_offset_.max_ms);
+			b.hit_data.rand_hit_offset = dist(rng_);
+		} else {
+			b.hit_data.rand_hit_offset = 0;
+		}
+		if(rand_volume_.max_percent > 0) {
+			std::uniform_real_distribution<float> dist(-rand_volume_.max_percent, rand_volume_.max_percent);
+			b.hit_data.rand_volume.value = dist(rng_) / 100.0f;
+		} else {
+			b.hit_data.rand_volume.value = 0;
+		}
+	}
+	for(auto& div : b.division) {
+		randomise_beat(div);
+	}
+}
+
+void song::randomise_beats() {
+	for(auto& [id, sec] : sections_) {
+		for(auto& t : sec.tracks()) {
+			for(auto& bar : t.bars()) {
+				for(auto& b : bar.beats) {
+					randomise_beat(b);
+				}
+			}
+		}
+	}
+}
+
 std::size_t song::add_instrument(instrument inst) {
 	std::size_t idx = instruments_.size();
 	instruments_.push_back(std::move(inst));

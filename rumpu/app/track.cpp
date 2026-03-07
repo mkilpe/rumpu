@@ -21,14 +21,16 @@ void track::set_context(size_t index, song* s, uint32_t section)
 }
 
 struct track_draw_context {
-	track_draw_context(drum::song& song, size_t index, uint32_t s) {
+	track_draw_context(drum::song& song, size_t index, uint32_t s)
+	: song_(&song)
+	{
 		if(auto section = song.find_section(s)) {
 			signature = song.default_time_signature();
 			bar_count = section->length();
 			auto& tracks = section->tracks();
 			if(index < tracks.size()) {
 				bars = &tracks[index].bars();
-			}					
+			}
 		}
 	}
 
@@ -36,6 +38,7 @@ struct track_draw_context {
 		return bars != nullptr;
 	}
 
+	drum::song* song_{};
 	ImVec2 pos  = ImGui::GetCursorScreenPos();
 	ImVec2 size = ImGui::GetWindowSize();
 	time_signature signature;
@@ -220,6 +223,9 @@ struct bar_calc {
 		}
 		if(beat* b = find_beat()) {
 			b->action = b->action == beat::none ? beat::hit : beat::none;
+			if(b->action == beat::hit) {
+				context.song_->randomise_beat(*b);
+			}
 		}
 	}
 
@@ -312,6 +318,14 @@ void track::context_menu(track_draw_context& context)
     		}
             ImGui::EndMenu();
     	}
+    	if (ImGui::MenuItem("Beat properties")) {
+    		bar_calc bc(context, ImVec2{mouse_pos_.x - context.pos.x, mouse_pos_.y - context.pos.y});
+    		if(auto b = bc.find_beat(); b && b->action == beat::hit) {
+    			beat_props_beat_ = b;
+    			beat_props_open_ = true;
+    			beat_props_mouse_pos_ = mouse_pos_;
+    		}
+    	}
     	if (ImGui::MenuItem("Clear bar")) {
     		bar_calc bc(context, ImVec2{mouse_pos_.x - context.pos.x, mouse_pos_.y - context.pos.y});
     		if(auto b = bc.find_bar()) {
@@ -387,7 +401,40 @@ void track::divide_dialog(track_draw_context& context)
 			ImGui::CloseCurrentPopup();
 		}
 		ImGui::SameLine();
-		if(ImGui::Button("Cancel")) {
+		if(ImGui::Button("Cancel") || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+			ImGui::CloseCurrentPopup();
+		}
+		ImGui::EndPopup();
+	}
+}
+
+void track::beat_properties_dialog(track_draw_context& context)
+{
+	auto popup_name = "Beat Properties##" + name();
+
+	if(beat_props_open_) {
+		ImGui::OpenPopup(popup_name.c_str());
+		beat_props_open_ = false;
+	}
+
+	if(ImGui::BeginPopupModal(popup_name.c_str(), nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+		if(beat_props_beat_) {
+			auto& hd = beat_props_beat_->hit_data;
+			float volume = hd.volume.value;
+			float rand_offset = hd.rand_hit_offset;
+			float rand_vol = hd.rand_volume.value * 100.0f;
+
+			ImGui::SliderFloat("Volume", &volume, 0.0f, 1.0f, "%.2f");
+			ImGui::SliderFloat("Rand offset (ms)", &rand_offset, -100.0f, 100.0f, "%.1f");
+			ImGui::SliderFloat("Rand volume (%)", &rand_vol, -100.0f, 100.0f, "%.1f");
+
+			hd.volume.value = volume;
+			hd.rand_hit_offset = rand_offset;
+			hd.rand_volume.value = rand_vol / 100.0f;
+		}
+
+		if(ImGui::Button("Close") || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+			beat_props_beat_ = nullptr;
 			ImGui::CloseCurrentPopup();
 		}
 		ImGui::EndPopup();
@@ -401,6 +448,7 @@ bool track::do_draw()
 			// mouse interaction
 			handle_mouse(context);
 			divide_dialog(context);
+			beat_properties_dialog(context);
 
 			drawer d(context);
 			d.draw_center_line();
