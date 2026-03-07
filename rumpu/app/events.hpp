@@ -2,8 +2,13 @@
 
 #include <cstdint>
 #include <string>
+#include <rumpu/core/time_signature.hpp>
 
 namespace securepath::drum::app::event {
+
+struct new_song {
+    typedef void type(std::string name, time_signature ts, float tempo);
+};
 
 struct add_instrument {
     typedef void type(std::string path, std::string name);
@@ -43,6 +48,10 @@ struct open_project {
 
 struct save_project {
     typedef void type(std::string path);
+};
+
+struct update_song_properties {
+    typedef void type(std::string name, std::string author, std::string notes, time_signature ts, float tempo);
 };
 
 }

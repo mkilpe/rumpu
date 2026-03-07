@@ -40,6 +40,10 @@ public:
 	volume_accent_info const& accent_rules() const;
 	song_metainfo const& meta_info() const;
 
+	void set_metainfo(song_metainfo info);
+	void set_default_time_signature(time_signature ts);
+	void set_default_tempo(tempo t);
+
 	std::size_t add_instrument(instrument);
 	void remove_instrument(std::size_t index);
 	void load_instruments(std::uint32_t sample_rate = 44100);

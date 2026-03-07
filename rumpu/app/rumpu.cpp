@@ -15,35 +15,16 @@ rumpu::rumpu()
 : event_handler(static_cast<securepath::event_system::event_loop&>(*this))
 , add_instrument_dialog_(*this)
 , add_track_dialog_(*this)
-, song_({}, {3,4}, {60.0})
+, new_song_dialog_(*this)
+, song_properties_dialog_(*this)
+, song_({"Untitled", "", ""}, {4,4}, {120.0})
 , player_(*this)
 {
     ImGuiIO& io = ImGui::GetIO();
     io.Fonts->AddFontDefault();
 
-    //for testing
-    song_.add_instrument(instrument{"test_kick.wav"});
     auto id = song_.add_section();
     song_.section_order().push_back(id);
-
-    if(auto section = song_.find_section(id)) {
-        section->set_length(10);
-        auto& tracks = section->tracks()[0];
-        size_t i = 0;
-        for(auto&& b : tracks.bars()) {
-            if(++i % 4 == 0) {
-                for(std::size_t count = 0; count != song_.default_time_signature().beats_in_bar(); ++count) {
-                    b.beats.push_back({beat::hit});
-                }
-            } else {
-                b.beats.push_back({beat::hit});
-            }        
-        }
-    }
-
-    //if(auto section = song_.find_section(id)) {
-    //    section->tracks()[0];
-    //}
 
     track_edit_view_.reset(new track_edit_view(*this));
     windows_.push_back(track_edit_view_.get());
@@ -55,6 +36,12 @@ rumpu::rumpu()
 void rumpu::menu() {
     if (ImGui::BeginMenuBar()) {
         if (ImGui::BeginMenu("File")) {
+            if (ImGui::MenuItem("New Song")) {
+                new_song_dialog_.open();
+            }
+            if (ImGui::MenuItem("Song Properties...")) {
+                song_properties_dialog_.open(&song_);
+            }
             if (ImGui::MenuItem("Open...")) {
                 open_project_file_dialog([this](std::string path) {
                     if (!path.empty()) {
@@ -170,6 +157,8 @@ bool rumpu::update() {
     about_dialog_.draw();
     add_instrument_dialog_.draw();
     add_track_dialog_.draw();
+    new_song_dialog_.draw();
+    song_properties_dialog_.draw();
     export_dialog_.draw();
 
     if(!windows_.empty()) {
@@ -275,6 +264,24 @@ void rumpu::save_project(std::string path) {
     }
 }
 
+void rumpu::new_song(std::string name, time_signature ts, float tempo) {
+    std::unique_lock l{mutex_};
+    player_.stop();
+    song_ = song{song_metainfo{std::move(name), "", ""}, ts, drum::tempo{tempo}};
+    auto id = song_.add_section();
+    song_.section_order().push_back(id);
+    current_file_.clear();
+    current_section_ = id;
+    track_edit_view_->set_context(&song_, id);
+}
+
+void rumpu::update_song_properties(std::string name, std::string author, std::string notes, time_signature ts, float tempo) {
+    std::unique_lock l{mutex_};
+    song_.set_metainfo(song_metainfo{std::move(name), std::move(author), std::move(notes)});
+    song_.set_default_time_signature(ts);
+    song_.set_default_tempo(drum::tempo{tempo});
+}
+
 void rumpu::player_pos_changed() {
     LOG_TRACE("play pos changed");
     track_edit_view_->set_play_status(player_.get_status());
@@ -292,6 +299,8 @@ void rumpu::handle_event(std::unique_ptr<securepath::event_system::event_base> e
         , event_dest<event::remove_track>(&rumpu::remove_track)
         , event_dest<event::open_project>(&rumpu::open_project)
         , event_dest<event::save_project>(&rumpu::save_project)
+        , event_dest<event::new_song>(&rumpu::new_song)
+        , event_dest<event::update_song_properties>(&rumpu::update_song_properties)
         , event_dest<drum::event::player_pos_changed>(&rumpu::player_pos_changed)
         );
 }

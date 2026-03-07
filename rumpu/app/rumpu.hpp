@@ -10,6 +10,8 @@
 #include "add_instrument_dialog.hpp"
 #include "add_track_dialog.hpp"
 #include "export_dialog.hpp"
+#include "new_song_dialog.hpp"
+#include "song_properties_dialog.hpp"
 #include "child_window.hpp"
 #include "track_edit_view.hpp"
 
@@ -35,6 +37,8 @@ private:
     void remove_track(std::size_t index);
     void open_project(std::string path);
     void save_project(std::string path);
+    void new_song(std::string name, time_signature ts, float tempo);
+    void update_song_properties(std::string name, std::string author, std::string notes, time_signature ts, float tempo);
     void player_pos_changed();
 
 private:
@@ -44,6 +48,8 @@ private:
     about_dialog about_dialog_;
     add_instrument_dialog add_instrument_dialog_;
     add_track_dialog add_track_dialog_;
+    new_song_dialog new_song_dialog_;
+    song_properties_dialog song_properties_dialog_;
     export_dialog export_dialog_;
 
     mutable std::mutex mutex_;

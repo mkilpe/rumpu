@@ -58,6 +58,18 @@ song_metainfo const& song::meta_info() const {
 	return info_;
 }
 
+void song::set_metainfo(song_metainfo info) {
+	info_ = std::move(info);
+}
+
+void song::set_default_time_signature(time_signature ts) {
+	default_time_signature_ = ts;
+}
+
+void song::set_default_tempo(tempo t) {
+	default_tempo_ = t;
+}
+
 std::size_t song::add_instrument(instrument inst) {
 	std::size_t idx = instruments_.size();
 	instruments_.push_back(std::move(inst));
