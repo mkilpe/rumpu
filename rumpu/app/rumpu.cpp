@@ -183,8 +183,13 @@ bool rumpu::update() {
 
 void rumpu::add_track(uint32_t section, std::size_t instrument_index) {
     std::unique_lock l{mutex_};
+    std::string name;
+    if(instrument_index < song_.instruments().size()) {
+        name = song_.instruments()[instrument_index].name();
+    }
     for(auto& [id, sec] : song_.sections()) {
         auto& t = sec.add_track(instrument_index);
+        t.set_name(name);
         for(auto& b : t.bars()) {
             b.beats.resize(song_.default_time_signature().beats_in_bar());
         }

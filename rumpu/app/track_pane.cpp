@@ -12,18 +12,37 @@ track_pane::track_pane(std::string name)
 : child_window_base(std::move(name), ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse, {})
 {}
 
-void track_pane::set_context(event_system::event_handler& h, song* s, std::size_t instrument_index) {
+void track_pane::set_context(event_system::event_handler& h, song* s, drum::track const& t) {
     handler_ = &h;
     song_ = s;
-    instrument_index_ = instrument_index;
-    if(s && instrument_index < s->instruments().size()) {
-        float vol = s->instruments()[instrument_index].volume().value;
+    instrument_index_ = t.instrument_index();
+    if(s && instrument_index_ < s->instruments().size()) {
+        auto const& instr = s->instruments()[instrument_index_];
+        display_name_ = t.name().empty() ? instr.name() : t.name();
+        float vol = instr.volume().value;
         gain_ = 20.0f * std::log10(std::max(vol, 1e-6f));
     }
 }
 
 bool track_pane::do_draw()
 {
+    if (!display_name_.empty()) {
+        float avail = ImGui::GetContentRegionAvail().x;
+        ImVec2 text_size = ImGui::CalcTextSize(display_name_.c_str());
+        bool clipped = text_size.x > avail;
+        if (clipped) {
+            ImGui::PushClipRect(ImGui::GetCursorScreenPos(),
+                ImVec2{ImGui::GetCursorScreenPos().x + avail, ImGui::GetCursorScreenPos().y + text_size.y}, true);
+        }
+        ImGui::TextUnformatted(display_name_.c_str());
+        if (clipped) {
+            ImGui::PopClipRect();
+        }
+        if (clipped && ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("%s", display_name_.c_str());
+        }
+    }
+
     if (song_ && instrument_index_ < song_->instruments().size()) {
         bool muted = song_->instruments()[instrument_index_].volume().mute;
 

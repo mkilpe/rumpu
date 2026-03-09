@@ -23,7 +23,6 @@ Ar& serialise(Ar& ar, beat_hit_data& d) {
 	seq & d.volume & d.accent & d.rand_hit_offset & d.rand_volume;
 	return ar;
 }
-template<typename Ar> Ar& serialise(Ar& ar, beat_hit_data const& d) { return serialise(ar, const_cast<beat_hit_data&>(d)); }
 
 template<typename Ar>
 Ar& serialise(Ar& ar, beat_stop_data& d) {
@@ -31,7 +30,6 @@ Ar& serialise(Ar& ar, beat_stop_data& d) {
 	seq & d.falloff;
 	return ar;
 }
-template<typename Ar> Ar& serialise(Ar& ar, beat_stop_data const& d) { return serialise(ar, const_cast<beat_stop_data&>(d)); }
 
 template<typename Ar>
 Ar& serialise(Ar& ar, beat& d) {
@@ -39,7 +37,6 @@ Ar& serialise(Ar& ar, beat& d) {
 	seq & d.action & d.division & d.hit_data & d.stop_data;
 	return ar;
 }
-template<typename Ar> Ar& serialise(Ar& ar, beat const& d) { return serialise(ar, const_cast<beat&>(d)); }
 
 template<typename Ar>
 Ar& serialise(Ar& ar, bar& d) {
@@ -47,7 +44,6 @@ Ar& serialise(Ar& ar, bar& d) {
 	seq & d.beats;
 	return ar;
 }
-template<typename Ar> Ar& serialise(Ar& ar, bar const& d) { return serialise(ar, const_cast<bar&>(d)); }
 
 template<typename Ar>
 Ar& serialise(Ar& ar, rand_hit_volume& d) {
@@ -55,7 +51,6 @@ Ar& serialise(Ar& ar, rand_hit_volume& d) {
 	seq & d.max_percent;
 	return ar;
 }
-template<typename Ar> Ar& serialise(Ar& ar, rand_hit_volume const& d) { return serialise(ar, const_cast<rand_hit_volume&>(d)); }
 
 template<typename Ar>
 Ar& serialise(Ar& ar, rand_hit_offset& d) {
@@ -63,7 +58,6 @@ Ar& serialise(Ar& ar, rand_hit_offset& d) {
 	seq & d.max_ms;
 	return ar;
 }
-template<typename Ar> Ar& serialise(Ar& ar, rand_hit_offset const& d) { return serialise(ar, const_cast<rand_hit_offset&>(d)); }
 
 template<typename Ar>
 Ar& serialise(Ar& ar, section_bar_change& d) {
@@ -71,7 +65,6 @@ Ar& serialise(Ar& ar, section_bar_change& d) {
 	seq & d.timing_change & d.tempo_change & d.tempo_slide_change;
 	return ar;
 }
-template<typename Ar> Ar& serialise(Ar& ar, section_bar_change const& d) { return serialise(ar, const_cast<section_bar_change&>(d)); }
 
 template<typename Ar>
 Ar& serialise(Ar& ar, section& d) {
@@ -79,7 +72,6 @@ Ar& serialise(Ar& ar, section& d) {
 	seq & d.name_ & d.length_ & d.tracks_ & d.changes_;
 	return ar;
 }
-template<typename Ar> Ar& serialise(Ar& ar, section const& d) { return serialise(ar, const_cast<section&>(d)); }
 
 template<typename Ar>
 Ar& serialise(Ar& ar, instrument& d) {
@@ -87,7 +79,6 @@ Ar& serialise(Ar& ar, instrument& d) {
 	seq & d.name_ & d.samples_ & d.volume_;
 	return ar;
 }
-template<typename Ar> Ar& serialise(Ar& ar, instrument const& d) { return serialise(ar, const_cast<instrument&>(d)); }
 
 template<typename Ar>
 Ar& serialise(Ar& ar, drum_sample& d) {
@@ -95,7 +86,6 @@ Ar& serialise(Ar& ar, drum_sample& d) {
 	seq & d.source_file_;
 	return ar;
 }
-template<typename Ar> Ar& serialise(Ar& ar, drum_sample const& d) { return serialise(ar, const_cast<drum_sample&>(d)); }
 
 template<typename Ar>
 Ar& serialise(Ar& ar, song& d) {
@@ -105,7 +95,6 @@ Ar& serialise(Ar& ar, song& d) {
 		& d.rand_offset_ & d.rand_volume_ & serialisation::implicit_tag(1, d.tempo_slide_);
 	return ar;
 }
-template<typename Ar> Ar& serialise(Ar& ar, song const& d) { return serialise(ar, const_cast<song&>(d)); }
 
 template<typename Ar>
 Ar& serialise(Ar& ar, song_metainfo& d) {
@@ -113,7 +102,6 @@ Ar& serialise(Ar& ar, song_metainfo& d) {
 	seq & d.name & d.author & d.notes;
 	return ar;
 }
-template<typename Ar> Ar& serialise(Ar& ar, song_metainfo const& d) { return serialise(ar, const_cast<song_metainfo&>(d)); }
 
 template<typename Ar>
 Ar& serialise(Ar& ar, time_signature& d) {
@@ -121,15 +109,13 @@ Ar& serialise(Ar& ar, time_signature& d) {
 	seq & d.beats_in_bar_ & d.beat_type_;
 	return ar;
 }
-template<typename Ar> Ar& serialise(Ar& ar, time_signature const& d) { return serialise(ar, const_cast<time_signature&>(d)); }
 
 template<typename Ar>
 Ar& serialise(Ar& ar, track& d) {
 	serialisation::sequence<Ar> seq(ar);
-	seq & d.instrument_index_ & d.bars_ & d.volume_slides_;
+	seq & d.instrument_index_ & d.bars_ & d.volume_slides_ & d.name_;
 	return ar;
 }
-template<typename Ar> Ar& serialise(Ar& ar, track const& d) { return serialise(ar, const_cast<track&>(d)); }
 
 template<typename Ar>
 Ar& serialise(Ar& ar, volume& d) {
@@ -137,7 +123,6 @@ Ar& serialise(Ar& ar, volume& d) {
 	seq & d.mute & d.value;
 	return ar;
 }
-template<typename Ar> Ar& serialise(Ar& ar, volume const& d) { return serialise(ar, const_cast<volume&>(d)); }
 
 template<typename Ar>
 Ar& serialise(Ar& ar, delta_volume& d) {
@@ -145,7 +130,6 @@ Ar& serialise(Ar& ar, delta_volume& d) {
 	seq & d.value;
 	return ar;
 }
-template<typename Ar> Ar& serialise(Ar& ar, delta_volume const& d) { return serialise(ar, const_cast<delta_volume&>(d)); }
 
 template<typename Ar>
 Ar& serialise(Ar& ar, volume_slide& d) {
@@ -153,7 +137,6 @@ Ar& serialise(Ar& ar, volume_slide& d) {
 	seq & d.begin & d.end & d.value;
 	return ar;
 }
-template<typename Ar> Ar& serialise(Ar& ar, volume_slide const& d) { return serialise(ar, const_cast<volume_slide&>(d)); }
 
 template<typename Ar>
 Ar& serialise(Ar& ar, volume_accent& d) {
@@ -161,14 +144,12 @@ Ar& serialise(Ar& ar, volume_accent& d) {
 	seq & d.value;
 	return ar;
 }
-template<typename Ar> Ar& serialise(Ar& ar, volume_accent const& d) { return serialise(ar, const_cast<volume_accent&>(d)); }
 
 template<typename Ar>
 Ar& serialise(Ar& ar, volume_accent_info& d) {
 	serialisation::sequence<Ar> seq(ar);
 	return ar;
 }
-template<typename Ar> Ar& serialise(Ar& ar, volume_accent_info const& d) { return serialise(ar, const_cast<volume_accent_info&>(d)); }
 
 template<typename Ar>
 Ar& serialise(Ar& ar, audio_falloff& d) {
@@ -176,7 +157,6 @@ Ar& serialise(Ar& ar, audio_falloff& d) {
 	seq & d.type & d.pos & d.end;
 	return ar;
 }
-template<typename Ar> Ar& serialise(Ar& ar, audio_falloff const& d) { return serialise(ar, const_cast<audio_falloff&>(d)); }
 
 template<typename Ar>
 Ar& serialise(Ar& ar, tempo& d) {
@@ -184,7 +164,6 @@ Ar& serialise(Ar& ar, tempo& d) {
 	seq & d.value;
 	return ar;
 }
-template<typename Ar> Ar& serialise(Ar& ar, tempo const& d) { return serialise(ar, const_cast<tempo&>(d)); }
 
 template<typename Ar>
 Ar& serialise(Ar& ar, delta_tempo& d) {
@@ -192,7 +171,6 @@ Ar& serialise(Ar& ar, delta_tempo& d) {
 	seq & d.value;
 	return ar;
 }
-template<typename Ar> Ar& serialise(Ar& ar, delta_tempo const& d) { return serialise(ar, const_cast<delta_tempo&>(d)); }
 
 template<typename Ar>
 Ar& serialise(Ar& ar, tempo_slide& d) {
@@ -200,6 +178,11 @@ Ar& serialise(Ar& ar, tempo_slide& d) {
 	seq & d.begin & d.end & d.value;
 	return ar;
 }
-template<typename Ar> Ar& serialise(Ar& ar, tempo_slide const& d) { return serialise(ar, const_cast<tempo_slide&>(d)); }
+
+// Generic const overload — delegates to non-const version via const_cast
+template<typename Ar, typename T>
+Ar& serialise(Ar& ar, T const& d) {
+	return serialise(ar, const_cast<T&>(d));
+}
 
 }

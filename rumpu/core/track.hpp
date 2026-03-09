@@ -25,6 +25,9 @@ public:
 
 	auto& bars(this auto& self) { return self.bars_; }
 
+	std::string const& name() const { return name_; }
+	void set_name(std::string n) { name_ = std::move(n); }
+
 	std::size_t instrument_index() const { return instrument_index_; }
 	void set_instrument_index(std::size_t i) { instrument_index_ = i; }
 
@@ -40,6 +43,7 @@ public:
 	friend Ar& serialise(Ar&, track&);
 
 private:
+	std::string name_;
 	std::size_t instrument_index_{};
 	std::deque<bar> bars_;
 	std::map<std::uint32_t, volume_slide> volume_slides_;
