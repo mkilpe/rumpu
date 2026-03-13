@@ -11,7 +11,7 @@
 
 namespace securepath::drum::app {
 
-rumpu::rumpu()
+rumpu::rumpu(app_options options)
 : event_handler(static_cast<securepath::event_system::event_loop&>(*this))
 , add_instrument_dialog_(*this)
 , add_track_dialog_(*this)
@@ -31,6 +31,10 @@ rumpu::rumpu()
 
     current_section_ = id;
     track_edit_view_->set_context(&song_, id);
+
+    if (!options.initial_file.empty()) {
+        open_project(std::move(options.initial_file));
+    }
 }
 
 void rumpu::menu() {
@@ -90,7 +94,6 @@ void rumpu::menu() {
                 }
             }
             if (ImGui::MenuItem("Remove section", nullptr, false, song_.sections().size() > 1)) {
-                auto it = song_.sections().find(current_section_);
                 song_.remove_section(current_section_);
                 if (!song_.sections().empty()) {
                     select_section_impl(song_.sections().begin()->first);
@@ -160,6 +163,7 @@ bool rumpu::update() {
     new_song_dialog_.draw();
     song_properties_dialog_.draw();
     export_dialog_.draw();
+    draw_error_dialog();
 
     if(!windows_.empty()) {
         auto pos = ImGui::GetCursorPos();
@@ -256,6 +260,7 @@ void rumpu::open_project(std::string path) {
         track_edit_view_->set_context(&song_, section_id);
     } catch(std::exception const& e) {
         LOG_WARN("load_song_file failed: {}", e.what());
+        show_error(std::format("Failed to open project: {}", e.what()));
     }
 }
 
@@ -266,6 +271,7 @@ void rumpu::save_project(std::string path) {
         current_file_ = path;
     } catch(std::exception const& e) {
         LOG_WARN("save_song_file failed: {}", e.what());
+        show_error(std::format("Failed to save project: {}", e.what()));
     }
 }
 
@@ -292,6 +298,26 @@ void rumpu::update_song_properties(std::string name, std::string author, std::st
 void rumpu::player_pos_changed() {
     LOG_TRACE("play pos changed");
     track_edit_view_->set_play_status(player_.get_status());
+}
+
+void rumpu::show_error(std::string message) {
+    error_message_ = std::move(message);
+    error_pending_ = true;
+}
+
+void rumpu::draw_error_dialog() {
+    if (error_pending_) {
+        ImGui::OpenPopup("Error");
+        error_pending_ = false;
+    }
+    if (ImGui::BeginPopupModal("Error", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::TextWrapped("%s", error_message_.c_str());
+        ImGui::Spacing();
+        if (ImGui::Button("OK", ImVec2(120, 0))) {
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::EndPopup();
+    }
 }
 
 void rumpu::handle_event(std::unique_ptr<securepath::event_system::event_base> ev) {

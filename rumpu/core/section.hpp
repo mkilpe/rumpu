@@ -47,6 +47,13 @@ public:
 		return it != changes_.end() ? it->second : std::optional<section_bar_change>();
 	}
 
+	void set_tempo_change(std::uint32_t bar_index, std::optional<tempo> t) {
+		auto& change = changes_[bar_index];
+		change.tempo_change = t;
+		if (!change.timing_change && !change.tempo_change && !change.tempo_slide_change)
+			changes_.erase(bar_index);
+	}
+
 	void set_length(std::uint32_t l) {
 		length_ = l;
 		for(auto&& v : tracks_) {

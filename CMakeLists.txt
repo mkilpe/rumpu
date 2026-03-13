@@ -77,3 +77,36 @@ add_subdirectory(securepath)
 if(NOT WIN32)
     add_subdirectory(test)
 endif()
+
+if(WIN32)
+    set(CPACK_GENERATOR "NSIS")
+    set(CPACK_PACKAGE_NAME "Rumpu")
+    set(CPACK_PACKAGE_VENDOR "Humanity")
+    set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Rumpu Drum Machine")
+    set(CPACK_PACKAGE_VERSION_MAJOR ${RUMPU_VERSION_MAJOR})
+    set(CPACK_PACKAGE_VERSION_MINOR ${RUMPU_VERSION_MINOR})
+    set(CPACK_PACKAGE_VERSION_PATCH ${RUMPU_VERSION_PATCH})
+    set(CPACK_PACKAGE_INSTALL_DIRECTORY "Rumpu")
+    set(CPACK_PACKAGE_EXECUTABLES "rumpu" "Rumpu")
+
+    # NSIS-specific
+    set(CPACK_NSIS_DISPLAY_NAME "Rumpu")
+    set(CPACK_NSIS_PACKAGE_NAME "Rumpu")
+    set(CPACK_NSIS_ENABLE_UNINSTALL_BEFORE_INSTALL ON)
+    set(CPACK_NSIS_MODIFY_PATH OFF)
+
+    # .spd file association
+    set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "
+        WriteRegStr HKCR '.spd' '' 'RumpuProject'
+        WriteRegStr HKCR 'RumpuProject' '' 'Rumpu Project File'
+        WriteRegStr HKCR 'RumpuProject\\\\shell\\\\open\\\\command' '' '\\\"$INSTDIR\\\\bin\\\\rumpu.exe\\\" \\\"%1\\\"'
+        System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0, p 0, p 0)'
+    ")
+    set(CPACK_NSIS_EXTRA_UNINSTALL_COMMANDS "
+        DeleteRegKey HKCR '.spd'
+        DeleteRegKey HKCR 'RumpuProject'
+        System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0, p 0, p 0)'
+    ")
+
+    include(CPack)
+endif()

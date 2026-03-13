@@ -6,6 +6,7 @@
 #include <securepath/event_system/event_handler.hpp>
 #include <securepath/event_system/event_loop.hpp>
 
+#include "app_options.hpp"
 #include "about_dialog.hpp"
 #include "add_instrument_dialog.hpp"
 #include "add_track_dialog.hpp"
@@ -19,7 +20,7 @@ namespace securepath::drum::app {
 
  class rumpu : public event_system::single_thread_event_loop, public event_system::event_handler {
 public:
-    rumpu();
+    rumpu(app_options options);
 
     bool update();
     void handle_event(std::unique_ptr<event_system::event_base> ev) override;
@@ -40,6 +41,8 @@ private:
     void new_song(std::string name, time_signature ts, float tempo);
     void update_song_properties(std::string name, std::string author, std::string notes, time_signature ts, float tempo, float rand_offset_ms, float rand_volume_percent);
     void player_pos_changed();
+    void show_error(std::string message);
+    void draw_error_dialog();
 
 private:
     bool running_{true};
@@ -57,6 +60,8 @@ private:
     std::unique_ptr<track_edit_view> track_edit_view_;
     player player_;
     
+    std::string error_message_;
+    bool error_pending_{};
     std::vector<child_window*> windows_;
 };
 

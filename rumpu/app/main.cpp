@@ -13,7 +13,11 @@
 #include <securepath/log/backend/file_output.hpp>
 #include <securepath/log/log.hpp>
 
+#include "app_options.hpp"
 #include "rumpu.hpp"
+#include "version.hpp"
+
+#include <securepath/util/command_parser.hpp>
 
 #include <iostream>
 
@@ -22,7 +26,7 @@ static void glfw_error_callback(int error, const char* description)
     fprintf(stderr, "GLFW Error %d: %s\n", error, description);
 }
 
-int run_app() {
+int run_app(securepath::drum::app::app_options options) {
     glfwSetErrorCallback(glfw_error_callback);
     if (!glfwInit())
         return 1;
@@ -86,7 +90,7 @@ int run_app() {
 
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
-    securepath::drum::app::rumpu app;
+    securepath::drum::app::rumpu app(std::move(options));
 
     // Main loop
     while (!glfwWindowShouldClose(window))
@@ -130,10 +134,37 @@ int run_app() {
     return 0;
 }
 
-int main() {
+int main(int argc, char* argv[]) {
     try {
         securepath::log::backend::add_backend<securepath::log::backend::file_output>("file", "rumpu.log");
-        return run_app();    
+
+        securepath::drum::app::app_options options;
+        bool show_help{};
+        bool show_version{};
+        securepath::command_parser parser;
+        parser.add(options.initial_file, "open", "o", "open project file");
+        parser.add(show_help, "help", "h", "show this help");
+        parser.add(show_version, "version", "v", "show version");
+        parser.parse(argc, argv);
+
+        if (show_help) {
+            parser.print_help(std::cout);
+            return 0;
+        }
+        if (show_version) {
+            std::cout << "Rumpu " << securepath::drum::app::version << std::endl;
+            return 0;
+        }
+
+        // Support file association: positional argument (e.g. from Windows shell open)
+        if (options.initial_file.empty() && argc > 1) {
+            std::string arg = argv[argc - 1];
+            if (!arg.empty() && arg[0] != '-') {
+                options.initial_file = std::move(arg);
+            }
+        }
+
+        return run_app(std::move(options));
     } catch(std::exception const& ex) {
         std::cout << "exception: " << ex.what() << std::endl;
     }

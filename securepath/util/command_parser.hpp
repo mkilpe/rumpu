@@ -90,6 +90,27 @@ struct normal_command : command_base {
 	T& value_;
 };
 
+template<>
+struct normal_command<std::string> : command_base {
+	normal_command(std::string& v)
+	: value_(v)
+	{}
+
+	virtual void parse(std::vector<std::string> const& args) {
+		if(args.size() != 1) {
+			std::ostringstream out;
+			print_list(out, args, ",");
+			throw invalid_argument(std::format("invalid amount of arguments: [{}]", out.str()));
+		}
+		value_ = args[0];
+	}
+	virtual void print(std::ostream& o) const {
+		o << value_;
+	}
+
+	std::string& value_;
+};
+
 template<typename T>
 struct vector_command : command_base {
 	vector_command(std::vector<T>& v)

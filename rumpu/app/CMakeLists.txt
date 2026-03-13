@@ -34,3 +34,20 @@ if(UNIX AND NOT APPLE)
 elseif(WIN32)
     target_link_libraries(rumpu comdlg32 ole32)
 endif()
+
+install(TARGETS rumpu RUNTIME DESTINATION bin)
+
+if(WIN32 AND MINGW)
+    # Bundle MinGW runtime DLLs
+    set(MINGW_DLLS
+        libstdc++-6.dll
+        libgcc_s_seh-1.dll
+        libwinpthread-1.dll
+    )
+    foreach(dll ${MINGW_DLLS})
+        find_file(${dll}_PATH ${dll} PATHS ${CMAKE_FIND_ROOT_PATH}/bin)
+        if(${dll}_PATH)
+            install(FILES ${${dll}_PATH} DESTINATION bin)
+        endif()
+    endforeach()
+endif()

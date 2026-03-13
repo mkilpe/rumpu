@@ -318,14 +318,6 @@ void track::context_menu(track_draw_context& context)
     		}
             ImGui::EndMenu();
     	}
-    	if (ImGui::MenuItem("Beat properties")) {
-    		bar_calc bc(context, ImVec2{mouse_pos_.x - context.pos.x, mouse_pos_.y - context.pos.y});
-    		if(auto b = bc.find_beat(); b && b->action == beat::hit) {
-    			beat_props_beat_ = b;
-    			beat_props_open_ = true;
-    			beat_props_mouse_pos_ = mouse_pos_;
-    		}
-    	}
     	if (ImGui::MenuItem("Clear bar")) {
     		bar_calc bc(context, ImVec2{mouse_pos_.x - context.pos.x, mouse_pos_.y - context.pos.y});
     		if(auto b = bc.find_bar()) {
@@ -336,6 +328,15 @@ void track::context_menu(track_draw_context& context)
     			}
     		}
     	}
+		ImGui::Separator();
+		if (ImGui::MenuItem("Beat properties...")) {
+			bar_calc bc(context, ImVec2{mouse_pos_.x - context.pos.x, mouse_pos_.y - context.pos.y});
+			if(auto b = bc.find_beat(); b && b->action == beat::hit) {
+				beat_props_beat_ = b;
+				beat_props_open_ = true;
+				beat_props_mouse_pos_ = mouse_pos_;
+			}
+		}
 
         ImGui::EndPopup();
     } else {

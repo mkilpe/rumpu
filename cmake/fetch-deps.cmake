@@ -7,6 +7,8 @@ FetchContent_Declare(opus
 set(OPUS_BUILD_SHARED_LIBRARY OFF CACHE BOOL "" FORCE)
 set(OPUS_BUILD_TESTING        OFF CACHE BOOL "" FORCE)
 set(OPUS_BUILD_PROGRAMS       OFF CACHE BOOL "" FORCE)
+set(OPUS_INSTALL_PKG_CONFIG_MODULE OFF CACHE BOOL "" FORCE)
+set(OPUS_INSTALL_CMAKE_CONFIG_MODULE OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(opus)
 # FetchContent builds the 'opus' CMake target; no further wiring needed.
 
