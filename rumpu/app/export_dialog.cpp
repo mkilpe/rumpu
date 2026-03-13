@@ -83,16 +83,27 @@ void export_dialog::draw_idle_content() {
 }
 
 void export_dialog::draw_content() {
-    auto format_progress = [this] {
-        auto total_ms = static_cast<long long>(exporter_->progress() * 1000);
-        auto s = total_ms / 1000;
-        ImGui::Text("Exporting... %lld:%02lld.%03lld", s / 60, s % 60, total_ms % 1000);
+    auto draw_progress = [this] {
+        float current = exporter_->progress();
+        float total = exporter_->duration();
+        float fraction = total > 0 ? current / total : 0.0f;
+        if (fraction > 1.0f) fraction = 1.0f;
+
+        auto cur_ms = static_cast<long long>(current * 1000);
+        auto tot_ms = static_cast<long long>(total * 1000);
+        char overlay[64];
+        std::snprintf(overlay, sizeof(overlay), "%lld:%02lld / %lld:%02lld",
+            cur_ms / 60000, (cur_ms / 1000) % 60,
+            tot_ms / 60000, (tot_ms / 1000) % 60);
+
+        ImGui::ProgressBar(fraction, {-1, 0}, overlay);
     };
     if (state_ == state::exporting) {
-        format_progress();
+        ImGui::Text("Exporting...");
+        draw_progress();
     } else if (state_ == state::done) {
-        format_progress();
         ImGui::Text("Export complete.");
+        draw_progress();
         if (ImGui::Button("Close")) {
             state_ = state::idle;
             ImGui::CloseCurrentPopup();

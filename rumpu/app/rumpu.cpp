@@ -11,6 +11,10 @@
 
 namespace securepath::drum::app {
 
+static std::filesystem::path project_dir(std::string const& file) {
+    return file.empty() ? std::filesystem::path{} : std::filesystem::path{file}.parent_path();
+}
+
 rumpu::rumpu(app_options options)
 : event_handler(static_cast<securepath::event_system::event_loop&>(*this))
 , add_instrument_dialog_(*this)
@@ -73,6 +77,12 @@ void rumpu::menu() {
                 });
             }
             if (ImGui::MenuItem("Export...")) {
+                try {
+                    song_.load_instruments(player_.sample_rate(), project_dir(current_file_));
+                } catch(std::exception const& e) {
+                    LOG_WARN("load_instruments failed: {}", e.what());
+                    show_error(std::format("Failed to load instruments: {}", e.what()));
+                }
                 export_dialog_.open(&song_);
             }
             ImGui::Separator();
@@ -221,7 +231,9 @@ void rumpu::select_section(uint32_t section_id) {
 
 void rumpu::add_instrument(std::string path, std::string name) {
     std::unique_lock l{mutex_};
-    instrument inst{path};
+    auto base = project_dir(current_file_);
+    std::string rel_path = base.empty() ? path : std::filesystem::relative(path, base).string();
+    instrument inst{rel_path};
     if (!name.empty()) {
         inst.set_name(std::move(name));
     }
@@ -237,22 +249,22 @@ void rumpu::add_section() {
     track_edit_view_->set_context(&song_, id);
 }
 
-void rumpu::play_section(uint32_t section) {
+void rumpu::load_and_play(uint32_t section) {
     try {
+        song_.load_instruments(player_.sample_rate(), project_dir(current_file_));
         player_.play(&song_, false, section);
     } catch(std::exception const& e) {
-        LOG_WARN("play_section failed: {}", e.what());
+        LOG_WARN("play failed: {}", e.what());
         show_error(std::format("Failed to play: {}", e.what()));
     }
 }
 
+void rumpu::play_section(uint32_t section) {
+    load_and_play(section);
+}
+
 void rumpu::play_song() {
-    try {
-        player_.play(&song_, false, 0);
-    } catch(std::exception const& e) {
-        LOG_WARN("play_song failed: {}", e.what());
-        show_error(std::format("Failed to play: {}", e.what()));
-    }
+    load_and_play(0);
 }
 
 void rumpu::stop_song(uint32_t section) {

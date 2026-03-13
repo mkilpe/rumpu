@@ -34,8 +34,10 @@ public:
 	player(event_system::event_handler& h, audio::device_config const& config = {{audio::float_t, 1, 32, 24000}, 8000});
 	~player();
 
-	void play(song const*, bool loop = false, std::uint32_t section = 0);
+	void play(song*, bool loop = false, std::uint32_t section = 0);
 	void stop();
+
+	std::uint32_t sample_rate() const;
 
 	audio::length_type current_play_time() const;
 	std::uint32_t current_play_bar() const;
@@ -57,7 +59,7 @@ private:
 	std::condition_variable cond_;	
 	event_system::event_handler& handler_;
 	std::shared_ptr<audio::audio_play_device> out_;
-	song const* song_;
+	song* song_{};
 	std::optional<mixer> mixer_;
 	audio::audio_buffer buffer_;
 	float gain_{1.0f};

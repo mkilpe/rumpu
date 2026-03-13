@@ -27,6 +27,9 @@ public:
 	// Seconds of audio processed so far.
 	float progress() const { return mix_.play_position(); }
 
+	// Total duration of the song in seconds.
+	float duration() const { return mix_.duration(); }
+
 private:
 	std::string file_;
 	export_options opts_;

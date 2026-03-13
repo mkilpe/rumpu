@@ -142,9 +142,9 @@ void song::remove_instrument(std::size_t index) {
 	}
 }
 
-void song::load_instruments(std::uint32_t sample_rate) {
+void song::load_instruments(std::uint32_t sample_rate, std::filesystem::path const& base_dir) {
 	for(auto& i : instruments_) {
-		i.load_samples(sample_rate);
+		i.load_samples(sample_rate, base_dir);
 	}
 }
 

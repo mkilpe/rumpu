@@ -29,6 +29,7 @@ private:
     void menu();
     void add_track(uint32_t section, std::size_t instrument_index);
     void open_add_track_dialog(uint32_t section);
+    void load_and_play(uint32_t section);
     void play_section(uint32_t section);
     void play_song();
     void stop_song(uint32_t section);

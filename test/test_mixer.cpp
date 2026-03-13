@@ -10,6 +10,7 @@ static const char* kick_path = TEST_DATA_DIR "/test_kick.wav";
 
 static void add_kick_pattern(song& s) {
 	s.add_instrument(instrument{kick_path});
+	s.load_instruments(44100);
 	auto sec_id = s.add_section();
 	s.section_order().push_back(sec_id);
 	auto& sec = *s.find_section(sec_id);

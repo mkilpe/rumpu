@@ -6,11 +6,19 @@
 #include <iostream>
 
 using namespace securepath::drum;
+namespace fs = std::filesystem;
 
 namespace {
 
-std::string sample_path(std::string const& relative) {
-    return (std::filesystem::path(SAMPLES_DIR) / relative).string();
+void copy_sample(std::string const& relative, fs::path const& output_dir) {
+    auto src = fs::path(SAMPLES_DIR) / relative;
+    auto dst = output_dir / "samples" / relative;
+    fs::create_directories(dst.parent_path());
+    fs::copy_file(src, dst, fs::copy_options::overwrite_existing);
+}
+
+std::string sample_rel(std::string const& relative) {
+    return (fs::path("samples") / relative).string();
 }
 
 beat make_hit(float vol = 1.0f) {
@@ -165,15 +173,31 @@ section build_section(std::string name, std::uint32_t bars, std::size_t num_inst
 
 } // anon namespace
 
-int main() {
-    // Instruments: kick, snare, hi-hat closed, ride, crash, high tom, floor tom
-    std::string kick_path   = sample_path("Kick/RD_K_1.wav");
-    std::string snare_path  = sample_path("Snare/RD_S_1.wav");
-    std::string hihat_path  = sample_path("Cymbals/Hi Hat/RD_C_HH_1.wav");
-    std::string ride_path   = sample_path("Cymbals/Ride/RD_C_R_1.wav");
-    std::string crash_path  = sample_path("Cymbals/Crash/RD_C_C_1.wav");
-    std::string hitom_path  = sample_path("Toms/High Tom/RD_T_HT_1.wav");
-    std::string flotom_path = sample_path("Toms/Floor Tom/RD_T_FT_1.wav");
+int main(int argc, char* argv[]) {
+    fs::path output_dir = argc > 1 ? fs::path(argv[1]) : fs::current_path();
+    fs::create_directories(output_dir);
+
+    // Copy samples to output_dir/samples/
+    std::string kick_rel   = "Kick/RD_K_1.wav";
+    std::string snare_rel  = "Snare/RD_S_1.wav";
+    std::string hihat_rel  = "Cymbals/Hi Hat/RD_C_HH_1.wav";
+    std::string ride_rel   = "Cymbals/Ride/RD_C_R_1.wav";
+    std::string crash_rel  = "Cymbals/Crash/RD_C_C_1.wav";
+    std::string hitom_rel  = "Toms/High Tom/RD_T_HT_1.wav";
+    std::string flotom_rel = "Toms/Floor Tom/RD_T_FT_1.wav";
+
+    for (auto const& rel : {kick_rel, snare_rel, hihat_rel, ride_rel, crash_rel, hitom_rel, flotom_rel}) {
+        copy_sample(rel, output_dir);
+    }
+
+    // Instruments use relative paths (relative to the .spd file)
+    std::string kick_path   = sample_rel(kick_rel);
+    std::string snare_path  = sample_rel(snare_rel);
+    std::string hihat_path  = sample_rel(hihat_rel);
+    std::string ride_path   = sample_rel(ride_rel);
+    std::string crash_path  = sample_rel(crash_rel);
+    std::string hitom_path  = sample_rel(hitom_rel);
+    std::string flotom_path = sample_rel(flotom_rel);
 
     song s({"Demo Song", "Rumpu", "A demo drum beat with verse/chorus structure"}, {4, 4}, {120.0});
     s.set_rand_offset(rand_hit_offset{2.0f});
@@ -327,8 +351,9 @@ int main() {
         bigfill2_id, outro_id
     };
 
-    save_song_file("demo.spd", s);
-    std::cout << "Generated demo.spd" << std::endl;
+    auto output_file = (output_dir / "demo.spd").string();
+    save_song_file(output_file, s);
+    std::cout << "Generated " << output_file << std::endl;
 
     return 0;
 }

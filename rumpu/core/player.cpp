@@ -41,23 +41,31 @@ player::~player() {
 	cond_.notify_one();
 }
 
-void player::play(song const* s, bool, std::uint32_t section) {
+void player::play(song* s, bool, std::uint32_t section) {
 	stop();
 	std::unique_lock l{mutex_};
 	song_ = s;
 	if(out_) {
-		auto sample_rate = out_->config().format.samples_per_second;
-		// ensure instrument samples are loaded at the correct sample rate
-		const_cast<song*>(song_)->load_instruments(sample_rate);
+		for(auto const& inst : song_->instruments()) {
+			if(!inst.is_loaded()) {
+				throw std::runtime_error("Instruments must be loaded before playing");
+			}
+		}
+		auto sr = out_->config().format.samples_per_second;
 		if(section) {
-			mixer_.emplace(*song_, section, sample_rate);
+			mixer_.emplace(*song_, section, sr);
 		} else {
-			mixer_.emplace(*song_, sample_rate);
+			mixer_.emplace(*song_, sr);
 		}
 		out_->start();
 		write_data();
 		cond_.notify_one();
 	}
+}
+
+std::uint32_t player::sample_rate() const {
+	std::unique_lock l{mutex_};
+	return out_ ? out_->config().format.samples_per_second : 0;
 }
 
 audio::length_type player::current_play_time() const {

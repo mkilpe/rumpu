@@ -55,7 +55,7 @@ public:
 
 	std::size_t add_instrument(instrument);
 	void remove_instrument(std::size_t index);
-	void load_instruments(std::uint32_t sample_rate = 44100);
+	void load_instruments(std::uint32_t sample_rate = 44100, std::filesystem::path const& base_dir = {});
 
 	auto* find_section(this auto& self, std::uint32_t id) {
 		auto it = self.sections_.find(id);

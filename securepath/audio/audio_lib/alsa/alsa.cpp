@@ -289,18 +289,20 @@ public:
 		if(samples < 0) {
 			if(samples == -EAGAIN) {
 				LOG_TRACE("play device EAGAIN");
-				//nothing, just retry
-			} else if(samples == -EPIPE) {
-				LOG_TRACE("play device recover (EPIPE)");
+			} else if(samples == -EPIPE || samples == -ESTRPIPE) {
+				LOG_TRACE("play device recover ({})", snd_strerror(samples));
 				snd_pcm_recover(handle_, samples, 0);
-			} else if(samples == -ESTRPIPE) {
-				LOG_TRACE("play device recover (ESTRPIPE)");
-				snd_pcm_recover(handle_, samples, 0);
+				// retry write after recovery
+				samples = snd_pcm_writei(handle_, b.begin<uint8_t>(), b.used_samples());
+				if(samples < 0) {
+					LOG_TRACE("retry write failed: {}", snd_strerror(samples));
+					samples = 0;
+				}
 			} else {
 				LOG_TRACE("failed to write to play device: {}", snd_strerror(samples));
 				throw std::runtime_error("failed to write to play device");
 			}
-			samples = 0;
+			if(samples < 0) samples = 0;
 		}
 		b.consume_samples(samples);
 		return samples;

@@ -5,10 +5,17 @@ namespace securepath::drum {
 instrument::instrument(std::string const& file)
 : name_(file)
 {
-	samples_.push_back(load_drum_sample(file));
+	samples_.emplace_back(file);
 }
 
 bool instrument::is_valid() const {
+	return !samples_.empty();
+}
+
+bool instrument::is_loaded() const {
+	for(auto const& s : samples_) {
+		if(!s.buffer()) return false;
+	}
 	return !samples_.empty();
 }
 
@@ -33,10 +40,10 @@ void instrument::set_volume(drum::volume const& v) {
 	volume_ = v;
 }
 
-void instrument::load_samples(std::uint32_t sample_rate) {
+void instrument::load_samples(std::uint32_t sample_rate, std::filesystem::path const& base_dir) {
 	for(auto&& s : samples_) {
-		s.load_sample(sample_rate);
-	}	
+		s.load_sample(sample_rate, base_dir);
+	}
 }
 
 }
