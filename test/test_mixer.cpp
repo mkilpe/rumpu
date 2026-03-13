@@ -72,3 +72,41 @@ TEST_CASE("mixer section-only playback uses given section", "[mixer]") {
 	std::vector<float> buf(4096, 0.0f);
 	CHECK(m.process(buf.data(), buf.size()) > 0);
 }
+
+TEST_CASE("mixer duration for single section at 120 BPM", "[mixer]") {
+	// 4/4 time, 120 BPM, 4 bars = 4 beats/bar * 4 bars / (120 beats/min) * 60 s/min = 8 seconds
+	song s{{}, {4, 4}, {120}};
+	auto id = s.add_section();
+	s.section_order().push_back(id);
+	mixer m{s, id, 44100};
+	CHECK(m.duration() == Catch::Approx(8.0f).margin(0.01f));
+}
+
+TEST_CASE("mixer duration for whole song with multiple sections", "[mixer]") {
+	// Two sections of 4 bars each at 120 BPM = 16 seconds
+	song s{{}, {4, 4}, {120}};
+	auto id1 = s.add_section();
+	auto id2 = s.add_section();
+	s.section_order() = {id1, id2};
+	mixer m{s, 44100};
+	CHECK(m.duration() == Catch::Approx(16.0f).margin(0.01f));
+}
+
+TEST_CASE("mixer duration with tempo change", "[mixer]") {
+	// Section 1: 4 bars at 120 BPM = 8s
+	// Section 2: 4 bars at 60 BPM = 16s
+	// Total = 24s
+	song s{{}, {4, 4}, {120}};
+	auto id1 = s.add_section();
+	auto id2 = s.add_section();
+	s.find_section(id2)->set_tempo_change(0, tempo{60.0f});
+	s.section_order() = {id1, id2};
+	mixer m{s, 44100};
+	CHECK(m.duration() == Catch::Approx(24.0f).margin(0.01f));
+}
+
+TEST_CASE("mixer duration for empty song is zero", "[mixer]") {
+	song s{{}, {4, 4}, {120}};
+	mixer m{s, 44100};
+	CHECK(m.duration() == Catch::Approx(0.0f));
+}

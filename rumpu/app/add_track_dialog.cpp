@@ -20,7 +20,8 @@ void add_track_dialog::open(song* s, std::uint32_t section) {
 void add_track_dialog::draw_content() {
     auto const& instruments = song_->instruments();
 
-    if (ImGui::BeginListBox("##instruments", ImVec2(-FLT_MIN, 0))) {
+    float button_height = ImGui::GetFrameHeightWithSpacing();
+    if (ImGui::BeginListBox("##instruments", ImVec2(-FLT_MIN, -button_height))) {
         for (std::size_t i = 0; i < instruments.size(); ++i) {
             bool is_selected = (static_cast<int>(i) == selected_);
             if (ImGui::Selectable(instruments[i].name().c_str(), is_selected)) {

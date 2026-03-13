@@ -43,9 +43,6 @@ void rumpu::menu() {
             if (ImGui::MenuItem("New Song")) {
                 new_song_dialog_.open();
             }
-            if (ImGui::MenuItem("Song Properties...")) {
-                song_properties_dialog_.open(&song_);
-            }
             if (ImGui::MenuItem("Open...")) {
                 open_project_file_dialog([this](std::string path) {
                     if (!path.empty()) {
@@ -81,6 +78,12 @@ void rumpu::menu() {
             ImGui::Separator();
             if (ImGui::MenuItem("Close"))  {
                 running_ = false;
+            }
+            ImGui::EndMenu();
+        }
+        if (ImGui::BeginMenu("Song")) {
+            if (ImGui::MenuItem("Properties...")) {
+                song_properties_dialog_.open(&song_);
             }
             ImGui::EndMenu();
         }
@@ -234,8 +237,22 @@ void rumpu::add_section() {
     track_edit_view_->set_context(&song_, id);
 }
 
-void rumpu::play_song(uint32_t section) {
-    player_.play(&song_, false, section);
+void rumpu::play_section(uint32_t section) {
+    try {
+        player_.play(&song_, false, section);
+    } catch(std::exception const& e) {
+        LOG_WARN("play_section failed: {}", e.what());
+        show_error(std::format("Failed to play: {}", e.what()));
+    }
+}
+
+void rumpu::play_song() {
+    try {
+        player_.play(&song_, false, 0);
+    } catch(std::exception const& e) {
+        LOG_WARN("play_song failed: {}", e.what());
+        show_error(std::format("Failed to play: {}", e.what()));
+    }
 }
 
 void rumpu::stop_song(uint32_t section) {
@@ -325,6 +342,7 @@ void rumpu::handle_event(std::unique_ptr<securepath::event_system::event_base> e
         , event_dest<event::add_track>(&rumpu::add_track)
         , event_dest<event::open_add_track_dialog>(&rumpu::open_add_track_dialog)
         , event_dest<event::add_instrument>(&rumpu::add_instrument)
+        , event_dest<event::play_section>(&rumpu::play_section)
         , event_dest<event::play_song>(&rumpu::play_song)
         , event_dest<event::stop_song>(&rumpu::stop_song)
         , event_dest<event::select_section>(&rumpu::select_section)

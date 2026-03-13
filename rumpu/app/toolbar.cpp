@@ -42,7 +42,13 @@ bool toolbar::do_draw()
         button<event::open_add_track_dialog>("Add track");
         ImGui::TableNextColumn();
         ImGui::BeginGroup();
-        button<event::play_song>("Play");
+        if (ImGui::Button("Play")) {
+            if (song_) {
+                handler_.emit<event::play_song>();
+            }
+        }
+        ImGui::SameLine();
+        button<event::play_section>("Play Section");
         ImGui::SameLine();
         button<event::stop_song>("Stop");
         {

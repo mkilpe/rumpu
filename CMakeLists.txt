@@ -74,6 +74,8 @@ add_subdirectory(rumpu)
 # base libs
 add_subdirectory(securepath)
 
+add_subdirectory(tools)
+
 if(NOT WIN32)
     add_subdirectory(test)
 endif()

@@ -16,6 +16,7 @@ public:
 	std::size_t process(float* buffer, std::size_t samples);
 
 	float play_position() const;
+	float duration() const;
 	std::uint32_t currently_playing_bar() const;
 	std::uint32_t currently_playing_section() const;
 	bool is_playing() const;

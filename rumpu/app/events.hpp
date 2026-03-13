@@ -22,8 +22,12 @@ struct open_add_track_dialog {
     typedef void type(std::uint32_t section);
 };
 
-struct play_song {
+struct play_section {
     typedef void type(std::uint32_t section);
+};
+
+struct play_song {
+    typedef void type();
 };
 
 struct stop_song {

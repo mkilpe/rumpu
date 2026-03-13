@@ -233,6 +233,36 @@ struct mixer::impl {
 		}
  	}
 
+	float calculate_duration() const {
+		current_pos p{pos_.sample_rate};
+		p.global_tempo_slide = song_->global_tempo_slide();
+		p.current_timing = song_->default_time_signature();
+		p.current_tempo = song_->default_tempo();
+
+		auto order = section_play_
+			? song::section_order_type{pos_.section_id}
+			: song_->section_order();
+
+		float total{};
+		for (auto sec_id : order) {
+			auto const* sec = song_->find_section(sec_id);
+			if (!sec) {
+				break;
+			}
+			p.new_section();
+			for (std::uint32_t bar = 0; bar < sec->length(); ++bar) {
+				p.bar_pos = bar;
+				auto change = sec->find_change(bar);
+				if (change) {
+					p.handle_change(*change);
+				}
+				p.update_samples_to_play(song_->default_time_signature());
+				total += p.samples / float(p.sample_rate);
+			}
+		}
+		return total;
+	}
+
 	void update_audio_params() {
 		auto change = section_->find_change(pos_.bar_pos);
 		if(change) {
@@ -384,6 +414,10 @@ bool mixer::is_playing() const {
 
 float mixer::play_position() const {
 	return impl_->pos_.time_pos;
+}
+
+float mixer::duration() const {
+	return impl_->calculate_duration();
 }
 
 }

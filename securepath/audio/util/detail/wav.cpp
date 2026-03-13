@@ -68,9 +68,9 @@ void wav::load(std::istream& in) {
 	if(data_.empty()) {
 		throw invalid_format("data chunk not found");
 	}
-	if(format_->bits_per_sample != 8 && format_->bits_per_sample != 16) {
+	if(format_->bits_per_sample != 8 && format_->bits_per_sample != 16 && format_->bits_per_sample != 32) {
 		LOG_INFO("invalid bits_per_sample: {}", format_->bits_per_sample);
-		throw invalid_format("only 8 or 16 bits per sample is supported");
+		throw invalid_format("only 8, 16 or 32 bits per sample is supported");
 	}
 }
 
@@ -87,7 +87,8 @@ void wav::load_chunk(std::istream& in) {
 		} else if(std::strncmp(reinterpret_cast<char const*>(h.chunk_id), "data", 4) == 0) {
 			load_data_chunk(in, h.chunk_size);
 		} else {
-			LOG_TRACE("unsupported RIFF chunk");
+			LOG_TRACE("skipping RIFF chunk '{}' ({} bytes)", std::string(h.chunk_id, h.chunk_id+4), h.chunk_size);
+			in.seekg(h.chunk_size, std::ios_base::cur);
 		}
 	}
 }
@@ -112,8 +113,15 @@ audio::audio_format wav::format() const {
 	if(!format_) {
 		throw invalid_format("format chunk not found");
 	}
+	auto type = [this]() -> audio::sample_type {
+		if(format_->audio_format == 3) {
+			return audio::float_t;
+		}
+		return format_->bits_per_sample == 8 ? audio::uchar_t : audio::short_t;
+	};
+
 	return audio::audio_format
-		{ format_->bits_per_sample == 8 ? audio::uchar_t : audio::short_t
+		{ type()
 		, format_->channels
 		, format_->bits_per_sample
 		, format_->sample_rate

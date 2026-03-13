@@ -93,13 +93,10 @@ play_status player::get_status() const {
 	status.section_id   = mixer_->currently_playing_section();
 	status.current_time = audio::length_type{uint32_t(mixer_->play_position()*1000)}
 	                    - audio::samples_to_length(out_->config().format, out_->buffer_size() - out_->avail());
+	status.total_time   = std::chrono::milliseconds{static_cast<long long>(mixer_->duration() * 1000)};
 	if (song_) {
 		if (auto const* sec = song_->find_section(status.section_id)) {
 			status.total_bars = sec->length();
-			auto ts     = song_->default_time_signature();
-			auto bpm    = song_->default_tempo().value;
-			auto bar_ms = static_cast<long long>(ts.beats_in_bar() * 60000.0f / bpm);
-			status.total_time = std::chrono::milliseconds{bar_ms * status.total_bars};
 		}
 	}
 	return status;
