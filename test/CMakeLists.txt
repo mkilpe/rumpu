@@ -4,6 +4,7 @@ add_executable(test_rumpu
 	test_drum_sample.cpp
 	test_mixer.cpp
 	test_timing.cpp
+	test_wav.cpp
 )
 
 target_compile_definitions(test_rumpu PRIVATE

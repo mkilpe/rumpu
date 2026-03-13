@@ -20,15 +20,16 @@ void wav::save(std::ostream& out, audio::audio_format const& format) {
 	if(format.endian != std::endian::little) {
 		throw invalid_format("unsupported endian type");
 	}
-	if(format.type != audio::uchar_t && format.type != audio::short_t) {
-		throw invalid_format("wav only supports uchar_t and short_t sample types");
+	if(format.type != audio::uchar_t && format.type != audio::short_t && format.type != audio::float_t) {
+		throw invalid_format("wav only supports uchar_t, short_t and float_t sample types");
 	}
 
 	using namespace riff;
 	riff_header header(std::size_t(riff_fmt::size)+std::size_t(riff_data::size)+data_.size());
 
 	riff_fmt fmt;
-	fmt.data.audio_format = 1; //Microsoft Pulse Code Modulation (PCM) format
+	// 1 = PCM, 3 = IEEE float
+	fmt.data.audio_format = format.type == audio::float_t ? 3 : 1;
 	fmt.data.channels = format.channels;
 	fmt.data.sample_rate = format.samples_per_second;
 	fmt.data.byte_rate = format.samples_per_second*format.channels*format.bits_per_sample/8;
