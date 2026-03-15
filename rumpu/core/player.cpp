@@ -120,7 +120,7 @@ float player::gain() const {
 	return gain_;
 }
 
-void player::write_data() {	
+void player::write_data() {
 	std::size_t process = std::min<std::size_t>(out_->avail(), buffer_.free_samples());
 	if(process) {
 		float* start = &*buffer_.free_begin<float>();

@@ -222,9 +222,12 @@ struct bar_calc {
 			}
 		}
 		if(beat* b = find_beat()) {
-			b->action = b->action == beat::none ? beat::hit : beat::none;
-			if(b->action == beat::hit) {
+			if(b->action == beat::none) {
+				b->action = beat::hit;
 				context.song_->randomise_beat(*b);
+			} else {
+				b->action = beat::none;
+				b->stop_data.falloff = nullptr;
 			}
 		}
 	}
@@ -328,13 +331,34 @@ void track::context_menu(track_draw_context& context)
     			}
     		}
     	}
-		ImGui::Separator();
-		if (ImGui::MenuItem("Beat properties...")) {
+		{
 			bar_calc bc(context, ImVec2{mouse_pos_.x - context.pos.x, mouse_pos_.y - context.pos.y});
-			if(auto b = bc.find_beat(); b && b->action == beat::hit) {
-				beat_props_beat_ = b;
-				beat_props_open_ = true;
-				beat_props_mouse_pos_ = mouse_pos_;
+			auto b = bc.find_beat();
+			bool has_none = b && b->action == beat::none;
+			bool has_hit = b && b->action == beat::hit;
+			bool has_stop = b && b->action == beat::stop;
+
+			if (ImGui::MenuItem("Set choke", nullptr, false, has_none)) {
+				if(b) {
+					b->action = beat::stop;
+					if(!b->stop_data.falloff) {
+						b->stop_data.falloff = audio_falloff::create(audio_falloff::exponential);
+					}
+				}
+			}
+			if (ImGui::MenuItem("Remove choke", nullptr, false, has_stop)) {
+				if(b) {
+					b->action = beat::none;
+					b->stop_data.falloff = nullptr;
+				}
+			}
+			ImGui::Separator();
+			if (ImGui::MenuItem("Beat properties...", nullptr, false, has_hit || has_stop)) {
+				if(b) {
+					beat_props_beat_ = b;
+					beat_props_open_ = true;
+					beat_props_mouse_pos_ = mouse_pos_;
+				}
 			}
 		}
 
@@ -420,18 +444,44 @@ void track::beat_properties_dialog(track_draw_context& context)
 
 	if(ImGui::BeginPopupModal(popup_name.c_str(), nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
 		if(beat_props_beat_) {
-			auto& hd = beat_props_beat_->hit_data;
-			float volume = hd.volume.value;
-			float rand_offset = hd.rand_hit_offset;
-			float rand_vol = hd.rand_volume.value * 100.0f;
+			if(beat_props_beat_->action == beat::hit) {
+				auto& hd = beat_props_beat_->hit_data;
+				float volume = hd.volume.value;
+				float rand_offset = hd.rand_hit_offset;
+				float rand_vol = hd.rand_volume.value * 100.0f;
 
-			ImGui::SliderFloat("Volume", &volume, 0.0f, 1.0f, "%.2f");
-			ImGui::SliderFloat("Rand offset (ms)", &rand_offset, -100.0f, 100.0f, "%.1f");
-			ImGui::SliderFloat("Rand volume (%)", &rand_vol, -100.0f, 100.0f, "%.1f");
+				ImGui::SliderFloat("Volume", &volume, 0.0f, 1.0f, "%.2f");
+				ImGui::SliderFloat("Rand offset (ms)", &rand_offset, -100.0f, 100.0f, "%.1f");
+				ImGui::SliderFloat("Rand volume (%)", &rand_vol, -100.0f, 100.0f, "%.1f");
 
-			hd.volume.value = volume;
-			hd.rand_hit_offset = rand_offset;
-			hd.rand_volume.value = rand_vol / 100.0f;
+				hd.volume.value = volume;
+				hd.rand_hit_offset = rand_offset;
+				hd.rand_volume.value = rand_vol / 100.0f;
+			} else if(beat_props_beat_->action == beat::stop) {
+				auto& sd = beat_props_beat_->stop_data;
+				ImGui::SeparatorText("Falloff");
+				bool has_falloff = sd.falloff != nullptr;
+				if(ImGui::Checkbox("Enable falloff", &has_falloff)) {
+					if(has_falloff) {
+						sd.falloff = audio_falloff::create(audio_falloff::exponential);
+					} else {
+						sd.falloff = nullptr;
+					}
+				}
+				if(sd.falloff) {
+					int type = static_cast<int>(sd.falloff->type());
+					float duration = sd.falloff->duration_beats();
+
+					ImGui::RadioButton("Immediate", &type, audio_falloff::immediate);
+					ImGui::RadioButton("Linear", &type, audio_falloff::linear);
+					ImGui::RadioButton("Exponential", &type, audio_falloff::exponential);
+					ImGui::SliderFloat("Duration (beats)", &duration, 0.1f, 8.0f, "%.1f");
+
+					if(type != static_cast<int>(sd.falloff->type()) || duration != sd.falloff->duration_beats()) {
+						sd.falloff = audio_falloff::create(static_cast<audio_falloff::falloff_type>(type), duration);
+					}
+				}
+			}
 		}
 
 		if(ImGui::Button("Close") || ImGui::IsKeyPressed(ImGuiKey_Escape)) {

@@ -14,6 +14,7 @@ static void add_kick_pattern(song& s) {
 	auto sec_id = s.add_section();
 	s.section_order().push_back(sec_id);
 	auto& sec = *s.find_section(sec_id);
+	sec.tracks()[0].bars()[0].beats.resize(4);
 	beat b;
 	b.action = beat::hit;
 	b.hit_data.volume = volume{false, 1.0f};
@@ -110,4 +111,35 @@ TEST_CASE("mixer duration for empty song is zero", "[mixer]") {
 	song s{{}, {4, 4}, {120}};
 	mixer m{s, 44100};
 	CHECK(m.duration() == Catch::Approx(0.0f));
+}
+
+TEST_CASE("mixer choke stop with falloff silences audio", "[mixer]") {
+	song s{{}, {4, 4}, {120}};
+	s.add_instrument(instrument{kick_path});
+	s.load_instruments(44100);
+	auto sec_id = s.add_section();
+	s.section_order().push_back(sec_id);
+	auto& sec = *s.find_section(sec_id);
+
+	// bar 0: hit on beat 0
+	auto& bar0_beats = sec.tracks()[0].bars()[0].beats;
+	bar0_beats.resize(4);
+	bar0_beats[0].action = beat::hit;
+	bar0_beats[0].hit_data.volume = volume{false, 1.0f};
+
+	// bar 1: choke stop on beat 0 with immediate falloff
+	auto& bar1_beats = sec.tracks()[0].bars()[1].beats;
+	bar1_beats.resize(4);
+	bar1_beats[0].action = beat::stop;
+	bar1_beats[0].stop_data.falloff = audio_falloff::create(audio_falloff::immediate);
+
+	// 4/4 at 120bpm, 44100hz: samples_per_bar = 88200
+	mixer m{s, sec_id, 44100};
+	std::vector<float> buf(176400, 0.0f);
+	m.process(buf.data(), buf.size());
+
+	// bar 0 should produce audio (hit at sample 0)
+	CHECK(buf[0] != 0.0f);
+	// bar 1 choke fires at start of bar 1 (sample 88200), audio should be silenced after
+	CHECK(buf[88201] == 0.0f);
 }

@@ -1,7 +1,5 @@
 #pragma once
 
-#include <cmath>
-
 #include "types.hpp"
 
 namespace securepath::drum {
@@ -48,30 +46,4 @@ struct volume_accent {
 struct volume_accent_info {
 };
 
-struct audio_falloff {
-	enum falloff_type { immediate, linear, exponential } type{ exponential };
-	fp_type pos{};
-	fp_type end{};
-
-	bool is_done() const {
-		return pos >= end;
-	}
-
-	fp_type factor(fp_type delta) {
-		fp_type ret = 0.0_fp;
-		pos += delta;
-		if(pos > end) {
-			pos = end;
-		}
-		if(type == linear) {
-			ret = 1.0_fp - pos/end;
-		} else if(type == exponential) {
-			fp_type x = pos/end*7-5;
-			ret = 1.0_fp - std::exp2(x) / 4;
-		}
-		return ret;
-	}
-
-	friend bool operator==(audio_falloff const& l, audio_falloff const& r) = default;
-};
 }

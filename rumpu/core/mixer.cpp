@@ -68,7 +68,7 @@ struct action_data {
 	std::uint32_t sample_pos{};
 	beat::action_type action{beat::none};
 	float volume{1.0f};
-	std::optional<audio_falloff> falloff;
+	std::unique_ptr<audio_falloff_player> falloff;
 };
 
 struct track_info {
@@ -78,7 +78,7 @@ struct track_info {
 	// volume of the current_audio
 	float current_audio_volume{1.0f};
 	// fall-off for current audio
-	std::optional<audio_falloff> falloff;
+	std::unique_ptr<audio_falloff_player> falloff;
 	// track volume that takes into account the volume slide
 	drum::volume volume{};
 	// current volume slide for the track
@@ -163,6 +163,14 @@ struct mixer::impl {
 		return ret;
 	}
 
+	std::unique_ptr<audio_falloff_player> create_beat_falloff_player(beat const& b) {
+		if(b.stop_data.falloff) {
+			fp_type beat_seconds = 60.0_fp / pos_.current_tempo.value;
+			return b.stop_data.falloff->create_player(beat_seconds);
+		}
+		return nullptr;
+	}
+
 	void push_info_action(track_info& info, std::int32_t sample_pos, beat const& b) {
 		if(b.action == beat::hit) {
 			std::int32_t adj_offset = sample_pos + static_cast<std::int32_t>(b.hit_data.rand_hit_offset / 1000.0f * pos_.sample_rate);
@@ -175,7 +183,7 @@ struct mixer::impl {
 					action_data{static_cast<std::uint32_t>(adj_offset), b.action, info.volume.value * b.combined_hit_volume()});
 			}
 		} else if(b.action == beat::stop) {
-			info.actions.push_back(action_data{0, b.action, 0.0f, b.stop_data.falloff});
+			info.actions.push_back(action_data{0, b.action, 0.0f, create_beat_falloff_player(b)});
 		}
 	}
 
@@ -296,7 +304,7 @@ struct mixer::impl {
 			}
 			std::size_t processed{};
 			while(processed < samples) {
-				action_data const* d{};
+				action_data* d{};
 				if(!info.actions.empty()) {
 					d = &info.actions.front();
 				}
@@ -316,20 +324,20 @@ struct mixer::impl {
 		}
 	}
 
-	void set_current_track_audio(std::size_t instrument_index, track_info& info, action_data const& data) {
+	void set_current_track_audio(std::size_t instrument_index, track_info& info, action_data& data) {
 		assert(data.action != beat::none);
 		if(data.action == beat::hit) {
 			info.audio_pos = 0;
-			info.falloff = std::nullopt;
+			info.falloff = std::move(data.falloff);
 			auto& instrument = song_->instruments()[instrument_index];
 			if(instrument.is_valid()) {
 				info.current_audio = instrument.sample_to_play().buffer();
 			} else {
 				info.current_audio = {};
-			}			
+			}
 			info.current_audio_volume = data.volume;
 		} else if(info.current_audio) {
-			info.falloff = data.falloff;
+			info.falloff = std::move(data.falloff);
 		}
 	}
 

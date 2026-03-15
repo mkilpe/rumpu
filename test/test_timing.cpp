@@ -1,5 +1,6 @@
 #include <catch2/catch_all.hpp>
 
+#include <rumpu/core/audio_falloff.hpp>
 #include <rumpu/core/tempo.hpp>
 #include <rumpu/core/time_signature.hpp>
 #include <rumpu/core/volume.hpp>
@@ -53,23 +54,54 @@ TEST_CASE("time_signature validity", "[time_signature]") {
 	CHECK(!time_signature{4, 0}.is_valid());
 }
 
-TEST_CASE("audio_falloff immediate always returns 0", "[audio_falloff]") {
-	audio_falloff f{audio_falloff::immediate, 0.0f, 1.0f};
-	CHECK(f.factor(0.5f) == 0.0f);
-	CHECK(f.factor(0.5f) == 0.0f);
+TEST_CASE("audio_falloff immediate player returns 0", "[audio_falloff]") {
+	auto def = audio_falloff::create(audio_falloff::immediate);
+	auto p = def->create_player(0.5f);
+	CHECK(p->factor(0.5f) == 0.0f);
+	CHECK(p->is_done());
 }
 
-TEST_CASE("audio_falloff linear factor decreases from 1 to 0", "[audio_falloff]") {
-	audio_falloff f{audio_falloff::linear, 0.0f, 1.0f};
-	CHECK(f.factor(0.0f) == Catch::Approx(1.0f));
-	CHECK(f.factor(1.0f) == Catch::Approx(0.0f));
+TEST_CASE("audio_falloff linear player decreases from 1 to 0", "[audio_falloff]") {
+	// 1 beat at 0.5s per beat = 0.5s duration
+	auto def = audio_falloff::create(audio_falloff::linear, 1.0f);
+	auto p = def->create_player(0.5f);
+	CHECK(p->factor(0.0f) == Catch::Approx(1.0f));
+	CHECK(p->factor(0.5f) == Catch::Approx(0.0f));
 }
 
-TEST_CASE("audio_falloff is_done after full duration", "[audio_falloff]") {
-	audio_falloff f{audio_falloff::linear, 0.0f, 1.0f};
-	CHECK(!f.is_done());
-	f.factor(1.0f);
-	CHECK(f.is_done());
+TEST_CASE("audio_falloff player is_done after full duration", "[audio_falloff]") {
+	auto def = audio_falloff::create(audio_falloff::linear, 1.0f);
+	auto p = def->create_player(1.0f);
+	CHECK(!p->is_done());
+	p->factor(1.0f);
+	CHECK(p->is_done());
+}
+
+TEST_CASE("audio_falloff exponential player factor", "[audio_falloff]") {
+	auto def = audio_falloff::create(audio_falloff::exponential, 1.0f);
+	auto p = def->create_player(1.0f);
+	CHECK(!p->is_done());
+	float mid = p->factor(0.5f);
+	CHECK(mid > 0.0f);
+	CHECK(mid < 1.0f);
+	p->factor(0.5f);
+	CHECK(p->is_done());
+}
+
+TEST_CASE("audio_falloff clone preserves definition", "[audio_falloff]") {
+	auto def = audio_falloff::create(audio_falloff::linear, 2.0f);
+	auto c = def->clone();
+	CHECK(c->type() == audio_falloff::linear);
+	CHECK(c->duration_beats() == 2.0f);
+}
+
+TEST_CASE("audio_falloff players are independent", "[audio_falloff]") {
+	auto def = audio_falloff::create(audio_falloff::linear, 1.0f);
+	auto p1 = def->create_player(1.0f);
+	auto p2 = def->create_player(1.0f);
+	p1->factor(1.0f);
+	CHECK(p1->is_done());
+	CHECK(!p2->is_done());
 }
 
 TEST_CASE("volume_slide bar_delta", "[volume_slide]") {

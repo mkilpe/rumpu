@@ -1,5 +1,6 @@
 #pragma once
 
+#include "audio_falloff.hpp"
 #include "volume.hpp"
 #include "types.hpp"
 
@@ -20,7 +21,16 @@ struct beat_hit_data {
 
 // dictate how the beat ends, fall off
 struct beat_stop_data {
-	audio_falloff falloff;
+	std::unique_ptr<audio_falloff> falloff;
+
+	beat_stop_data() = default;
+	beat_stop_data(beat_stop_data const& o) : falloff(o.falloff ? o.falloff->clone() : nullptr) {}
+	beat_stop_data& operator=(beat_stop_data const& o) {
+		falloff = o.falloff ? o.falloff->clone() : nullptr;
+		return *this;
+	}
+	beat_stop_data(beat_stop_data&&) = default;
+	beat_stop_data& operator=(beat_stop_data&&) = default;
 };
 
 struct beat {

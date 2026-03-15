@@ -4,6 +4,8 @@
 #include <securepath/serialisation/vector.hpp>
 #include <securepath/serialisation/sequence.hpp>
 #include <securepath/serialisation/tag.hpp>
+#include <securepath/serialisation/serialiser.hpp>
+#include <securepath/serialisation/deserialiser.hpp>
 
 #include "../bar.hpp"
 #include "../drum_sample.hpp"
@@ -151,10 +153,21 @@ Ar& serialise(Ar& ar, volume_accent_info& d) {
 	return ar;
 }
 
-template<typename Ar>
-Ar& serialise(Ar& ar, audio_falloff& d) {
-	serialisation::sequence<Ar> seq(ar);
-	seq & d.type & d.pos & d.end;
+// audio_falloff is polymorphic: serialise type + duration_beats
+inline auto& serialise(serialisation::serialiser& ar, std::unique_ptr<audio_falloff>& d) {
+	serialisation::sequence<serialisation::serialiser> seq(ar);
+	int type = d ? static_cast<int>(d->type()) : 0;
+	fp_type duration = d ? d->duration_beats() : 1.0_fp;
+	seq & type & duration;
+	return ar;
+}
+
+inline auto& serialise(serialisation::deserialiser& ar, std::unique_ptr<audio_falloff>& d) {
+	serialisation::sequence<serialisation::deserialiser> seq(ar);
+	int type{};
+	fp_type duration{1.0_fp};
+	seq & type & duration;
+	d = audio_falloff::create(static_cast<audio_falloff::falloff_type>(type), duration);
 	return ar;
 }
 
