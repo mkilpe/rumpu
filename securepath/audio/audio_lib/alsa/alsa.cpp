@@ -173,17 +173,10 @@ public:
 
 		device_config_ = configure(handle_, config);
 
-		/*
-		snd_output_t* log;
-		snd_output_stdio_attach(&log, stderr, 0);
-		snd_pcm_dump(handle_, log);
-		*/
-
-		/*err = snd_pcm_prepare(handle_);
-		if(err != 0) {
-			LOG_TRACE("cannot prepare device for play: {}", snd_strerror(err));
-			throw std::runtime_error("cannot prepare device for play");
-		}*/
+		hw_params hp;
+		snd_pcm_hw_params_current(handle_, hp.params);
+		can_pause_ = snd_pcm_hw_params_can_pause(hp.params);
+		LOG_INFO("ALSA: can_pause={}", can_pause_);
 	}
 
 	~alsa_play_device() {
@@ -191,9 +184,21 @@ public:
 	}
 
 	void start() {
-		LOG_TRACE("ALSA: start");
-
 		auto state = snd_pcm_state(handle_);
+		LOG_TRACE("ALSA: start, state={}", snd_pcm_state_name(state));
+
+		if(state == SND_PCM_STATE_RUNNING) {
+			running_ = true;
+			return;
+		}
+		if(state == SND_PCM_STATE_PAUSED) {
+			int err = snd_pcm_pause(handle_, 0);
+			if(err == 0) {
+				running_ = true;
+				return;
+			}
+			LOG_TRACE("ALSA: resume from pause failed: {}, falling back to prepare", snd_strerror(err));
+		}
 		if(state != SND_PCM_STATE_PREPARED) {
 			int err = snd_pcm_prepare(handle_);
 			if(err != 0) {
@@ -211,6 +216,13 @@ public:
 
 	void stop(stop_type s) {
 		running_ = false;
+		if(s == stop_type::force && can_pause_) {
+			int err = snd_pcm_pause(handle_, 1);
+			if(err == 0) {
+				return;
+			}
+			LOG_TRACE("ALSA: pause failed: {}, falling back to drop", snd_strerror(err));
+		}
 		int err = s == stop_type::force
 			? snd_pcm_drop(handle_)
 			: snd_pcm_drain(handle_);
@@ -292,17 +304,21 @@ public:
 			} else if(samples == -EPIPE || samples == -ESTRPIPE) {
 				LOG_TRACE("play device recover ({})", snd_strerror(samples));
 				snd_pcm_recover(handle_, samples, 0);
-				// retry write after recovery
 				samples = snd_pcm_writei(handle_, b.begin<uint8_t>(), b.used_samples());
 				if(samples < 0) {
 					LOG_TRACE("retry write failed: {}", snd_strerror(samples));
 					samples = 0;
 				}
+				if(snd_pcm_state(handle_) == SND_PCM_STATE_PREPARED) {
+					snd_pcm_start(handle_);
+				}
 			} else {
 				LOG_TRACE("failed to write to play device: {}", snd_strerror(samples));
 				throw std::runtime_error("failed to write to play device");
 			}
-			if(samples < 0) samples = 0;
+			if(samples < 0) {
+				samples = 0;
+			}
 		}
 		b.consume_samples(samples);
 		return samples;
@@ -312,6 +328,7 @@ private:
 	snd_pcm_t* handle_;
 	std::vector<pollfd> fds_;
 	std::atomic<bool> running_ = false;
+	bool can_pause_ = false;
 };
 
 class alsa_capture_device : public audio_capture_device  {

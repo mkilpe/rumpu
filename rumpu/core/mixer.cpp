@@ -183,7 +183,8 @@ struct mixer::impl {
 					action_data{static_cast<std::uint32_t>(adj_offset), b.action, info.volume.value * b.combined_hit_volume()});
 			}
 		} else if(b.action == beat::stop) {
-			info.actions.push_back(action_data{0, b.action, 0.0f, create_beat_falloff_player(b)});
+			info.actions.push_back(
+				action_data{static_cast<std::uint32_t>(sample_pos), b.action, 0.0f, create_beat_falloff_player(b)});
 		}
 	}
 

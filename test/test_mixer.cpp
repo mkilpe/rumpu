@@ -113,6 +113,49 @@ TEST_CASE("mixer duration for empty song is zero", "[mixer]") {
 	CHECK(m.duration() == Catch::Approx(0.0f));
 }
 
+TEST_CASE("mixer choke in same bar does not kill earlier beat", "[mixer]") {
+	// First, find the actual sample length so we can place the choke within it
+	instrument inst{kick_path};
+	inst.load_samples(44100);
+	auto sample_len = inst.sample_to_play().buffer()->size();
+	REQUIRE(sample_len > 100);
+
+	// Use high tempo so one beat is shorter than the sample
+	// At 960 BPM: samples_per_beat = 44100*60/960 = 2756
+	// With 2 divisions: choke at 1378 samples, well within the sample
+	float bpm = 44100.0f * 60.0f / (sample_len / 2.0f);
+	song s{{}, {4, 4}, {bpm}};
+	s.add_instrument(instrument{kick_path});
+	s.load_instruments(44100);
+	auto sec_id = s.add_section();
+	s.section_order().push_back(sec_id);
+	auto& sec = *s.find_section(sec_id);
+
+	auto& beats = sec.tracks()[0].bars()[0].beats;
+	beats.resize(4);
+	beat hit;
+	hit.action = beat::hit;
+	hit.hit_data.volume = volume{false, 1.0f};
+	beat choke;
+	choke.action = beat::stop;
+	choke.stop_data.falloff = audio_falloff::create(audio_falloff::immediate);
+	beats[0].division = {hit, choke};
+
+	std::uint32_t samples_per_beat = 44100 * 60 / bpm;
+	std::uint32_t choke_pos = samples_per_beat / 2;
+
+	mixer m{s, sec_id, 44100};
+	std::vector<float> buf(samples_per_beat * 4, 0.0f);
+	m.process(buf.data(), buf.size());
+
+	// hit at beat 0 should produce audio
+	CHECK(buf[0] != 0.0f);
+	// audio should still be playing just before the choke
+	CHECK(buf[choke_pos - 1] != 0.0f);
+	// after choke, audio should be silenced
+	CHECK(buf[choke_pos + 1] == 0.0f);
+}
+
 TEST_CASE("mixer choke stop with falloff silences audio", "[mixer]") {
 	song s{{}, {4, 4}, {120}};
 	s.add_instrument(instrument{kick_path});

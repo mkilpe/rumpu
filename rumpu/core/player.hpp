@@ -56,7 +56,7 @@ private:
 
 private:
 	mutable std::mutex mutex_;
-	std::condition_variable cond_;	
+	std::condition_variable cond_;
 	event_system::event_handler& handler_;
 	std::shared_ptr<audio::audio_play_device> out_;
 	song* song_{};

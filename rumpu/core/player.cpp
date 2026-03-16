@@ -27,14 +27,14 @@ player::player(event_system::event_handler& h, audio::device_config const& confi
 	buffer_ = audio::audio_buffer(conf.format, conf.buffer_size);
 }
 
-player::~player() {	
+player::~player() {
 	{
 		std::unique_lock l{mutex_};
 		running_ = false;
 		if(out_) {
 			try {
 				out_->stop();
-			} catch(...) 
+			} catch(...)
 			{}
 		}
 	}
