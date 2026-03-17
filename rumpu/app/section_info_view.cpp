@@ -2,6 +2,7 @@
 #include "section_info_view.hpp"
 
 #include "imgui.h"
+#include "misc/cpp/imgui_stdlib.h"
 
 namespace securepath::drum::app {
 
@@ -24,7 +25,14 @@ bool section_info_view::do_draw() {
         return false;
     }
 
-    ImGui::Text("%s", section->name().c_str());
+    // Sync buffer when section changes
+    if (current_section_ != 0 && name_buf_ != section->name()) {
+        name_buf_ = section->name();
+    }
+    ImGui::SetNextItemWidth(150);
+    if (ImGui::InputText("##section_name", &name_buf_)) {
+        section->set_name(name_buf_);
+    }
     ImGui::SameLine();
     ImGui::Text("Length:");
     ImGui::SameLine();
