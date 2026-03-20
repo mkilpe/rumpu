@@ -353,7 +353,7 @@ void track::context_menu(track_draw_context& context)
 				}
 			}
 			ImGui::Separator();
-			if (ImGui::MenuItem("Beat properties...", nullptr, false, has_hit || has_stop)) {
+			if (ImGui::MenuItem(has_stop ? "Choke properties..." : "Beat properties...", nullptr, false, has_hit || has_stop)) {
 				if(b) {
 					beat_props_beat_ = b;
 					beat_props_open_ = true;
@@ -459,27 +459,24 @@ void track::beat_properties_dialog(track_draw_context& context)
 				hd.rand_volume.value = rand_vol / 100.0f;
 			} else if(beat_props_beat_->action == beat::stop) {
 				auto& sd = beat_props_beat_->stop_data;
-				ImGui::SeparatorText("Falloff");
-				bool has_falloff = sd.falloff != nullptr;
-				if(ImGui::Checkbox("Enable falloff", &has_falloff)) {
-					if(has_falloff) {
-						sd.falloff = audio_falloff::create(audio_falloff::exponential);
-					} else {
-						sd.falloff = nullptr;
-					}
+				if(!sd.falloff) {
+					sd.falloff = audio_falloff::create(audio_falloff::exponential);
 				}
-				if(sd.falloff) {
-					int type = static_cast<int>(sd.falloff->type());
-					float duration = sd.falloff->duration_beats();
+				int type = static_cast<int>(sd.falloff->type());
+				float duration = sd.falloff->duration_beats();
 
-					ImGui::RadioButton("Immediate", &type, audio_falloff::immediate);
-					ImGui::RadioButton("Linear", &type, audio_falloff::linear);
-					ImGui::RadioButton("Exponential", &type, audio_falloff::exponential);
-					ImGui::SliderFloat("Duration (beats)", &duration, 0.1f, 8.0f, "%.1f");
+				ImGui::SeparatorText("Falloff");
+				ImGui::RadioButton("Immediate", &type, audio_falloff::immediate);
+				ImGui::RadioButton("Linear", &type, audio_falloff::linear);
+				ImGui::RadioButton("Exponential", &type, audio_falloff::exponential);
 
-					if(type != static_cast<int>(sd.falloff->type()) || duration != sd.falloff->duration_beats()) {
-						sd.falloff = audio_falloff::create(static_cast<audio_falloff::falloff_type>(type), duration);
-					}
+				bool is_immediate = (type == audio_falloff::immediate);
+				ImGui::BeginDisabled(is_immediate);
+				ImGui::SliderFloat("Duration (beats)", &duration, 0.1f, 8.0f, "%.1f");
+				ImGui::EndDisabled();
+
+				if(type != static_cast<int>(sd.falloff->type()) || duration != sd.falloff->duration_beats()) {
+					sd.falloff = audio_falloff::create(static_cast<audio_falloff::falloff_type>(type), duration);
 				}
 			}
 		}

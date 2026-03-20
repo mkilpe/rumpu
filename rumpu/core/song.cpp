@@ -160,16 +160,21 @@ std::uint32_t song::add_section(std::optional<section> s) {
 	std::uint32_t index = sections_.size()+1;
 	if(s) {
 		sections_[index] = std::move(*s);
-		if(sections_[index].name().empty()) {
-			sections_[index].set_name("Section " + std::to_string(index));
-		}
-	} else {
-		//t: take the default length from settings or from previous section?
-		sections_[index] = section{4, static_cast<std::uint32_t>(instruments_.size())};
-		if(sections_[index].name().empty()) {
-			sections_[index].set_name("Section " + std::to_string(index));
+	} else if(!sections_.empty()) {
+		// Copy track layout from existing section so all sections stay consistent
+		auto const& ref = sections_.begin()->second;
+		sections_[index] = section{ref.length()};
+		for(auto const& t : ref.tracks()) {
+			auto& nt = sections_[index].add_track(t.instrument_index());
+			nt.set_name(t.name());
 		}
 		populate_default_beats(sections_[index]);
+	} else {
+		sections_[index] = section{4, static_cast<std::uint32_t>(instruments_.size())};
+		populate_default_beats(sections_[index]);
+	}
+	if(sections_[index].name().empty()) {
+		sections_[index].set_name("Section " + std::to_string(index));
 	}
 	return index;
 }

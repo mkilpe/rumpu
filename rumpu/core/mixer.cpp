@@ -413,6 +413,17 @@ std::uint32_t mixer::currently_playing_bar() const {
 	return impl_->pos_.bar_pos;
 }
 
+float mixer::bar_progress() const {
+	if (impl_->pos_.samples == 0) {
+		return 0.0f;
+	}
+	return static_cast<float>(impl_->pos_.sample_pos) / static_cast<float>(impl_->pos_.samples);
+}
+
+std::uint32_t mixer::samples_per_current_bar() const {
+	return impl_->pos_.samples;
+}
+
 std::uint32_t mixer::currently_playing_section() const {
 	return impl_->pos_.section_id;
 }

@@ -178,6 +178,10 @@ bool rumpu::update() {
     export_dialog_.draw();
     draw_error_dialog();
 
+    if (player_.is_playing()) {
+        track_edit_view_->set_play_status(player_.get_status());
+    }
+
     if(!windows_.empty()) {
         auto pos = ImGui::GetCursorPos();
         auto size = ImGui::GetContentRegionAvail();
@@ -325,8 +329,10 @@ void rumpu::update_song_properties(std::string name, std::string author, std::st
 }
 
 void rumpu::player_pos_changed() {
-    LOG_TRACE("play pos changed");
-    track_edit_view_->set_play_status(player_.get_status());
+    // Only needed for stop: clears the cursor when playback ends
+    if (!player_.is_playing()) {
+        track_edit_view_->set_play_status(player_.get_status());
+    }
 }
 
 void rumpu::show_error(std::string message) {

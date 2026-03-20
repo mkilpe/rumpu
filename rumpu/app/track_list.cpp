@@ -49,6 +49,11 @@ void track_list::update_tracks(song* s, uint32_t section)
     }
 }
 
+void track_list::set_play_status(play_status const& s)
+{
+	play_status_ = s;
+}
+
 void track_list::set_context(song* s, uint32_t section)
 {
 	song_ = s;
@@ -64,6 +69,31 @@ void track_list::set_context(song* s, uint32_t section)
 			}
 		}
 	}
+}
+
+void track_list::draw_play_cursor(float col_x, float col_top, float col_bottom)
+{
+	if (!play_status_.playing || play_status_.section_id != section_) {
+		return;
+	}
+	if (!song_) {
+		return;
+	}
+	auto* sec = song_->find_section(section_);
+	if (!sec || sec->length() == 0) {
+		return;
+	}
+
+	float lead_x = 10.0f;
+	float track_width = 1500.0f * zoom_;
+	float bar_width = track_width / sec->length();
+	float cursor_x = col_x + lead_x + play_status_.current_bar * bar_width + play_status_.bar_progress * bar_width;
+
+	auto* drawlist = ImGui::GetForegroundDrawList();
+	drawlist->AddLine(
+		ImVec2{cursor_x, col_top},
+		ImVec2{cursor_x, col_bottom},
+		IM_COL32(255, 80, 80, 255), 1.0f);
 }
 
 bool track_list::do_draw()
@@ -89,11 +119,17 @@ bool track_list::do_draw()
 		}
 	}
 
+	float col_x = 0.0f;
+	float col_top = 0.0f;
+	float col_bottom = 0.0f;
+
 	if (ImGui::BeginTable("track_list_table", 2, ImGuiTableFlags_BordersH | ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg)) {
 		ImGui::TableSetupScrollFreeze(1, 0);
 		ImGui::TableNextRow();
 		ImGui::TableNextColumn();
 		ImGui::TableNextColumn();
+		col_x = ImGui::GetCursorScreenPos().x;
+		col_top = ImGui::GetCursorScreenPos().y;
 		header_.draw();
 		if(zoom_changed) {
 			header_.zoom(zoom_);
@@ -108,8 +144,12 @@ bool track_list::do_draw()
 			}
 			v.track->draw();
 		}
+		col_bottom = ImGui::GetCursorScreenPos().y;
 		ImGui::EndTable();
 	}
+
+	draw_play_cursor(col_x, col_top, col_bottom);
+
 	return true;
 }
 

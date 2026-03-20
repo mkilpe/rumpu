@@ -18,6 +18,8 @@ public:
 	float play_position() const;
 	float duration() const;
 	std::uint32_t currently_playing_bar() const;
+	float bar_progress() const;
+	std::uint32_t samples_per_current_bar() const;
 	std::uint32_t currently_playing_section() const;
 	bool is_playing() const;
 private:

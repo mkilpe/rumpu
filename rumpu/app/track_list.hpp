@@ -1,6 +1,7 @@
 #pragma once
 
 #include <rumpu/core/song.hpp>
+#include <rumpu/core/player.hpp>
 #include <securepath/event_system/event_handler.hpp>
 
 #include "track.hpp"
@@ -19,21 +20,24 @@ public:
 
     void add_track();
     void set_context(song*, uint32_t section);
+    void set_play_status(play_status const&);
 private:
     void update_tracks(song* s, uint32_t section);
     void set_track(drum::track const& t);
+    void draw_play_cursor(float col_x, float col_top, float col_bottom);
 private:
     event_system::event_handler& handler_;
     struct track_info {
         std::unique_ptr<track_pane> pane;
         track_ptr track;
     };
-    track_header header_; 
+    track_header header_;
     std::vector<track_info> tracks_;
 
     float zoom_{1.0f};
     song* song_{};
     uint32_t section_{};
+    play_status play_status_;
 };
 
 }
