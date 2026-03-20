@@ -57,7 +57,8 @@ TEST_CASE("mixer play_position advances after processing", "[mixer]") {
 TEST_CASE("mixer muted track produces no audio", "[mixer]") {
 	song s{{}, {4, 4}, {120}};
 	add_kick_pattern(s);
-	s.instruments()[0].set_volume(volume{true, 1.0f});
+	auto sec_id = s.section_order()[0];
+	s.find_section(sec_id)->tracks()[0].set_volume(volume{true, 1.0f});
 	mixer m{s, 44100};
 	std::vector<float> buf(4096, 0.0f);
 	m.process(buf.data(), buf.size());

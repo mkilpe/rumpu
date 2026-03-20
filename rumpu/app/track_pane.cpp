@@ -12,14 +12,16 @@ track_pane::track_pane(std::string name)
 : child_window_base(std::move(name), ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse, {})
 {}
 
-void track_pane::set_context(event_system::event_handler& h, song* s, drum::track const& t) {
+void track_pane::set_context(event_system::event_handler& h, song* s, std::uint32_t section, std::size_t track_index, drum::track const& t) {
     handler_ = &h;
     song_ = s;
+    section_ = section;
+    track_index_ = track_index;
     instrument_index_ = t.instrument_index();
     if(s && instrument_index_ < s->instruments().size()) {
         auto const& instr = s->instruments()[instrument_index_];
         display_name_ = t.name().empty() ? instr.name() : t.name();
-        float vol = instr.volume().value;
+        float vol = t.volume().value;
         gain_ = 20.0f * std::log10(std::max(vol, 1e-6f));
     }
 }
@@ -43,8 +45,12 @@ bool track_pane::do_draw()
         }
     }
 
-    if (song_ && instrument_index_ < song_->instruments().size()) {
-        bool muted = song_->instruments()[instrument_index_].volume().mute;
+    auto* sec = song_ ? song_->find_section(section_) : nullptr;
+    drum::track* trk = (sec && track_index_ < sec->tracks().size())
+        ? &sec->tracks()[track_index_] : nullptr;
+
+    if (trk) {
+        bool muted = trk->volume().mute;
 
         ImVec4 btn_color = muted
             ? ImVec4(0.7f, 0.2f, 0.2f, 1.0f)
@@ -56,11 +62,11 @@ bool track_pane::do_draw()
         ImGui::PushStyleColor(ImGuiCol_Button, btn_color);
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, btn_hovered);
 
-        std::string btn_id = "M##m" + std::to_string(instrument_index_);
+        std::string btn_id = "M##m" + std::to_string(track_index_);
         if (ImGui::SmallButton(btn_id.c_str())) {
-            drum::volume v = song_->instruments()[instrument_index_].volume();
+            drum::volume v = trk->volume();
             v.mute = !muted;
-            song_->instruments()[instrument_index_].set_volume(v);
+            trk->set_volume(v);
         }
 
         ImGui::PopStyleColor(2);
@@ -68,18 +74,18 @@ bool track_pane::do_draw()
     }
 
     if (ImGuiKnobs::Knob("Gain", &gain_, -6.0f, 6.0f, 0.1f, "%.1f", ImGuiKnobVariant_Tick, 30)) {
-        if(song_ && instrument_index_ < song_->instruments().size()) {
-            drum::volume v = song_->instruments()[instrument_index_].volume();
+        if(trk) {
+            drum::volume v = trk->volume();
             v.value = std::pow(10.0f, gain_ / 20.0f);
-            song_->instruments()[instrument_index_].set_volume(v);
+            trk->set_volume(v);
         }
     }
     if (ImGui::IsItemActive() && ImGui::IsMouseDoubleClicked(0)) {
         gain_ = 0.0f;
-        if(song_ && instrument_index_ < song_->instruments().size()) {
-            drum::volume v = song_->instruments()[instrument_index_].volume();
+        if(trk) {
+            drum::volume v = trk->volume();
             v.value = 1.0f;
-            song_->instruments()[instrument_index_].set_volume(v);
+            trk->set_volume(v);
         }
     }
     if (ImGui::BeginPopupContextWindow()) {

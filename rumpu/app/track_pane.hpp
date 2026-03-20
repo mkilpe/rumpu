@@ -11,12 +11,14 @@ public:
     track_pane(std::string name);
 
     bool do_draw() override;
-    void set_context(event_system::event_handler&, song*, drum::track const&);
+    void set_context(event_system::event_handler&, song*, std::uint32_t section, std::size_t track_index, drum::track const&);
 
 private:
     float gain_{};
     event_system::event_handler* handler_{};
     song* song_{};
+    std::uint32_t section_{};
+    std::size_t track_index_{};
     std::size_t instrument_index_{};
     std::string display_name_;
 };

@@ -115,7 +115,11 @@ Ar& serialise(Ar& ar, time_signature& d) {
 template<typename Ar>
 Ar& serialise(Ar& ar, track& d) {
 	serialisation::sequence<Ar> seq(ar);
-	seq & d.instrument_index_ & d.bars_ & d.volume_slides_ & d.name_;
+	std::optional<volume> vol = d.volume_;
+	seq & d.instrument_index_ & d.bars_ & d.volume_slides_ & d.name_ & vol;
+	if (vol) {
+		d.volume_ = *vol;
+	}
 	return ar;
 }
 

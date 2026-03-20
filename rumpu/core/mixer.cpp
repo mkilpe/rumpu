@@ -101,7 +101,7 @@ struct mixer::impl {
 			auto const& tracks = s.sections().begin()->second.tracks();
 			infos_.resize(tracks.size());
 			for(std::size_t i = 0; i != infos_.size(); ++i) {
-				infos_[i].volume = s.instruments()[tracks[i].instrument_index()].volume();
+				infos_[i].volume = tracks[i].volume();
 			}
 		}
 	}
@@ -115,6 +115,7 @@ struct mixer::impl {
 		if(section_) {
 			update_audio_params();
 		}
+		cached_duration_ = calculate_duration();
 	}
 
 	impl(song const& s, std::uint32_t section, std::uint32_t sample_rate)
@@ -126,6 +127,7 @@ struct mixer::impl {
 		if(section_) {
 			update_audio_params();
 		}
+		cached_duration_ = calculate_duration();
 	}
 
 	void set_next_section() {
@@ -370,6 +372,7 @@ struct mixer::impl {
 	song::section_order_type sec_order_;
 	current_pos pos_;
 	std::vector<track_info> infos_;
+	float cached_duration_{};
 };
 
 mixer::mixer(song const& s, std::uint32_t sample_rate)
@@ -437,7 +440,7 @@ float mixer::play_position() const {
 }
 
 float mixer::duration() const {
-	return impl_->calculate_duration();
+	return impl_->cached_duration_;
 }
 
 }

@@ -202,9 +202,10 @@ play_status player::get_status() const {
 
 	status.playing = true;
 	if(mixer_) {
-		status.current_time = audio::length_type{uint32_t(mixer_->play_position()*1000)}
-		                    - audio::samples_to_length(out_->config().format, out_->buffer_size() - out_->avail());
 		status.total_time = std::chrono::milliseconds{static_cast<long long>(mixer_->duration() * 1000)};
+		auto pos = audio::length_type{uint32_t(mixer_->play_position()*1000)}
+		         - audio::samples_to_length(out_->config().format, out_->buffer_size() - out_->avail());
+		status.current_time = std::min(pos, status.total_time);
 	}
 
 	// Estimate samples still in device buffer: wall-clock during drain (ALSA

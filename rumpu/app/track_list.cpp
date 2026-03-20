@@ -64,7 +64,7 @@ void track_list::set_context(song* s, uint32_t section)
 		if(auto sec = s->find_section(section)) {
 			auto const& core_tracks = sec->tracks();
 			for(std::size_t i = 0; i < tracks_.size() && i < core_tracks.size(); ++i) {
-				tracks_[i].pane->set_context(handler_, s, core_tracks[i]);
+				tracks_[i].pane->set_context(handler_, s, section, i, core_tracks[i]);
 				tracks_[i].track->set_context(i, s, section);
 			}
 		}

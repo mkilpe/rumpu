@@ -31,6 +31,9 @@ public:
 	std::size_t instrument_index() const { return instrument_index_; }
 	void set_instrument_index(std::size_t i) { instrument_index_ = i; }
 
+	drum::volume const& volume() const { return volume_; }
+	void set_volume(drum::volume const& v) { volume_ = v; }
+
 	std::optional<volume_slide> find_volume_slide(std::uint32_t index) const {
 		auto it = volume_slides_.find(index);
 		return it != volume_slides_.end() ? it->second : std::optional<volume_slide>();
@@ -47,6 +50,7 @@ private:
 	std::size_t instrument_index_{};
 	std::deque<bar> bars_;
 	std::map<std::uint32_t, volume_slide> volume_slides_;
+	drum::volume volume_;
 };
 
 }
