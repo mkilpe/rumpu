@@ -20,5 +20,3 @@ if(DEFINED sound_backend)
 	include(${sound_backend}/CMakeLists.txt)
 endif()
 
-include_directories(${Opus_INCLUDE_DIRS})
-target_link_libraries(audio opus)

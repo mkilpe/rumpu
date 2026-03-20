@@ -44,8 +44,6 @@ endif()
 #find_package(Qt5 5.12.0 COMPONENTS Core Multimedia REQUIRED)
 if(WIN32)
     include(fetch-deps)
-else()
-    find_package(Opus REQUIRED)
 endif()
 
 #set(CMAKE_AUTOMOC ON)
