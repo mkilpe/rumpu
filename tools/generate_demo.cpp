@@ -32,11 +32,56 @@ beat make_none() {
     return beat{};
 }
 
+beat make_choke() {
+    beat b;
+    b.action = beat::stop;
+    b.stop_data.falloff = audio_falloff::create(audio_falloff::immediate);
+    return b;
+}
+
 bar make_bar(std::vector<beat> beats) {
     return bar{std::move(beats)};
 }
 
-// Standard 4/4 rock kick: 1 and 3
+bar make_empty_bar() {
+    return make_bar({make_none(), make_none(), make_none(), make_none()});
+}
+
+// HH eighth note helper: each beat subdivided into two eighth notes
+beat make_hh_eighth(float down, float up) {
+    beat b;
+    b.division = {make_hit(down), make_hit(up)};
+    return b;
+}
+
+bar make_hh_eighths_bar(float down = 0.8f, float up = 0.5f) {
+    return make_bar({
+        make_hh_eighth(down, up),
+        make_hh_eighth(down * 0.9f, up),
+        make_hh_eighth(down, up),
+        make_hh_eighth(down * 0.9f, up)
+    });
+}
+
+// Snare 16th roll beat with crescendo factor
+beat make_snare_roll_beat(float base) {
+    beat b;
+    b.division = {
+        make_hit(base * 0.7f), make_hit(base * 0.6f),
+        make_hit(base * 0.85f), make_hit(base * 0.75f)
+    };
+    return b;
+}
+
+// --- Pattern helpers ---
+
+void set_silent(track& t) {
+    auto& bars = t.bars();
+    for (std::size_t i = 0; i < bars.size(); ++i) {
+        bars[i] = make_empty_bar();
+    }
+}
+
 void set_kick_verse(track& t) {
     auto& bars = t.bars();
     for (std::size_t i = 0; i < bars.size(); ++i) {
@@ -44,29 +89,6 @@ void set_kick_verse(track& t) {
     }
 }
 
-// Kick with extra ghost note on the "and" of 2
-void set_kick_chorus(track& t) {
-    auto& bars = t.bars();
-    for (std::size_t i = 0; i < bars.size(); ++i) {
-        beat b3 = make_hit(0.9f);
-        // subdivide beat 3 into two eighth notes: hit + ghost kick
-        b3.division = {make_hit(0.9f), make_hit(0.5f)};
-        bars[i] = make_bar({make_hit(0.95f), make_none(), b3, make_none()});
-    }
-}
-
-// Kick fill leading into next section
-void set_kick_fill(track& t) {
-    auto& bars = t.bars();
-    for (std::size_t i = 0; i < bars.size() - 1; ++i) {
-        bars[i] = make_bar({make_hit(0.9f), make_none(), make_hit(0.85f), make_none()});
-    }
-    // last bar: kick on every beat
-    auto& last = bars[bars.size() - 1];
-    last = make_bar({make_hit(1.0f), make_hit(0.7f), make_hit(0.9f), make_hit(0.75f)});
-}
-
-// Snare on 2 and 4
 void set_snare_backbeat(track& t) {
     auto& bars = t.bars();
     for (std::size_t i = 0; i < bars.size(); ++i) {
@@ -74,51 +96,36 @@ void set_snare_backbeat(track& t) {
     }
 }
 
-// Snare with ghost notes
-void set_snare_groove(track& t) {
+void set_hihat_eighths(track& t) {
     auto& bars = t.bars();
     for (std::size_t i = 0; i < bars.size(); ++i) {
-        beat b1 = make_none();
-        b1.division = {make_none(), make_hit(0.3f)}; // ghost on "and" of 1
-        beat b3 = make_none();
-        b3.division = {make_none(), make_hit(0.35f)}; // ghost on "and" of 3
+        bars[i] = make_hh_eighths_bar();
+    }
+}
+
+// Kick with ghost note on &of3
+void set_kick_chorus(track& t) {
+    auto& bars = t.bars();
+    for (std::size_t i = 0; i < bars.size(); ++i) {
+        beat b3 = make_hit(0.9f);
+        b3.division = {make_hit(0.9f), make_hit(0.5f)};
+        bars[i] = make_bar({make_hit(0.95f), make_none(), b3, make_none()});
+    }
+}
+
+// Snare with ghost notes on &of1 and &of3, hit on 2 and 4
+void set_snare_chorus(track& t) {
+    auto& bars = t.bars();
+    for (std::size_t i = 0; i < bars.size(); ++i) {
+        beat b1;
+        b1.division = {make_none(), make_hit(0.3f)};
+        beat b3;
+        b3.division = {make_none(), make_hit(0.35f)};
         bars[i] = make_bar({b1, make_hit(0.9f), b3, make_hit(0.9f)});
     }
 }
 
-// Snare fill
-void set_snare_fill(track& t) {
-    auto& bars = t.bars();
-    for (std::size_t i = 0; i < bars.size() - 1; ++i) {
-        bars[i] = make_bar({make_none(), make_hit(0.9f), make_none(), make_hit(0.85f)});
-    }
-    // last bar: snare roll - subdivide each beat into 4
-    auto& last = bars[bars.size() - 1];
-    beat roll;
-    roll.division = {make_hit(0.6f), make_hit(0.5f), make_hit(0.7f), make_hit(0.55f)};
-    beat roll2;
-    roll2.division = {make_hit(0.7f), make_hit(0.6f), make_hit(0.8f), make_hit(0.65f)};
-    beat roll3;
-    roll3.division = {make_hit(0.8f), make_hit(0.7f), make_hit(0.9f), make_hit(0.75f)};
-    beat roll4;
-    roll4.division = {make_hit(0.9f), make_hit(0.8f), make_hit(1.0f), make_hit(0.9f)};
-    last = make_bar({roll, roll2, roll3, roll4});
-}
-
-// Closed hi-hat eighth notes
-void set_hihat_eighths(track& t) {
-    auto& bars = t.bars();
-    for (std::size_t i = 0; i < bars.size(); ++i) {
-        beat b1, b2, b3, b4;
-        b1.division = {make_hit(0.8f), make_hit(0.5f)};
-        b2.division = {make_hit(0.7f), make_hit(0.5f)};
-        b3.division = {make_hit(0.8f), make_hit(0.5f)};
-        b4.division = {make_hit(0.7f), make_hit(0.5f)};
-        bars[i] = make_bar({b1, b2, b3, b4});
-    }
-}
-
-// Ride pattern for chorus
+// Ride eighths for chorus
 void set_ride_pattern(track& t) {
     auto& bars = t.bars();
     for (std::size_t i = 0; i < bars.size(); ++i) {
@@ -131,30 +138,50 @@ void set_ride_pattern(track& t) {
     }
 }
 
-// Crash on beat 1 only
+// Crash on beat 1 of bar 0 only
 void set_crash_accent(track& t) {
     auto& bars = t.bars();
     bars[0] = make_bar({make_hit(0.95f), make_none(), make_none(), make_none()});
     for (std::size_t i = 1; i < bars.size(); ++i) {
-        bars[i] = make_bar({make_none(), make_none(), make_none(), make_none()});
+        bars[i] = make_empty_bar();
     }
 }
 
-// Tom fill pattern
-void set_tom_fill(track& t, float vol) {
-    auto& bars = t.bars();
-    for (std::size_t i = 0; i < bars.size() - 1; ++i) {
-        bars[i] = make_bar({make_none(), make_none(), make_none(), make_none()});
-    }
-    auto& last = bars[bars.size() - 1];
-    last = make_bar({make_hit(vol), make_none(), make_hit(vol * 0.8f), make_none()});
-}
-
-// Silent track
-void set_silent(track& t) {
+// Clap layers with snare: hit on 2 and 4
+void set_clap_backbeat(track& t) {
     auto& bars = t.bars();
     for (std::size_t i = 0; i < bars.size(); ++i) {
-        bars[i] = make_bar({make_none(), make_none(), make_none(), make_none()});
+        bars[i] = make_bar({make_none(), make_hit(0.7f), make_none(), make_hit(0.65f)});
+    }
+}
+
+// Open HH on beat 4, choke on beat 1 of next bar (on the open HH track)
+void set_open_hh_choke_chorus(track& t) {
+    auto& bars = t.bars();
+    for (std::size_t i = 0; i < bars.size(); ++i) {
+        if (i == 0) {
+            // first bar: just open HH on beat 4
+            bars[i] = make_bar({make_none(), make_none(), make_none(), make_hit(0.8f)});
+        } else {
+            // choke on beat 1, then open HH on beat 4
+            bars[i] = make_bar({make_choke(), make_none(), make_none(), make_hit(0.8f)});
+        }
+    }
+}
+
+// Open HH choke every other bar (for verse 2)
+void set_open_hh_verse2(track& t) {
+    auto& bars = t.bars();
+    for (std::size_t i = 0; i < bars.size(); ++i) {
+        if (i % 2 == 1) {
+            // odd bars: open HH on beat 4
+            bars[i] = make_bar({make_none(), make_none(), make_none(), make_hit(0.75f)});
+        } else if (i > 0 && (i - 1) % 2 == 1) {
+            // bar after an odd bar: choke on beat 1
+            bars[i] = make_bar({make_choke(), make_none(), make_none(), make_none()});
+        } else {
+            bars[i] = make_empty_bar();
+        }
     }
 }
 
@@ -163,12 +190,239 @@ section build_section(std::string name, std::uint32_t bars, std::size_t num_inst
 {
     section sec(bars);
     sec.set_name(std::move(name));
-    auto& tracks = sec.tracks();
     for (std::size_t i = 0; i < num_instruments; ++i) {
         sec.add_track(i);
     }
+    auto& tracks = sec.tracks();
     setup(tracks);
     return sec;
+}
+
+// Instrument indices
+constexpr std::size_t I_KICK      = 0;
+constexpr std::size_t I_SNARE     = 1;
+constexpr std::size_t I_HH_CLOSED = 2;
+constexpr std::size_t I_HH_OPEN   = 3;
+constexpr std::size_t I_RIDE      = 4;
+constexpr std::size_t I_CRASH     = 5;
+constexpr std::size_t I_SPLASH    = 6;
+constexpr std::size_t I_HI_TOM   = 7;
+constexpr std::size_t I_MID_TOM  = 8;
+constexpr std::size_t I_FLO_TOM  = 9;
+constexpr std::size_t I_CLAP     = 10;
+constexpr std::size_t NUM_INST   = 11;
+
+void silence_all(std::deque<track>& tracks) {
+    for (auto& t : tracks) {
+        set_silent(t);
+    }
+}
+
+// --- Section builders ---
+
+section make_intro() {
+    return build_section("Intro", 4, NUM_INST, [](auto& tracks) {
+        silence_all(tracks);
+        set_kick_verse(tracks[I_KICK]);
+        set_hihat_eighths(tracks[I_HH_CLOSED]);
+    });
+}
+
+section make_verse1() {
+    return build_section("Verse 1", 8, NUM_INST, [](auto& tracks) {
+        silence_all(tracks);
+        set_kick_verse(tracks[I_KICK]);
+        set_snare_backbeat(tracks[I_SNARE]);
+        set_hihat_eighths(tracks[I_HH_CLOSED]);
+    });
+}
+
+section make_fill1() {
+    return build_section("Fill 1", 2, NUM_INST, [](auto& tracks) {
+        silence_all(tracks);
+
+        // kick: verse pattern bar 0, all beats bar 1
+        auto& kick = tracks[I_KICK].bars();
+        kick[0] = make_bar({make_hit(0.9f), make_none(), make_hit(0.85f), make_none()});
+        kick[1] = make_bar({make_hit(1.0f), make_hit(0.7f), make_hit(0.9f), make_hit(0.75f)});
+
+        // snare: backbeat bar 0, 16th roll bar 1
+        auto& snare = tracks[I_SNARE].bars();
+        snare[0] = make_bar({make_none(), make_hit(0.9f), make_none(), make_hit(0.85f)});
+        snare[1] = make_bar({
+            make_snare_roll_beat(0.6f), make_snare_roll_beat(0.7f),
+            make_snare_roll_beat(0.8f), make_snare_roll_beat(1.0f)
+        });
+
+        set_hihat_eighths(tracks[I_HH_CLOSED]);
+
+        // tom descend on bar 1: hi tom beat 1, mid tom beat 2, floor tom beat 3
+        tracks[I_HI_TOM].bars()[1] = make_bar({make_hit(0.85f), make_none(), make_none(), make_none()});
+        tracks[I_MID_TOM].bars()[1] = make_bar({make_none(), make_hit(0.85f), make_none(), make_none()});
+        tracks[I_FLO_TOM].bars()[1] = make_bar({make_none(), make_none(), make_hit(0.9f), make_none()});
+    });
+}
+
+section make_chorus() {
+    return build_section("Chorus", 8, NUM_INST, [](auto& tracks) {
+        silence_all(tracks);
+        set_kick_chorus(tracks[I_KICK]);
+        set_snare_chorus(tracks[I_SNARE]);
+        set_ride_pattern(tracks[I_RIDE]);
+        set_crash_accent(tracks[I_CRASH]);
+        set_clap_backbeat(tracks[I_CLAP]);
+        set_open_hh_choke_chorus(tracks[I_HH_OPEN]);
+    });
+}
+
+section make_fill2() {
+    return build_section("Fill 2", 2, NUM_INST, [](auto& tracks) {
+        silence_all(tracks);
+
+        // kick on 1 and 3 bar 0, all beats bar 1
+        auto& kick = tracks[I_KICK].bars();
+        kick[0] = make_bar({make_hit(0.9f), make_none(), make_hit(0.85f), make_none()});
+        kick[1] = make_bar({make_hit(1.0f), make_hit(0.7f), make_hit(0.9f), make_hit(0.75f)});
+
+        // tom cascade: hi tom bar 0, mid+floor bar 1
+        auto& hi = tracks[I_HI_TOM].bars();
+        hi[0] = make_bar({make_none(), make_none(), make_hit(0.8f), make_hit(0.85f)});
+        auto& mid = tracks[I_MID_TOM].bars();
+        mid[1] = make_bar({make_hit(0.85f), make_hit(0.8f), make_none(), make_none()});
+        auto& flo = tracks[I_FLO_TOM].bars();
+        flo[1] = make_bar({make_none(), make_none(), make_hit(0.9f), make_hit(0.85f)});
+
+        // splash accent on bar 1 beat 1
+        tracks[I_SPLASH].bars()[1] = make_bar({make_hit(0.9f), make_none(), make_none(), make_none()});
+    });
+}
+
+section make_verse2() {
+    return build_section("Verse 2", 8, NUM_INST, [](auto& tracks) {
+        silence_all(tracks);
+        set_kick_verse(tracks[I_KICK]);
+        set_snare_backbeat(tracks[I_SNARE]);
+        set_hihat_eighths(tracks[I_HH_CLOSED]);
+        set_open_hh_verse2(tracks[I_HH_OPEN]);
+    });
+}
+
+section make_fill3() {
+    return build_section("Fill 3", 1, NUM_INST, [](auto& tracks) {
+        silence_all(tracks);
+        // snare 16ths crescendo
+        tracks[I_SNARE].bars()[0] = make_bar({
+            make_snare_roll_beat(0.5f), make_snare_roll_beat(0.65f),
+            make_snare_roll_beat(0.8f), make_snare_roll_beat(1.0f)
+        });
+        // kick on 1 and 3
+        tracks[I_KICK].bars()[0] = make_bar({make_hit(0.9f), make_none(), make_hit(0.85f), make_none()});
+    });
+}
+
+section make_bridge() {
+    auto sec = build_section("Bridge", 8, NUM_INST, [](auto& tracks) {
+        silence_all(tracks);
+
+        // half-time: kick on 1, snare on 3
+        auto& kick = tracks[I_KICK].bars();
+        for (std::size_t i = 0; i < kick.size(); ++i) {
+            kick[i] = make_bar({make_hit(0.85f), make_none(), make_none(), make_none()});
+        }
+        auto& snare = tracks[I_SNARE].bars();
+        for (std::size_t i = 0; i < snare.size(); ++i) {
+            snare[i] = make_bar({make_none(), make_none(), make_hit(0.9f), make_none()});
+        }
+
+        set_hihat_eighths(tracks[I_HH_CLOSED]);
+        set_crash_accent(tracks[I_CRASH]);
+    });
+    sec.set_tempo_change(0, tempo{100.0f});
+    return sec;
+}
+
+section make_bridge_fill() {
+    auto sec = build_section("Bridge Fill", 2, NUM_INST, [](auto& tracks) {
+        silence_all(tracks);
+
+        // kick on all beats both bars
+        auto& kick = tracks[I_KICK].bars();
+        kick[0] = make_bar({make_hit(0.9f), make_hit(0.7f), make_hit(0.85f), make_hit(0.7f)});
+        kick[1] = make_bar({make_hit(1.0f), make_hit(0.75f), make_hit(0.9f), make_hit(0.8f)});
+
+        // snare roll both bars
+        auto& snare = tracks[I_SNARE].bars();
+        snare[0] = make_bar({
+            make_snare_roll_beat(0.6f), make_snare_roll_beat(0.65f),
+            make_snare_roll_beat(0.7f), make_snare_roll_beat(0.75f)
+        });
+        snare[1] = make_bar({
+            make_snare_roll_beat(0.8f), make_snare_roll_beat(0.85f),
+            make_snare_roll_beat(0.9f), make_snare_roll_beat(1.0f)
+        });
+
+        // tom descend
+        tracks[I_HI_TOM].bars()[0] = make_bar({make_hit(0.85f), make_hit(0.8f), make_none(), make_none()});
+        tracks[I_MID_TOM].bars()[0] = make_bar({make_none(), make_none(), make_hit(0.85f), make_hit(0.8f)});
+        tracks[I_FLO_TOM].bars()[1] = make_bar({make_hit(0.9f), make_hit(0.85f), make_none(), make_none()});
+    });
+    sec.set_tempo_change(0, tempo{120.0f});
+    return sec;
+}
+
+section make_big_fill() {
+    return build_section("Big Fill", 2, NUM_INST, [](auto& tracks) {
+        silence_all(tracks);
+
+        // kick on all beats
+        auto& kick = tracks[I_KICK].bars();
+        kick[0] = make_bar({make_hit(0.95f), make_hit(0.7f), make_hit(0.9f), make_hit(0.75f)});
+        kick[1] = make_bar({make_hit(1.0f), make_hit(0.8f), make_hit(0.95f), make_hit(0.85f)});
+
+        // snare roll
+        auto& snare = tracks[I_SNARE].bars();
+        snare[0] = make_bar({
+            make_snare_roll_beat(0.7f), make_snare_roll_beat(0.75f),
+            make_snare_roll_beat(0.8f), make_snare_roll_beat(0.85f)
+        });
+        snare[1] = make_bar({
+            make_snare_roll_beat(0.85f), make_snare_roll_beat(0.9f),
+            make_snare_roll_beat(0.95f), make_snare_roll_beat(1.0f)
+        });
+
+        // all toms
+        auto& hi = tracks[I_HI_TOM].bars();
+        hi[0] = make_bar({make_hit(0.85f), make_none(), make_hit(0.8f), make_none()});
+        hi[1] = make_bar({make_hit(0.9f), make_none(), make_none(), make_none()});
+
+        auto& mid = tracks[I_MID_TOM].bars();
+        mid[0] = make_bar({make_none(), make_hit(0.8f), make_none(), make_hit(0.85f)});
+        mid[1] = make_bar({make_none(), make_hit(0.85f), make_none(), make_none()});
+
+        auto& flo = tracks[I_FLO_TOM].bars();
+        flo[0] = make_bar({make_none(), make_none(), make_hit(0.85f), make_none()});
+        flo[1] = make_bar({make_none(), make_none(), make_hit(0.9f), make_hit(0.9f)});
+
+        // crash on bar 0 beat 1, splash on bar 1 beat 1
+        tracks[I_CRASH].bars()[0] = make_bar({make_hit(0.95f), make_none(), make_none(), make_none()});
+        tracks[I_SPLASH].bars()[1] = make_bar({make_hit(0.9f), make_none(), make_none(), make_none()});
+    });
+}
+
+section make_outro() {
+    return build_section("Outro", 4, NUM_INST, [](auto& tracks) {
+        silence_all(tracks);
+
+        // kick + HH fading out per bar
+        float vol_steps[] = {0.8f, 0.6f, 0.4f, 0.2f};
+        auto& kick = tracks[I_KICK].bars();
+        auto& hh = tracks[I_HH_CLOSED].bars();
+        for (std::size_t i = 0; i < 4; ++i) {
+            float v = vol_steps[i];
+            kick[i] = make_bar({make_hit(v), make_none(), make_hit(v * 0.9f), make_none()});
+            hh[i] = make_hh_eighths_bar(v, v * 0.6f);
+        }
+    });
 }
 
 } // anon namespace
@@ -177,178 +431,59 @@ int main(int argc, char* argv[]) {
     fs::path output_dir = argc > 1 ? fs::path(argv[1]) : fs::current_path();
     fs::create_directories(output_dir);
 
-    // Copy samples to output_dir/samples/
-    std::string kick_rel   = "Kick/RD_K_1.wav";
-    std::string snare_rel  = "Snare/RD_S_1.wav";
-    std::string hihat_rel  = "Cymbals/Hi Hat/RD_C_HH_1.wav";
-    std::string ride_rel   = "Cymbals/Ride/RD_C_R_1.wav";
-    std::string crash_rel  = "Cymbals/Crash/RD_C_C_1.wav";
-    std::string hitom_rel  = "Toms/High Tom/RD_T_HT_1.wav";
-    std::string flotom_rel = "Toms/Floor Tom/RD_T_FT_1.wav";
+    // Sample paths
+    std::string kick_rel      = "Kick/RD_K_3.wav";
+    std::string snare_rel     = "Snare/RD_S_5.wav";
+    std::string hh_closed_rel = "Cymbals/Hi Hat/RD_C_HH_2.wav";
+    std::string hh_open_rel   = "Cymbals/Hi Hat/RD_C_HH_8.wav";
+    std::string ride_rel      = "Cymbals/Ride/RD_C_R_3.wav";
+    std::string crash_rel     = "Cymbals/Crash/RD_C_C_2.wav";
+    std::string splash_rel    = "Cymbals/Splash/RD_C_S_1.wav";
+    std::string hitom_rel     = "Toms/High Tom/RD_T_HT_2.wav";
+    std::string midtom_rel    = "Toms/Mid Tom/RD_T_MT_2.wav";
+    std::string flotom_rel    = "Toms/Floor Tom/RD_T_FT_2.wav";
+    std::string clap_rel      = "Claps/RD_C_3.wav";
 
-    for (auto const& rel : {kick_rel, snare_rel, hihat_rel, ride_rel, crash_rel, hitom_rel, flotom_rel}) {
+    for (auto const& rel : {kick_rel, snare_rel, hh_closed_rel, hh_open_rel,
+                            ride_rel, crash_rel, splash_rel,
+                            hitom_rel, midtom_rel, flotom_rel, clap_rel}) {
         copy_sample(rel, output_dir);
     }
 
-    // Instruments use relative paths (relative to the .spd file)
-    std::string kick_path   = sample_rel(kick_rel);
-    std::string snare_path  = sample_rel(snare_rel);
-    std::string hihat_path  = sample_rel(hihat_rel);
-    std::string ride_path   = sample_rel(ride_rel);
-    std::string crash_path  = sample_rel(crash_rel);
-    std::string hitom_path  = sample_rel(hitom_rel);
-    std::string flotom_path = sample_rel(flotom_rel);
-
-    song s({"Demo Song", "Rumpu", "A demo drum beat with verse/chorus structure"}, {4, 4}, {120.0});
+    song s({"Demo Song", "Rumpu", "Drum fills, tempo changes, and chokes"}, {4, 4}, {120.0});
     s.set_rand_offset(rand_hit_offset{2.0f});
     s.set_rand_volume(rand_hit_volume{5.0f});
 
-    // indices: 0=kick, 1=snare, 2=hihat, 3=ride, 4=crash, 5=hitom, 6=flotom
-    s.add_instrument(instrument(kick_path));
-    s.add_instrument(instrument(snare_path));
-    s.add_instrument(instrument(hihat_path));
-    s.add_instrument(instrument(ride_path));
-    s.add_instrument(instrument(crash_path));
-    s.add_instrument(instrument(hitom_path));
-    s.add_instrument(instrument(flotom_path));
+    // instruments: 0-10
+    s.add_instrument(instrument(sample_rel(kick_rel)));
+    s.add_instrument(instrument(sample_rel(snare_rel)));
+    s.add_instrument(instrument(sample_rel(hh_closed_rel)));
+    s.add_instrument(instrument(sample_rel(hh_open_rel)));
+    s.add_instrument(instrument(sample_rel(ride_rel)));
+    s.add_instrument(instrument(sample_rel(crash_rel)));
+    s.add_instrument(instrument(sample_rel(splash_rel)));
+    s.add_instrument(instrument(sample_rel(hitom_rel)));
+    s.add_instrument(instrument(sample_rel(midtom_rel)));
+    s.add_instrument(instrument(sample_rel(flotom_rel)));
+    s.add_instrument(instrument(sample_rel(clap_rel)));
 
-    std::size_t const num_inst = 7;
-
-    // -- Intro (4 bars): hi-hat eighths + kick, no snare --
-    auto intro = build_section("Intro", 4, num_inst, [](auto& tracks) {
-        set_kick_verse(tracks[0]);
-        set_silent(tracks[1]);      // no snare
-        set_hihat_eighths(tracks[2]);
-        set_silent(tracks[3]);      // no ride
-        set_silent(tracks[4]);      // no crash
-        set_silent(tracks[5]);      // no hi tom
-        set_silent(tracks[6]);      // no floor tom
-    });
-
-    auto make_verse = [&]() {
-        return build_section("Verse", 8, num_inst, [](auto& tracks) {
-            set_kick_verse(tracks[0]);
-            set_snare_backbeat(tracks[1]);
-            set_hihat_eighths(tracks[2]);
-            set_silent(tracks[3]);
-            set_silent(tracks[4]);
-            set_silent(tracks[5]);
-            set_silent(tracks[6]);
-        });
-    };
-
-    auto make_fill = [&]() {
-        return build_section("Fill", 2, num_inst, [](auto& tracks) {
-            set_kick_fill(tracks[0]);
-            set_snare_fill(tracks[1]);
-            set_hihat_eighths(tracks[2]);
-            set_silent(tracks[3]);
-            set_silent(tracks[4]);
-            set_tom_fill(tracks[5], 0.8f);
-            set_tom_fill(tracks[6], 0.85f);
-        });
-    };
-
-    auto make_chorus = [&]() {
-        return build_section("Chorus", 8, num_inst, [](auto& tracks) {
-            set_kick_chorus(tracks[0]);
-            set_snare_groove(tracks[1]);
-            set_silent(tracks[2]);        // no hi-hat
-            set_ride_pattern(tracks[3]);  // ride
-            set_crash_accent(tracks[4]);  // crash on 1 of first bar
-            set_silent(tracks[5]);
-            set_silent(tracks[6]);
-        });
-    };
-
-    auto make_big_fill = [&]() {
-        return build_section("Big Fill", 2, num_inst, [](auto& tracks) {
-            set_kick_fill(tracks[0]);
-            set_snare_fill(tracks[1]);
-            set_silent(tracks[2]);
-            set_ride_pattern(tracks[3]);
-            set_crash_accent(tracks[4]);
-            set_tom_fill(tracks[5], 0.9f);
-            set_tom_fill(tracks[6], 0.9f);
-        });
-    };
-
-    // -- Bridge (8 bars): tempo change to 100 BPM, half-time feel --
-    auto make_bridge = [&]() {
-        auto sec = build_section("Bridge", 8, num_inst, [](auto& tracks) {
-            // half-time kick: beat 1 only
-            auto& kick_bars = tracks[0].bars();
-            for (std::size_t i = 0; i < kick_bars.size(); ++i) {
-                kick_bars[i] = make_bar({make_hit(0.85f), make_none(), make_none(), make_none()});
-            }
-            // snare on beat 3 only (half-time)
-            auto& snare_bars = tracks[1].bars();
-            for (std::size_t i = 0; i < snare_bars.size(); ++i) {
-                snare_bars[i] = make_bar({make_none(), make_none(), make_hit(0.9f), make_none()});
-            }
-            set_hihat_eighths(tracks[2]);
-            set_silent(tracks[3]);
-            set_crash_accent(tracks[4]);
-            set_silent(tracks[5]);
-            set_silent(tracks[6]);
-        });
-        // tempo change on bar 0 of this section
-        sec.set_tempo_change(0, tempo{100.0f});
-        return sec;
-    };
-
-    // -- Post-bridge fill: brings tempo back to 120 --
-    auto make_bridge_fill = [&]() {
-        auto sec = build_section("Bridge Fill", 2, num_inst, [](auto& tracks) {
-            set_kick_fill(tracks[0]);
-            set_snare_fill(tracks[1]);
-            set_hihat_eighths(tracks[2]);
-            set_silent(tracks[3]);
-            set_crash_accent(tracks[4]);
-            set_tom_fill(tracks[5], 0.9f);
-            set_tom_fill(tracks[6], 0.9f);
-        });
-        sec.set_tempo_change(0, tempo{120.0f});
-        return sec;
-    };
-
-    // -- Outro (4 bars): fade out, just kick and hi-hat --
-    auto outro = build_section("Outro", 4, num_inst, [](auto& tracks) {
-        set_kick_verse(tracks[0]);
-        set_silent(tracks[1]);
-        set_hihat_eighths(tracks[2]);
-        set_silent(tracks[3]);
-        set_silent(tracks[4]);
-        set_silent(tracks[5]);
-        set_silent(tracks[6]);
-    });
-
-    // Remove the default empty section and add ours
-    // song starts with one default section from constructor, but we built with song(metainfo, ts, tempo)
-    // which doesn't add sections, so we just add directly
-
-    // Structure: Intro - Verse - Fill - Chorus - Fill - Verse - Fill - Chorus -
-    //            Big Fill - Bridge (100 BPM) - Bridge Fill (back to 120) - Chorus - Big Fill - Outro
-    auto intro_id       = s.add_section(std::move(intro));
-    auto verse1_id      = s.add_section(make_verse());
-    auto fill1_id       = s.add_section(make_fill());
+    auto intro_id       = s.add_section(make_intro());
+    auto verse1_id      = s.add_section(make_verse1());
+    auto fill1_id       = s.add_section(make_fill1());
     auto chorus1_id     = s.add_section(make_chorus());
-    auto fill2_id       = s.add_section(make_fill());
-    auto verse2_id      = s.add_section(make_verse());
-    auto fill3_id       = s.add_section(make_fill());
-    auto chorus2_id     = s.add_section(make_chorus());
-    auto bigfill1_id    = s.add_section(make_big_fill());
+    auto fill2_id       = s.add_section(make_fill2());
+    auto verse2_id      = s.add_section(make_verse2());
+    auto fill3_id       = s.add_section(make_fill3());
     auto bridge_id      = s.add_section(make_bridge());
     auto bridgefill_id  = s.add_section(make_bridge_fill());
-    auto chorus3_id     = s.add_section(make_chorus());
-    auto bigfill2_id    = s.add_section(make_big_fill());
-    auto outro_id       = s.add_section(std::move(outro));
+    auto chorus2_id     = s.add_section(make_chorus());
+    auto bigfill_id     = s.add_section(make_big_fill());
+    auto outro_id       = s.add_section(make_outro());
 
     s.section_order() = {
         intro_id, verse1_id, fill1_id, chorus1_id,
-        fill2_id, verse2_id, fill3_id, chorus2_id,
-        bigfill1_id, bridge_id, bridgefill_id, chorus3_id,
-        bigfill2_id, outro_id
+        fill2_id, verse2_id, fill3_id, bridge_id,
+        bridgefill_id, chorus2_id, bigfill_id, outro_id
     };
 
     auto output_file = (output_dir / "demo.spd").string();
