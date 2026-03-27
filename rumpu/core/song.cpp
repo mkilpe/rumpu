@@ -10,6 +10,36 @@ song::song(song_metainfo info, time_signature ts, tempo t)
 {
 }
 
+song::song(song const& o)
+: info_(o.info_)
+, default_time_signature_(o.default_time_signature_)
+, default_tempo_(o.default_tempo_)
+, instruments_(o.instruments_)
+, sections_(o.sections_)
+, section_order_(o.section_order_)
+, accent_info_(o.accent_info_)
+, rand_offset_(o.rand_offset_)
+, rand_volume_(o.rand_volume_)
+, tempo_slide_(o.tempo_slide_)
+{
+}
+
+song& song::operator=(song const& o) {
+	if (this != &o) {
+		info_ = o.info_;
+		default_time_signature_ = o.default_time_signature_;
+		default_tempo_ = o.default_tempo_;
+		instruments_ = o.instruments_;
+		sections_ = o.sections_;
+		section_order_ = o.section_order_;
+		accent_info_ = o.accent_info_;
+		rand_offset_ = o.rand_offset_;
+		rand_volume_ = o.rand_volume_;
+		tempo_slide_ = o.tempo_slide_;
+	}
+	return *this;
+}
+
 song::song(song&& o) noexcept
 : info_(std::move(o.info_))
 , default_time_signature_(o.default_time_signature_)

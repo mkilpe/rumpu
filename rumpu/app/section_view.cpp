@@ -1,6 +1,7 @@
 
 #include "section_view.hpp"
 #include "events.hpp"
+#include "undo_manager.hpp"
 
 #include <securepath/log/log.hpp>
 #include "imgui.h"
@@ -14,7 +15,8 @@ section_view::section_view(event_system::event_handler& h)
 , handler_(h)
 {}
 
-void section_view::set_context(song* s, uint32_t section) {
+void section_view::set_context(song* s, uint32_t section, undo_manager* undo) {
+    undo_ = undo;
     song_ = s;
     current_section_ = section;
 }
@@ -71,9 +73,11 @@ bool section_view::do_draw() {
         std::string ctx_id = "section_ctx_" + std::to_string(i);
         if (ImGui::BeginPopupContextItem(ctx_id.c_str())) {
             if (ImGui::Selectable("Duplicate in queue")) {
+                if (undo_ && song_) { undo_->snapshot(*song_); }
                 order.insert(order.begin() + static_cast<std::ptrdiff_t>(i) + 1, id);
             }
             if (ImGui::Selectable("Remove from queue")) {
+                if (undo_ && song_) { undo_->snapshot(*song_); }
                 order.erase(order.begin() + static_cast<std::ptrdiff_t>(i));
             }
             ImGui::EndPopup();
@@ -116,6 +120,7 @@ bool section_view::do_draw() {
 
     // Apply reorder after the loop to avoid mutating during iteration
     if (drag_source >= 0 && drag_target >= 0 && drag_source != drag_target) {
+        if (undo_ && song_) { undo_->snapshot(*song_); }
         auto val = order[drag_source];
         order.erase(order.begin() + drag_source);
         order.insert(order.begin() + drag_target, val);

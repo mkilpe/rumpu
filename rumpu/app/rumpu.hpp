@@ -15,6 +15,7 @@
 #include "song_properties_dialog.hpp"
 #include "child_window.hpp"
 #include "track_edit_view.hpp"
+#include "undo_manager.hpp"
 
 namespace securepath::drum::app {
 
@@ -57,8 +58,12 @@ private:
     song_properties_dialog song_properties_dialog_;
     export_dialog export_dialog_;
 
+    void perform_undo();
+    void perform_redo();
+
     mutable std::mutex mutex_;
     song song_;
+    undo_manager undo_;
     std::unique_ptr<track_edit_view> track_edit_view_;
     player player_;
     

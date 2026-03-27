@@ -69,9 +69,9 @@ void wav::load(std::istream& in) {
 	if(data_.empty()) {
 		throw invalid_format("data chunk not found");
 	}
-	if(format_->bits_per_sample != 8 && format_->bits_per_sample != 16 && format_->bits_per_sample != 32) {
+	if(format_->bits_per_sample != 8 && format_->bits_per_sample != 16 && format_->bits_per_sample != 24 && format_->bits_per_sample != 32) {
 		LOG_INFO("invalid bits_per_sample: {}", format_->bits_per_sample);
-		throw invalid_format("only 8, 16 or 32 bits per sample is supported");
+		throw invalid_format("only 8, 16, 24 or 32 bits per sample is supported");
 	}
 }
 
@@ -118,7 +118,13 @@ audio::audio_format wav::format() const {
 		if(format_->audio_format == 3) {
 			return audio::float_t;
 		}
-		return format_->bits_per_sample == 8 ? audio::uchar_t : audio::short_t;
+		if(format_->bits_per_sample == 8) {
+			return audio::uchar_t;
+		}
+		if(format_->bits_per_sample == 24) {
+			return audio::int24_t;
+		}
+		return audio::short_t;
 	};
 
 	return audio::audio_format

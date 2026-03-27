@@ -19,7 +19,7 @@ public:
     bool do_draw() override;
 
     void add_track();
-    void set_context(song*, uint32_t section);
+    void set_context(song*, uint32_t section, undo_manager* undo = nullptr);
     void set_play_status(play_status const&);
 private:
     void update_tracks(song* s, uint32_t section);
@@ -34,6 +34,7 @@ private:
     track_header header_;
     std::vector<track_info> tracks_;
 
+    undo_manager* undo_{};
     float zoom_{1.0f};
     song* song_{};
     uint32_t section_{};

@@ -34,10 +34,34 @@ rumpu::rumpu(app_options options)
     windows_.push_back(track_edit_view_.get());
 
     current_section_ = id;
-    track_edit_view_->set_context(&song_, id);
+    track_edit_view_->set_context(&song_, id, &undo_);
 
     if (!options.initial_file.empty()) {
         open_project(std::move(options.initial_file));
+    }
+}
+
+void rumpu::perform_undo() {
+    std::unique_lock l{song_.mutex};
+    if (undo_.undo(song_)) {
+        if (!song_.find_section(current_section_)) {
+            if (!song_.sections().empty()) {
+                current_section_ = song_.sections().begin()->first;
+            }
+        }
+        track_edit_view_->set_context(&song_, current_section_, &undo_);
+    }
+}
+
+void rumpu::perform_redo() {
+    std::unique_lock l{song_.mutex};
+    if (undo_.redo(song_)) {
+        if (!song_.find_section(current_section_)) {
+            if (!song_.sections().empty()) {
+                current_section_ = song_.sections().begin()->first;
+            }
+        }
+        track_edit_view_->set_context(&song_, current_section_, &undo_);
     }
 }
 
@@ -91,6 +115,15 @@ void rumpu::menu() {
             }
             ImGui::EndMenu();
         }
+        if (ImGui::BeginMenu("Edit")) {
+            if (ImGui::MenuItem("Undo", "Ctrl+Z", false, undo_.can_undo())) {
+                perform_undo();
+            }
+            if (ImGui::MenuItem("Redo", "Ctrl+Shift+Z", false, undo_.can_redo())) {
+                perform_redo();
+            }
+            ImGui::EndMenu();
+        }
         if (ImGui::BeginMenu("Song")) {
             if (ImGui::MenuItem("Properties...")) {
                 song_properties_dialog_.open(&song_);
@@ -99,14 +132,16 @@ void rumpu::menu() {
         }
         if (ImGui::BeginMenu("Sections")) {
             if (ImGui::MenuItem("Clone section")) {
+                undo_.snapshot(song_);
                 if (auto* sec = song_.find_section(current_section_)) {
                     auto id = song_.add_section(*sec);
                     song_.section_order().push_back(id);
                     current_section_ = id;
-                    track_edit_view_->set_context(&song_, id);
+                    track_edit_view_->set_context(&song_, id, &undo_);
                 }
             }
             if (ImGui::MenuItem("Remove section", nullptr, false, song_.sections().size() > 1)) {
+                undo_.snapshot(song_);
                 song_.remove_section(current_section_);
                 if (!song_.sections().empty()) {
                     select_section_impl(song_.sections().begin()->first);
@@ -170,6 +205,15 @@ bool rumpu::update() {
     ImGui::Begin("Rumpu", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_MenuBar);
     
     menu();
+
+    if (ImGui::IsKeyDown(ImGuiMod_Ctrl) && ImGui::IsKeyPressed(ImGuiKey_Z, false)) {
+        if (ImGui::IsKeyDown(ImGuiMod_Shift)) {
+            perform_redo();
+        } else {
+            perform_undo();
+        }
+    }
+
     about_dialog_.draw();
     add_instrument_dialog_.draw();
     add_track_dialog_.draw();
@@ -204,6 +248,7 @@ bool rumpu::update() {
 
 void rumpu::add_track(uint32_t section, std::size_t instrument_index) {
     std::unique_lock l{mutex_};
+    undo_.snapshot(song_);
     std::string name;
     if(instrument_index < song_.instruments().size()) {
         name = song_.instruments()[instrument_index].name();
@@ -215,7 +260,7 @@ void rumpu::add_track(uint32_t section, std::size_t instrument_index) {
             b.beats.resize(song_.default_time_signature().beats_in_bar());
         }
     }
-    track_edit_view_->set_context(&song_, section);
+    track_edit_view_->set_context(&song_, section, &undo_);
 }
 
 void rumpu::open_add_track_dialog(uint32_t section) {
@@ -224,7 +269,7 @@ void rumpu::open_add_track_dialog(uint32_t section) {
 
 void rumpu::select_section_impl(uint32_t section_id) {
     current_section_ = section_id;
-    track_edit_view_->set_context(&song_, section_id);
+    track_edit_view_->set_context(&song_, section_id, &undo_);
     player_pos_changed();
 }
 
@@ -235,6 +280,7 @@ void rumpu::select_section(uint32_t section_id) {
 
 void rumpu::add_instrument(std::string path, std::string name) {
     std::unique_lock l{mutex_};
+    undo_.snapshot(song_);
     auto base = project_dir(current_file_);
     std::string rel_path = base.empty() ? path : std::filesystem::relative(path, base).string();
     instrument inst{rel_path};
@@ -246,11 +292,12 @@ void rumpu::add_instrument(std::string path, std::string name) {
 
 void rumpu::add_section() {
     std::unique_lock l{mutex_};
+    undo_.snapshot(song_);
     LOG_TRACE("add_section");
     auto id = song_.add_section();
     song_.section_order().push_back(id);
     current_section_ = id;
-    track_edit_view_->set_context(&song_, id);
+    track_edit_view_->set_context(&song_, id, &undo_);
 }
 
 void rumpu::load_and_play(uint32_t section) {
@@ -277,12 +324,14 @@ void rumpu::stop_song(uint32_t section) {
 
 void rumpu::remove_track(std::size_t index) {
     std::unique_lock l{mutex_};
+    undo_.snapshot(song_);
     song_.remove_instrument(index);
-    track_edit_view_->set_context(&song_, current_section_);
+    track_edit_view_->set_context(&song_, current_section_, &undo_);
 }
 
 void rumpu::open_project(std::string path) {
     std::unique_lock l{mutex_};
+    undo_.clear();
     try {
         player_.stop();
         song_ = load_song_file(path);
@@ -290,7 +339,7 @@ void rumpu::open_project(std::string path) {
         auto const& order = song_.section_order();
         uint32_t section_id = order.empty() ? 0 : order.front();
         current_section_ = section_id;
-        track_edit_view_->set_context(&song_, section_id);
+        track_edit_view_->set_context(&song_, section_id, &undo_);
     } catch(std::exception const& e) {
         LOG_WARN("load_song_file failed: {}", e.what());
         show_error(std::format("Failed to open project: {}", e.what()));
@@ -310,17 +359,19 @@ void rumpu::save_project(std::string path) {
 
 void rumpu::new_song(std::string name, time_signature ts, float tempo) {
     std::unique_lock l{mutex_};
+    undo_.clear();
     player_.stop();
     song_ = song{song_metainfo{std::move(name), "", ""}, ts, drum::tempo{tempo}};
     auto id = song_.add_section();
     song_.section_order().push_back(id);
     current_file_.clear();
     current_section_ = id;
-    track_edit_view_->set_context(&song_, id);
+    track_edit_view_->set_context(&song_, id, &undo_);
 }
 
 void rumpu::update_song_properties(std::string name, std::string author, std::string notes, time_signature ts, float tempo, float rand_offset_ms, float rand_volume_percent) {
     std::unique_lock l{mutex_};
+    undo_.snapshot(song_);
     song_.set_metainfo(song_metainfo{std::move(name), std::move(author), std::move(notes)});
     song_.set_default_time_signature(ts);
     song_.set_default_tempo(drum::tempo{tempo});

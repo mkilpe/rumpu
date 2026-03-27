@@ -3,12 +3,14 @@
 #include "child_window.hpp"
 #include <rumpu/core/song.hpp>
 
+namespace securepath::drum::app { class undo_manager; }
+
 namespace securepath::drum::app {
 
 class track_view : public child_window_base {
 public:
     using child_window_base::child_window_base;
-    virtual void set_context(size_t index, song*, uint32_t section) = 0;
+    virtual void set_context(size_t index, song*, uint32_t section, undo_manager* undo = nullptr) = 0;
     virtual void zoom(float) = 0;
 };
 
@@ -19,7 +21,7 @@ public:
     track(std::string name);
 
     bool do_draw() override;
-    void set_context(size_t index, song*, uint32_t section) override;
+    void set_context(size_t index, song*, uint32_t section, undo_manager* undo = nullptr) override;
     void set_size(const ImVec2& size) override;
     void zoom(float) override;
 private:
@@ -30,6 +32,7 @@ private:
     void beat_properties_dialog(track_draw_context&);
 
 private:
+    undo_manager* undo_{};
     size_t index_{};
     song* song_{};
     uint32_t section_{};

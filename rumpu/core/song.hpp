@@ -27,6 +27,8 @@ public:
 
 	song() = default;
 	song(song_metainfo info, time_signature, tempo);
+	song(song const&);
+	song& operator=(song const&);
 	song(song&&) noexcept;
 	song& operator=(song&&) noexcept;
 

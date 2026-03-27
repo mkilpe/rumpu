@@ -13,7 +13,7 @@ public:
     track_edit_view(event_system::event_handler&);
     bool do_draw() override;
 
-    void set_context(song*, uint32_t section);
+    void set_context(song*, uint32_t section, undo_manager* undo = nullptr);
     void set_play_status(play_status const&);
 
 private:

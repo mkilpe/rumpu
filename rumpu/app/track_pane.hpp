@@ -4,6 +4,8 @@
 #include <rumpu/core/song.hpp>
 #include <securepath/event_system/event_handler.hpp>
 
+namespace securepath::drum::app { class undo_manager; }
+
 namespace securepath::drum::app {
 
 class track_pane : public child_window_base {
@@ -11,9 +13,10 @@ public:
     track_pane(std::string name);
 
     bool do_draw() override;
-    void set_context(event_system::event_handler&, song*, std::uint32_t section, std::size_t track_index, drum::track const&);
+    void set_context(event_system::event_handler&, song*, std::uint32_t section, std::size_t track_index, drum::track const&, undo_manager* undo = nullptr);
 
 private:
+    undo_manager* undo_{};
     float gain_{};
     event_system::event_handler* handler_{};
     song* song_{};

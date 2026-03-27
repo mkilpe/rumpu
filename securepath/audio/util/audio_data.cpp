@@ -45,12 +45,23 @@ static void write_value(std::uint8_t* dst, T v, std::endian endian) {
 	std::memcpy(dst, &v, sizeof(T));
 }
 
+static float read_int24(std::uint8_t const* src, std::endian endian) {
+	std::int32_t v = 0;
+	if (endian == std::endian::little) {
+		v = src[0] | (src[1] << 8) | (static_cast<std::int8_t>(src[2]) << 16);
+	} else {
+		v = src[2] | (src[1] << 8) | (static_cast<std::int8_t>(src[0]) << 16);
+	}
+	return v / 8388608.0f;
+}
+
 static float read_sample(std::uint8_t const* src, audio::audio_format const& fmt) {
 	switch(fmt.type) {
 	case audio::char_t:  return static_cast<std::int8_t>(*src) / 128.0f;
 	case audio::uchar_t: return (*src - 128) / 128.0f;
 	case audio::short_t: return read_value<std::int16_t>(src, fmt.endian) / 32768.0f;
 	case audio::float_t: return std::bit_cast<float>(read_value<std::uint32_t>(src, fmt.endian));
+	case audio::int24_t: return read_int24(src, fmt.endian);
 	}
 	return 0.f;
 }
@@ -62,6 +73,7 @@ static void write_sample(std::uint8_t* dst, float v, audio::audio_format const& 
 	case audio::uchar_t: *dst = std::uint8_t((v + 1.0f) * 127.5f); break;
 	case audio::short_t: write_value<std::int16_t>(dst, std::int16_t(v * 32767), fmt.endian); break;
 	case audio::float_t: write_value<std::uint32_t>(dst, std::bit_cast<std::uint32_t>(v), fmt.endian); break;
+	case audio::int24_t: break;
 	}
 }
 

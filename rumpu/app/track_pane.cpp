@@ -1,5 +1,6 @@
 #include "track_pane.hpp"
 #include "events.hpp"
+#include "undo_manager.hpp"
 
 #include "imgui.h"
 #include "imgui-knobs.h"
@@ -12,7 +13,8 @@ track_pane::track_pane(std::string name)
 : child_window_base(std::move(name), ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse, {})
 {}
 
-void track_pane::set_context(event_system::event_handler& h, song* s, std::uint32_t section, std::size_t track_index, drum::track const& t) {
+void track_pane::set_context(event_system::event_handler& h, song* s, std::uint32_t section, std::size_t track_index, drum::track const& t, undo_manager* undo) {
+    undo_ = undo;
     handler_ = &h;
     song_ = s;
     section_ = section;
@@ -64,6 +66,7 @@ bool track_pane::do_draw()
 
         std::string btn_id = "M##m" + std::to_string(track_index_);
         if (ImGui::SmallButton(btn_id.c_str())) {
+            if (undo_ && song_) { undo_->snapshot(*song_); }
             drum::volume v = trk->volume();
             v.mute = !muted;
             trk->set_volume(v);
@@ -75,12 +78,14 @@ bool track_pane::do_draw()
 
     if (ImGuiKnobs::Knob("Gain", &gain_, -6.0f, 6.0f, 0.1f, "%.1f", ImGuiKnobVariant_Tick, 30)) {
         if(trk) {
+            if (undo_ && song_) { undo_->snapshot(*song_, coalesce_key::track_volume); }
             drum::volume v = trk->volume();
             v.value = std::pow(10.0f, gain_ / 20.0f);
             trk->set_volume(v);
         }
     }
     if (ImGui::IsItemActive() && ImGui::IsMouseDoubleClicked(0)) {
+        if (undo_ && song_) { undo_->snapshot(*song_); }
         gain_ = 0.0f;
         if(trk) {
             drum::volume v = trk->volume();

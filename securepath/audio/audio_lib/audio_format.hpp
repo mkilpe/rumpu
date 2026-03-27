@@ -16,7 +16,8 @@ enum sample_type {
 	char_t,
 	uchar_t,
 	short_t,
-	float_t
+	float_t,
+	int24_t
 };
 
 inline
@@ -75,7 +76,7 @@ struct std::formatter<securepath::audio::audio_format> {
         return ctx.begin();
     }
     auto format(const securepath::audio::audio_format& c, std::format_context& ctx) const {
-    	char const* sample_type_name[4] = {"char_t", "uchar_t" , "short_t", "float_t"};
+    	char const* sample_type_name[5] = {"char_t", "uchar_t" , "short_t", "float_t", "int24_t"};
         return std::format_to(ctx.out(), "[{}, {}, {}, {}, {}]", sample_type_name[c.type], c.channels, c.bits_per_sample, c.samples_per_second, c.endian == std::endian::little ? "little" : "big");
     }
 };

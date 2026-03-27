@@ -18,12 +18,12 @@ void track_edit_view::set_play_status(play_status const& s)
     track_list_.set_play_status(s);
 }
 
-void track_edit_view::set_context(song* s, uint32_t section)
+void track_edit_view::set_context(song* s, uint32_t section, undo_manager* undo)
 {
     toolbar_.set_context(s, section);
-    section_view_.set_context(s, section);
-    section_info_view_.set_context(s, section);
-    track_list_.set_context(s, section);
+    section_view_.set_context(s, section, undo);
+    section_info_view_.set_context(s, section, undo);
+    track_list_.set_context(s, section, undo);
 }
 
 bool track_edit_view::do_draw()

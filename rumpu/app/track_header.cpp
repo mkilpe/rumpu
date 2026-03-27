@@ -1,5 +1,6 @@
 
 #include "track_list.hpp"
+#include "undo_manager.hpp"
 
 #include "imgui.h"
 
@@ -24,8 +25,9 @@ void track_header::zoom(float z)
     child_window_base::set_size(size);
 }
 
-void track_header::set_context(song* s, uint32_t section)
+void track_header::set_context(song* s, uint32_t section, undo_manager* undo)
 {
+    undo_ = undo;
     song_ = s;
     section_ = section;
 }
@@ -65,6 +67,7 @@ void track_header::context_menu(section* sec, ImVec2 header_pos, float lead_x, f
             }
             std::snprintf(label, sizeof(label), "Remove Tempo Change (Bar %u)", bar_index + 1);
             if (ImGui::MenuItem(label)) {
+                if (undo_ && song_) { undo_->snapshot(*song_); }
                 sec->set_tempo_change(bar_index, std::nullopt);
             }
         } else {
@@ -100,6 +103,7 @@ void track_header::tempo_dialog(section* sec)
         if (tempo_dialog_value_ > 400.0f) tempo_dialog_value_ = 400.0f;
 
         if (ImGui::Button("OK")) {
+            if (undo_ && song_) { undo_->snapshot(*song_); }
             sec->set_tempo_change(tempo_dialog_bar_, tempo{tempo_dialog_value_});
             ImGui::CloseCurrentPopup();
         }
