@@ -1,5 +1,6 @@
 #pragma once
 #include "view.hpp"
+#include "ui_coroutine.hpp"
 #include <securepath/event_system/event_handler.hpp>
 #include <mutex>
 #include <string>
@@ -12,16 +13,13 @@ public:
     void open();
     bool draw() override;
 private:
-    void on_file_selected(std::string path);
-    void collect_result();
-    void draw_content();
+    ui_task run();
+    std::string collect_file_result();
 
     event_system::event_handler& handler_;
-    bool open_{};
-    bool browsing_{};
-    std::string path_;
-    std::string name_;
+    ui_task task_;
 
+    // Shared with file dialog callback thread
     std::mutex result_mutex_;
     bool has_result_{};
     std::string result_path_;

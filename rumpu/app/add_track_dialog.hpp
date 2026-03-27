@@ -1,5 +1,6 @@
 #pragma once
 #include "view.hpp"
+#include "ui_coroutine.hpp"
 #include <rumpu/core/song.hpp>
 #include <securepath/event_system/event_handler.hpp>
 #include <cstdint>
@@ -12,13 +13,10 @@ public:
     void open(song* s, std::uint32_t section);
     bool draw() override;
 private:
-    void draw_content();
+    ui_task run(song* s, std::uint32_t section);
 
     event_system::event_handler& handler_;
-    song* song_{};
-    std::uint32_t section_{};
-    bool open_{};
-    int selected_{-1};
+    ui_task task_;
 };
 
 }

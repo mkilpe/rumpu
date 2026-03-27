@@ -7,29 +7,41 @@
 
 namespace securepath::drum::app {
 
-void about_dialog::open() {
-    open_ = true;
-}
-
-bool about_dialog::draw() {
-    if (open_) {
-        ImGui::OpenPopup("About Rumpu");
-        open_ = false;
-    }
-
+static bool begin_about_popup() {
     ImVec2 center = ImGui::GetMainViewport()->GetCenter();
     ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, {0.5f, 0.5f});
     ImGui::SetNextWindowSize({500, 300}, ImGuiCond_Appearing);
-    if (ImGui::BeginPopupModal("About Rumpu", nullptr)) {
+    return ImGui::BeginPopupModal("About Rumpu", nullptr);
+}
+
+void about_dialog::open() {
+    task_ = run();
+}
+
+ui_task about_dialog::run() {
+    ImGui::OpenPopup("About Rumpu");
+    co_await next_frame{};
+
+    while (true) {
+        if (!begin_about_popup()) {
+            co_return;
+        }
         ImGui::Text("Rumpu %s", version);
         ImGui::SeparatorText("License");
         ImGui::InputTextMultiline("##license", const_cast<char*>(license_text), sizeof(license_text),
             ImVec2(-1, -ImGui::GetFrameHeightWithSpacing()), ImGuiInputTextFlags_ReadOnly);
         if (ImGui::Button("Close") || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
             ImGui::CloseCurrentPopup();
+            ImGui::EndPopup();
+            co_return;
         }
         ImGui::EndPopup();
+        co_await next_frame{};
     }
+}
+
+bool about_dialog::draw() {
+    task_.tick();
     return true;
 }
 

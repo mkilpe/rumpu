@@ -16,84 +16,99 @@ song_properties_dialog::song_properties_dialog(event_system::event_handler& h)
 {}
 
 void song_properties_dialog::open(song const* s) {
-    open_ = true;
-    auto const& info = s->meta_info();
-    std::strncpy(name_, info.name.c_str(), sizeof(name_) - 1);
-    name_[sizeof(name_) - 1] = '\0';
-    std::strncpy(author_, info.author.c_str(), sizeof(author_) - 1);
-    author_[sizeof(author_) - 1] = '\0';
-    std::strncpy(notes_, info.notes.c_str(), sizeof(notes_) - 1);
-    notes_[sizeof(notes_) - 1] = '\0';
-    auto ts = s->default_time_signature();
-    beats_ = ts.beats_in_bar();
-    beat_type_ = ts.beat_type();
-    tempo_ = s->default_tempo().value;
-    rand_offset_ms_ = s->rand_offset().max_ms;
-    rand_volume_percent_ = s->rand_volume().max_percent;
+    task_ = run(s);
 }
 
-bool song_properties_dialog::draw() {
-    if (open_) {
-        ImGui::OpenPopup("Song Properties");
-        open_ = false;
-    }
+ui_task song_properties_dialog::run(song const* s) {
+    auto const& info = s->meta_info();
 
-    if (ImGui::BeginPopupModal("Song Properties", nullptr, 0)) {
+    char name[256]{};
+    char author[256]{};
+    char notes[1024]{};
+    std::strncpy(name, info.name.c_str(), sizeof(name) - 1);
+    std::strncpy(author, info.author.c_str(), sizeof(author) - 1);
+    std::strncpy(notes, info.notes.c_str(), sizeof(notes) - 1);
+
+    auto ts = s->default_time_signature();
+    int beats = ts.beats_in_bar();
+    int beat_type = ts.beat_type();
+    float tempo = s->default_tempo().value;
+    float rand_offset_ms = s->rand_offset().max_ms;
+    float rand_volume_percent = s->rand_volume().max_percent;
+
+    ImGui::OpenPopup("Song Properties");
+    co_await next_frame{};
+
+    while (true) {
+        if (!ImGui::BeginPopupModal("Song Properties", nullptr, 0)) {
+            co_return;
+        }
+
         ImGui::Text("Name:");
         ImGui::SetNextItemWidth(-FLT_MIN);
-        ImGui::InputText("##name", name_, sizeof(name_));
+        ImGui::InputText("##name", name, sizeof(name));
 
         ImGui::Text("Author:");
         ImGui::SetNextItemWidth(-FLT_MIN);
-        ImGui::InputText("##author", author_, sizeof(author_));
+        ImGui::InputText("##author", author, sizeof(author));
 
         ImGui::Text("Notes:");
-        ImGui::InputTextMultiline("##notes", notes_, sizeof(notes_), ImVec2(-FLT_MIN, ImGui::GetTextLineHeight() * 4));
+        ImGui::InputTextMultiline("##notes", notes, sizeof(notes), ImVec2(-FLT_MIN, ImGui::GetTextLineHeight() * 4));
 
         ImGui::Text("Time signature:");
         ImGui::SetNextItemWidth(100);
-        ImGui::InputInt("Beats##beats", &beats_);
-        beats_ = std::clamp(beats_, 1, 32);
+        ImGui::InputInt("Beats##beats", &beats);
+        beats = std::clamp(beats, 1, 32);
         ImGui::SetNextItemWidth(100);
-        ImGui::InputInt("Beat type##type", &beat_type_);
-        beat_type_ = std::clamp(beat_type_, 1, 32);
+        ImGui::InputInt("Beat type##type", &beat_type);
+        beat_type = std::clamp(beat_type, 1, 32);
 
         ImGui::Text("Tempo (BPM):");
         ImGui::SetNextItemWidth(100);
-        ImGui::InputFloat("##tempo", &tempo_, 1.0f, 10.0f, "%.1f");
-        tempo_ = std::clamp(tempo_, 20.0f, 400.0f);
+        ImGui::InputFloat("##tempo", &tempo, 1.0f, 10.0f, "%.1f");
+        tempo = std::clamp(tempo, 20.0f, 400.0f);
 
         ImGui::Separator();
         ImGui::Text("Randomisation:");
 
         ImGui::Text("Random hit offset (ms):");
         ImGui::SetNextItemWidth(100);
-        ImGui::InputFloat("##rand_offset", &rand_offset_ms_, 20.0f, 100.0f, "%.1f");
-        rand_offset_ms_ = std::clamp(rand_offset_ms_, 0.0f, 500.0f);
+        ImGui::InputFloat("##rand_offset", &rand_offset_ms, 20.0f, 100.0f, "%.1f");
+        rand_offset_ms = std::clamp(rand_offset_ms, 0.0f, 500.0f);
 
         ImGui::Text("Random volume (%%):");
         ImGui::SetNextItemWidth(100);
-        ImGui::InputFloat("##rand_volume", &rand_volume_percent_, 1.0f, 5.0f, "%.1f");
-        rand_volume_percent_ = std::clamp(rand_volume_percent_, 0.0f, 100.0f);
+        ImGui::InputFloat("##rand_volume", &rand_volume_percent, 1.0f, 5.0f, "%.1f");
+        rand_volume_percent = std::clamp(rand_volume_percent, 0.0f, 100.0f);
 
         if (ImGui::Button("OK")) {
             handler_.emit<event::update_song_properties>(
-                std::string(name_),
-                std::string(author_),
-                std::string(notes_),
-                time_signature{static_cast<uint16_t>(beats_), static_cast<uint16_t>(beat_type_)},
-                tempo_,
-                rand_offset_ms_,
-                rand_volume_percent_
+                std::string(name),
+                std::string(author),
+                std::string(notes),
+                time_signature{static_cast<uint16_t>(beats), static_cast<uint16_t>(beat_type)},
+                tempo,
+                rand_offset_ms,
+                rand_volume_percent
             );
             ImGui::CloseCurrentPopup();
+            ImGui::EndPopup();
+            co_return;
         }
         ImGui::SameLine();
         if (ImGui::Button("Cancel") || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
             ImGui::CloseCurrentPopup();
+            ImGui::EndPopup();
+            co_return;
         }
+
         ImGui::EndPopup();
+        co_await next_frame{};
     }
+}
+
+bool song_properties_dialog::draw() {
+    task_.tick();
     return true;
 }
 
