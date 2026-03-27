@@ -89,11 +89,13 @@ void track_list::draw_play_cursor(float col_x, float col_top, float col_bottom)
 	float bar_width = track_width / sec->length();
 	float cursor_x = col_x + lead_x + play_status_.current_bar * bar_width + play_status_.bar_progress * bar_width;
 
-	auto* drawlist = ImGui::GetForegroundDrawList();
+	auto* drawlist = ImGui::GetWindowDrawList();
+	drawlist->PushClipRect(ImVec2{col_x, col_top}, ImVec2{col_x + 1500.0f * zoom_, col_bottom}, true);
 	drawlist->AddLine(
 		ImVec2{cursor_x, col_top},
 		ImVec2{cursor_x, col_bottom},
 		IM_COL32(255, 80, 80, 255), 1.0f);
+	drawlist->PopClipRect();
 }
 
 bool track_list::do_draw()
