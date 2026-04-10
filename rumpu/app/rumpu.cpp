@@ -176,6 +176,9 @@ void rumpu::menu() {
             if (ImGui::MenuItem("Add instruments from folder...")) {
                 add_instruments_from_folder_dialog_.open();
             }
+            if (ImGui::MenuItem("Manage instruments...")) {
+                instruments_dialog_.open(&song_, &undo_);
+            }
             ImGui::EndMenu();
         }
         if (ImGui::BeginMenu("Options")) {
@@ -227,6 +230,7 @@ bool rumpu::update() {
     add_track_dialog_.draw();
     new_song_dialog_.draw();
     song_properties_dialog_.draw();
+    instruments_dialog_.draw();
     export_dialog_.draw();
     draw_error_dialog();
 

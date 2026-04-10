@@ -116,9 +116,13 @@ template<typename Ar>
 Ar& serialise(Ar& ar, track& d) {
 	serialisation::sequence<Ar> seq(ar);
 	std::optional<volume> vol = d.volume_;
-	seq & d.instrument_index_ & d.bars_ & d.volume_slides_ & d.name_ & vol;
+	std::optional<std::uint32_t> seed = d.random_seed_;
+	seq & d.instrument_index_ & d.bars_ & d.volume_slides_ & d.name_ & vol & seed;
 	if (vol) {
 		d.volume_ = *vol;
+	}
+	if (seed) {
+		d.random_seed_ = *seed;
 	}
 	return ar;
 }

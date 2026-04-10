@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cstring>
+#include <random>
 
 namespace securepath::drum {
 namespace {
@@ -85,6 +86,10 @@ struct track_info {
 	volume_slide current_volume_slide;
 	// actions for current bar playing
 	std::deque<action_data> actions;
+	// per-track RNG base seed stored on track; used to re-seed rng at every section entry
+	std::uint32_t seed_base{};
+	// per-track RNG for picking a random sample from multi-sample instruments
+	std::mt19937 rng;
 };
 }
 
@@ -102,7 +107,16 @@ struct mixer::impl {
 			infos_.resize(tracks.size());
 			for(std::size_t i = 0; i != infos_.size(); ++i) {
 				infos_[i].volume = tracks[i].volume();
+				infos_[i].seed_base = tracks[i].random_seed();
 			}
+		}
+	}
+
+	void reseed_track_rngs() {
+		auto const position = static_cast<std::uint32_t>(sec_order_.size());
+		for(auto& info : infos_) {
+			std::seed_seq seq{info.seed_base, pos_.section_id, position};
+			info.rng.seed(seq);
 		}
 	}
 
@@ -127,6 +141,7 @@ struct mixer::impl {
 		if(section_) {
 			update_audio_params();
 		}
+		reseed_track_rngs();
 		cached_duration_ = calculate_duration();
 	}
 
@@ -141,6 +156,7 @@ struct mixer::impl {
 		if(!sec_order_.empty()) {
 			set_next_section();
 			pos_.new_section();
+			reseed_track_rngs();
 		} else {
 			section_ = nullptr;
 			/*if(loop_) {
@@ -334,7 +350,13 @@ struct mixer::impl {
 			info.falloff = std::move(data.falloff);
 			auto& instrument = song_->instruments()[instrument_index];
 			if(instrument.is_valid()) {
-				info.current_audio = instrument.sample_to_play().buffer();
+				auto const& samples = instrument.samples();
+				std::size_t idx = 0;
+				if(samples.size() > 1) {
+					std::uniform_int_distribution<std::size_t> dist{0, samples.size() - 1};
+					idx = dist(info.rng);
+				}
+				info.current_audio = samples[idx].buffer();
 			} else {
 				info.current_audio = {};
 			}

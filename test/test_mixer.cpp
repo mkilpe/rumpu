@@ -2,11 +2,16 @@
 
 #include <rumpu/core/mixer.hpp>
 #include <rumpu/core/song.hpp>
+#include <rumpu/core/song_file.hpp>
 #include <rumpu/core/instrument.hpp>
+
+#include <cstdio>
+#include <filesystem>
 
 using namespace securepath::drum;
 
 static const char* kick_path = TEST_DATA_DIR "/test_kick.wav";
+static const char* kick2_path = TEST_DATA_DIR "/test_pcm16.wav";
 
 static void add_kick_pattern(song& s) {
 	s.add_instrument(instrument{kick_path});
@@ -155,6 +160,147 @@ TEST_CASE("mixer choke in same bar does not kill earlier beat", "[mixer]") {
 	CHECK(buf[choke_pos - 1] != 0.0f);
 	// after choke, audio should be silenced
 	CHECK(buf[choke_pos + 1] == 0.0f);
+}
+
+static std::uint32_t add_multi_sample_pattern(song& s) {
+	instrument inst{kick_path};
+	inst.add_sample(kick2_path);
+	s.add_instrument(std::move(inst));
+	s.load_instruments(44100);
+	auto sec_id = s.add_section();
+	s.section_order().push_back(sec_id);
+	auto& sec = *s.find_section(sec_id);
+	for(auto& bar : sec.tracks()[0].bars()) {
+		for(auto& b : bar.beats) {
+			b.action = beat::hit;
+			b.hit_data.volume = volume{false, 1.0f};
+		}
+	}
+	return sec_id;
+}
+
+static std::vector<float> render_whole_song(song const& s, std::size_t samples) {
+	mixer m{s, 44100};
+	std::vector<float> buf(samples, 0.0f);
+	m.process(buf.data(), buf.size());
+	return buf;
+}
+
+static std::vector<float> render_section(song const& s, std::uint32_t sec_id, std::size_t samples) {
+	mixer m{s, sec_id, 44100};
+	std::vector<float> buf(samples, 0.0f);
+	m.process(buf.data(), buf.size());
+	return buf;
+}
+
+TEST_CASE("multi-sample test fixtures have distinct content", "[mixer][random_sample]") {
+	// Pre-condition for the random-sample tests: the two fixture WAVs must differ,
+	// otherwise we can't tell which sample the mixer picked.
+	auto a = load_drum_sample(kick_path);
+	auto b = load_drum_sample(kick2_path);
+	REQUIRE(a.buffer() != nullptr);
+	REQUIRE(b.buffer() != nullptr);
+	REQUIRE(*a.buffer() != *b.buffer());
+}
+
+TEST_CASE("mixer playback of multi-sample instrument is reproducible across fresh mixers",
+		  "[mixer][random_sample]") {
+	song s{{}, {4, 4}, {120}};
+	add_multi_sample_pattern(s);
+	// 4 bars at 120 BPM 4/4 = 8 s = 352800 samples. Render half a second past to be safe.
+	std::size_t const n = 44100 * 9;
+	auto first = render_whole_song(s, n);
+	auto second = render_whole_song(s, n);
+	CHECK(first == second);
+}
+
+TEST_CASE("mixer single-section playback of multi-sample instrument is reproducible",
+		  "[mixer][random_sample]") {
+	song s{{}, {4, 4}, {120}};
+	auto sec_id = add_multi_sample_pattern(s);
+	std::size_t const n = 44100 * 9;
+	auto first = render_section(s, sec_id, n);
+	auto second = render_section(s, sec_id, n);
+	CHECK(first == second);
+}
+
+TEST_CASE("mixer produces different audio for repeated section within song_order",
+		  "[mixer][random_sample]") {
+	// Play the same section twice back-to-back in the song order. The reseed at
+	// each section boundary uses sec_order_.size(), so the two visits get
+	// different RNG starting states and must produce different audio.
+	song s{{}, {4, 4}, {120}};
+	auto sec_id = add_multi_sample_pattern(s);
+	s.section_order().push_back(sec_id);  // order is now [sec_id, sec_id]
+
+	std::size_t const per_section = 44100 * 8; // 8s per section
+	std::size_t const n = per_section * 2;
+	auto audio = render_whole_song(s, n);
+
+	std::vector<float> first_visit(audio.begin(), audio.begin() + per_section);
+	std::vector<float> second_visit(audio.begin() + per_section, audio.end());
+	CHECK(first_visit != second_visit);
+}
+
+TEST_CASE("mixer tracks with different seeds pick different sample sequences",
+		  "[mixer][random_sample]") {
+	// Two independent songs, each with one track, same multi-sample instrument,
+	// same hit pattern, but different track seeds. Audio outputs must differ.
+	song a{{}, {4, 4}, {120}};
+	add_multi_sample_pattern(a);
+	a.find_section(a.section_order()[0])->tracks()[0].set_random_seed(1u);
+
+	song b{{}, {4, 4}, {120}};
+	add_multi_sample_pattern(b);
+	b.find_section(b.section_order()[0])->tracks()[0].set_random_seed(2u);
+
+	std::size_t const n = 44100 * 9;
+	auto audio_a = render_whole_song(a, n);
+	auto audio_b = render_whole_song(b, n);
+	CHECK(audio_a != audio_b);
+}
+
+TEST_CASE("mixer single-sample instrument plays identically to before random selection",
+		  "[mixer][random_sample]") {
+	// Regression: when the instrument has only one sample, the random branch is
+	// skipped (samples.size() > 1 is false) and the output must match the old
+	// deterministic behaviour. We can't compare against "before the change" here,
+	// but we can assert that two fresh mixers produce identical audio (trivially
+	// true without RNG) and that the audio is non-silent.
+	song s{{}, {4, 4}, {120}};
+	add_kick_pattern(s);
+	std::size_t const n = 44100 * 9;
+	auto first = render_whole_song(s, n);
+	auto second = render_whole_song(s, n);
+	CHECK(first == second);
+	bool has_audio = false;
+	for(float v : first) {
+		if(v != 0.0f) { has_audio = true; break; }
+	}
+	CHECK(has_audio);
+}
+
+TEST_CASE("track random_seed persists across save/load", "[track][random_sample]") {
+	namespace fs = std::filesystem;
+	auto tmp_path = fs::path{"rumpu_test_seed_roundtrip.spd"};
+
+	std::uint32_t const pinned_seed = 0xDEADBEEFu;
+	{
+		song s{{}, {4, 4}, {120}};
+		s.add_instrument(instrument{kick_path});
+		auto sec_id = s.add_section();
+		s.section_order().push_back(sec_id);
+		s.find_section(sec_id)->tracks()[0].set_random_seed(pinned_seed);
+		save_song_file(tmp_path.string(), s);
+	}
+	{
+		auto loaded = load_song_file(tmp_path.string());
+		auto sec_id = loaded.section_order()[0];
+		auto const& t = loaded.find_section(sec_id)->tracks()[0];
+		CHECK(t.random_seed() == pinned_seed);
+	}
+	std::error_code ec;
+	fs::remove(tmp_path, ec);
 }
 
 TEST_CASE("mixer choke stop with falloff silences audio", "[mixer]") {

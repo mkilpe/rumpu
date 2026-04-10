@@ -14,10 +14,13 @@ public:
 	bool is_loaded() const;
 	std::string const& name() const;
 	drum_sample const& sample_to_play() const;
+	std::vector<drum_sample> const& samples() const;
 	drum::volume const& volume() const;
 
 	void set_name(std::string name);
 	void set_volume(drum::volume const&);
+	void add_sample(std::string file);
+	void remove_sample(std::size_t index);
 	void load_samples(std::uint32_t sample_rate, std::filesystem::path const& base_dir = {});
 
 	template<typename Ar>

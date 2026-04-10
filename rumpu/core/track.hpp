@@ -6,7 +6,9 @@
 #include <securepath/serialisation/map.hpp>
 #include <securepath/serialisation/sequence.hpp>
 
+#include <cstdint>
 #include <deque>
+#include <random>
 
 namespace securepath::drum {
 
@@ -34,6 +36,9 @@ public:
 	drum::volume const& volume() const { return volume_; }
 	void set_volume(drum::volume const& v) { volume_ = v; }
 
+	std::uint32_t random_seed() const { return random_seed_; }
+	void set_random_seed(std::uint32_t s) { random_seed_ = s; }
+
 	std::optional<volume_slide> find_volume_slide(std::uint32_t index) const {
 		auto it = volume_slides_.find(index);
 		return it != volume_slides_.end() ? it->second : std::optional<volume_slide>();
@@ -51,6 +56,7 @@ private:
 	std::deque<bar> bars_;
 	std::map<std::uint32_t, volume_slide> volume_slides_;
 	drum::volume volume_;
+	std::uint32_t random_seed_{std::random_device{}()};
 };
 
 }

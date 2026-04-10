@@ -12,6 +12,7 @@
 #include "add_instruments_from_folder_dialog.hpp"
 #include "add_track_dialog.hpp"
 #include "export_dialog.hpp"
+#include "instruments_dialog.hpp"
 #include "new_song_dialog.hpp"
 #include "song_properties_dialog.hpp"
 #include "child_window.hpp"
@@ -59,6 +60,7 @@ private:
     add_track_dialog add_track_dialog_;
     new_song_dialog new_song_dialog_;
     song_properties_dialog song_properties_dialog_;
+    instruments_dialog instruments_dialog_;
     export_dialog export_dialog_;
 
     void perform_undo();

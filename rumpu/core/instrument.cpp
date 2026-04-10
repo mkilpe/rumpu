@@ -20,8 +20,13 @@ bool instrument::is_loaded() const {
 }
 
 drum_sample const& instrument::sample_to_play() const {
+	// Returns a representative sample for UI/label use. The mixer picks a
+	// random sample per hit directly via samples() + its per-track RNG.
 	return samples_.front();
-	//t: later on allow to select randomly from multiple samples
+}
+
+std::vector<drum_sample> const& instrument::samples() const {
+	return samples_;
 }
 
 std::string const& instrument::name() const {
@@ -38,6 +43,16 @@ void instrument::set_name(std::string name) {
 
 void instrument::set_volume(drum::volume const& v) {
 	volume_ = v;
+}
+
+void instrument::add_sample(std::string file) {
+	samples_.emplace_back(std::move(file));
+}
+
+void instrument::remove_sample(std::size_t index) {
+	if (index < samples_.size()) {
+		samples_.erase(samples_.begin() + index);
+	}
 }
 
 void instrument::load_samples(std::uint32_t sample_rate, std::filesystem::path const& base_dir) {
