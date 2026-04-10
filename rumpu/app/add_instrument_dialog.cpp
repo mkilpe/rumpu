@@ -49,6 +49,7 @@ ui_task add_instrument_dialog::run() {
             browsing = false;
         }
 
+        ImGui::SetNextWindowSize({480, 160}, ImGuiCond_FirstUseEver);
         if (!ImGui::BeginPopupModal("Add instrument", nullptr, ImGuiWindowFlags_None)) {
             co_return;
         }

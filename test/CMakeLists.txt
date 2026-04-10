@@ -5,6 +5,7 @@ add_executable(test_rumpu
 	test_mixer.cpp
 	test_player_cursor.cpp
 	test_timing.cpp
+	test_undo_manager.cpp
 	test_wav.cpp
 )
 

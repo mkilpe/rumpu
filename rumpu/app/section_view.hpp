@@ -4,7 +4,7 @@
 #include <rumpu/core/song.hpp>
 #include <securepath/event_system/event_handler.hpp>
 
-namespace securepath::drum::app { class undo_manager; }
+namespace securepath::drum { class undo_manager; }
 
 namespace securepath::drum::app {
 

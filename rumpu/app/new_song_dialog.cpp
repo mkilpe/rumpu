@@ -29,7 +29,8 @@ ui_task new_song_dialog::run() {
     float tempo = 120.0f;
 
     while (true) {
-        if (!ImGui::BeginPopupModal("New Song", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::SetNextWindowSize({400, 220}, ImGuiCond_FirstUseEver);
+        if (!ImGui::BeginPopupModal("New Song", nullptr, ImGuiWindowFlags_None)) {
             co_return;
         }
 

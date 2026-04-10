@@ -2,7 +2,7 @@
 
 #include "view.hpp"
 
-namespace securepath::drum::app { class undo_manager; }
+namespace securepath::drum { class undo_manager; }
 
 namespace securepath::drum::app {
 

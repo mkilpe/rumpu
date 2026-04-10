@@ -4,7 +4,7 @@
 #include <chrono>
 #include <deque>
 
-namespace securepath::drum::app {
+namespace securepath::drum {
 
 enum class coalesce_key {
     none,

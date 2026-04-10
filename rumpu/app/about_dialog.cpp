@@ -10,7 +10,7 @@ namespace securepath::drum::app {
 static bool begin_about_popup() {
     ImVec2 center = ImGui::GetMainViewport()->GetCenter();
     ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, {0.5f, 0.5f});
-    ImGui::SetNextWindowSize({500, 300}, ImGuiCond_Appearing);
+    ImGui::SetNextWindowSize({560, 400}, ImGuiCond_FirstUseEver);
     return ImGui::BeginPopupModal("About Rumpu", nullptr);
 }
 

@@ -40,6 +40,7 @@ ui_task song_properties_dialog::run(song const* s) {
     co_await next_frame{};
 
     while (true) {
+        ImGui::SetNextWindowSize({480, 520}, ImGuiCond_FirstUseEver);
         if (!ImGui::BeginPopupModal("Song Properties", nullptr, 0)) {
             co_return;
         }
@@ -53,7 +54,8 @@ ui_task song_properties_dialog::run(song const* s) {
         ImGui::InputText("##author", author, sizeof(author));
 
         ImGui::Text("Notes:");
-        ImGui::InputTextMultiline("##notes", notes, sizeof(notes), ImVec2(-FLT_MIN, ImGui::GetTextLineHeight() * 4));
+        float const notes_reserve = ImGui::GetFrameHeightWithSpacing() * 12;
+        ImGui::InputTextMultiline("##notes", notes, sizeof(notes), ImVec2(-FLT_MIN, -notes_reserve));
 
         ImGui::Text("Time signature:");
         ImGui::SetNextItemWidth(100);

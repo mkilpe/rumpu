@@ -3,7 +3,7 @@
 #include "child_window.hpp"
 #include <rumpu/core/song.hpp>
 
-namespace securepath::drum::app { class undo_manager; }
+namespace securepath::drum { class undo_manager; }
 
 #include <string>
 

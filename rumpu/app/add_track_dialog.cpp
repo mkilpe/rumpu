@@ -21,6 +21,7 @@ ui_task add_track_dialog::run(song* s, std::uint32_t section) {
     int selected = -1;
 
     while (true) {
+        ImGui::SetNextWindowSize({380, 420}, ImGuiCond_FirstUseEver);
         if (!ImGui::BeginPopupModal("Add track", nullptr, ImGuiWindowFlags_None)) {
             co_return;
         }

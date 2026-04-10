@@ -1,6 +1,6 @@
 #include "track_pane.hpp"
 #include "events.hpp"
-#include "undo_manager.hpp"
+#include <rumpu/core/undo_manager.hpp>
 
 #include "imgui.h"
 #include "imgui-knobs.h"

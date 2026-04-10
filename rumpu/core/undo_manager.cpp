@@ -1,7 +1,7 @@
 
 #include "undo_manager.hpp"
 
-namespace securepath::drum::app {
+namespace securepath::drum {
 
 void undo_manager::snapshot(song const& s, coalesce_key key) {
     auto now = std::chrono::steady_clock::now();

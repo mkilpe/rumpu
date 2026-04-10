@@ -13,7 +13,7 @@ namespace securepath::drum::app {
 static bool begin_export_popup() {
     ImVec2 center = ImGui::GetMainViewport()->GetCenter();
     ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, {0.5f, 0.5f});
-    ImGui::SetNextWindowSize({420, 180}, ImGuiCond_Appearing);
+    ImGui::SetNextWindowSize({420, 220}, ImGuiCond_FirstUseEver);
     return ImGui::BeginPopupModal("Export as WAV", nullptr, ImGuiWindowFlags_None);
 }
 

@@ -15,7 +15,7 @@
 #include "song_properties_dialog.hpp"
 #include "child_window.hpp"
 #include "track_edit_view.hpp"
-#include "undo_manager.hpp"
+#include <rumpu/core/undo_manager.hpp>
 
 namespace securepath::drum::app {
 

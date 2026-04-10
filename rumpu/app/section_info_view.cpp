@@ -1,6 +1,6 @@
 
 #include "section_info_view.hpp"
-#include "undo_manager.hpp"
+#include <rumpu/core/undo_manager.hpp>
 
 #include "imgui.h"
 #include "misc/cpp/imgui_stdlib.h"
