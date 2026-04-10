@@ -182,8 +182,9 @@ void rumpu::menu() {
             ImGui::EndMenu();
         }
         if (ImGui::BeginMenu("Options")) {
-            if (ImGui::MenuItem("Settings")) {
-
+            if (ImGui::MenuItem("Follow play cursor", nullptr, follow_cursor_)) {
+                follow_cursor_ = !follow_cursor_;
+                track_edit_view_->set_follow_cursor(follow_cursor_);
             }
             ImGui::EndMenu();
         }
@@ -235,7 +236,11 @@ bool rumpu::update() {
     draw_error_dialog();
 
     if (player_.is_playing()) {
-        track_edit_view_->set_play_status(player_.get_status());
+        auto status = player_.get_status();
+        if (follow_cursor_ && status.section_id != current_section_ && song_.find_section(status.section_id)) {
+            select_section_impl(status.section_id);
+        }
+        track_edit_view_->set_play_status(status);
     }
 
     if(!windows_.empty()) {

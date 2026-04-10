@@ -15,6 +15,8 @@ public:
 
     void set_context(song*, uint32_t section, undo_manager* undo = nullptr);
     void set_play_status(play_status const&);
+    void set_follow_cursor(bool v) { track_list_.set_follow_cursor(v); }
+    bool follow_cursor() const { return track_list_.follow_cursor(); }
 
 private:
     toolbar toolbar_;

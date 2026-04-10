@@ -21,10 +21,13 @@ public:
     void add_track();
     void set_context(song*, uint32_t section, undo_manager* undo = nullptr);
     void set_play_status(play_status const&);
+    void set_follow_cursor(bool v) { follow_cursor_ = v; }
+    bool follow_cursor() const { return follow_cursor_; }
 private:
     void update_tracks(song* s, uint32_t section);
     void set_track(drum::track const& t);
     void draw_play_cursor(float col_x, float col_top, float col_bottom);
+    void apply_follow_scroll();
 private:
     event_system::event_handler& handler_;
     struct track_info {
@@ -39,6 +42,7 @@ private:
     song* song_{};
     uint32_t section_{};
     play_status play_status_;
+    bool follow_cursor_{true};
 };
 
 }

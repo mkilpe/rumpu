@@ -72,6 +72,42 @@ void track_list::set_context(song* s, uint32_t section, undo_manager* undo)
 	}
 }
 
+void track_list::apply_follow_scroll()
+{
+	if (!follow_cursor_ || !play_status_.playing || play_status_.section_id != section_) {
+		return;
+	}
+	if (!song_) {
+		return;
+	}
+	auto* sec = song_->find_section(section_);
+	if (!sec || sec->length() == 0) {
+		return;
+	}
+
+	float track_width = 1500.0f * zoom_;
+	float bar_width = track_width / sec->length();
+	float cursor_local_x = play_status_.current_bar * bar_width + play_status_.bar_progress * bar_width;
+
+	float scroll_max = ImGui::GetScrollMaxX();
+	float view_w = track_width - scroll_max;
+	if (view_w <= 0.0f) {
+		return;
+	}
+	float scroll_x = ImGui::GetScrollX();
+	float right_margin = view_w * 0.85f;
+	float pull_back_pos = view_w * 0.25f;
+
+	float cursor_in_view = cursor_local_x - scroll_x;
+	if (cursor_in_view > right_margin || cursor_in_view < 0.0f) {
+		float target = cursor_local_x - pull_back_pos;
+		if (target < 0.0f) {
+			target = 0.0f;
+		}
+		ImGui::SetScrollX(target);
+	}
+}
+
 void track_list::draw_play_cursor(float col_x, float col_top, float col_bottom)
 {
 	if (!play_status_.playing || play_status_.section_id != section_) {
@@ -148,6 +184,7 @@ bool track_list::do_draw()
 			v.track->draw();
 		}
 		col_bottom = ImGui::GetCursorScreenPos().y;
+		apply_follow_scroll();
 		ImGui::EndTable();
 	}
 

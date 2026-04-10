@@ -74,6 +74,7 @@ private:
     
     std::string error_message_;
     bool error_pending_{};
+    bool follow_cursor_{true};
     std::vector<child_window*> windows_;
 };
 
