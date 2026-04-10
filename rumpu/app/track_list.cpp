@@ -5,6 +5,7 @@
 #include <algorithm>
 
 #include "imgui.h"
+#include "imgui_internal.h"
 
 namespace securepath::drum::app {
 
@@ -162,6 +163,11 @@ bool track_list::do_draw()
 	float col_top = 0.0f;
 	float col_bottom = 0.0f;
 
+	{
+		ImGuiContext& g = *ImGui::GetCurrentContext();
+		g.NextWindowData.HasFlags |= ImGuiNextWindowDataFlags_HasWindowFlags;
+		g.NextWindowData.WindowFlags = ImGuiWindowFlags_NoScrollWithMouse;
+	}
 	if (ImGui::BeginTable("track_list_table", 2, ImGuiTableFlags_BordersH | ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg)) {
 		ImGui::TableSetupScrollFreeze(1, 0);
 		ImGui::TableNextRow();
