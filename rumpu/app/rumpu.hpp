@@ -9,6 +9,7 @@
 #include "app_options.hpp"
 #include "about_dialog.hpp"
 #include "add_instrument_dialog.hpp"
+#include "add_instruments_from_folder_dialog.hpp"
 #include "add_track_dialog.hpp"
 #include "export_dialog.hpp"
 #include "new_song_dialog.hpp"
@@ -38,6 +39,7 @@ private:
     void select_section_impl(uint32_t section_id);
     void add_section();
     void add_instrument(std::string path, std::string name);
+    void add_instruments(std::vector<std::string> paths);
     void remove_track(std::size_t index);
     void open_project(std::string path);
     void save_project(std::string path);
@@ -53,6 +55,7 @@ private:
     uint32_t current_section_{};
     about_dialog about_dialog_;
     add_instrument_dialog add_instrument_dialog_;
+    add_instruments_from_folder_dialog add_instruments_from_folder_dialog_;
     add_track_dialog add_track_dialog_;
     new_song_dialog new_song_dialog_;
     song_properties_dialog song_properties_dialog_;

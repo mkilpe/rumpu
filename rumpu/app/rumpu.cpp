@@ -9,6 +9,9 @@
 
 #include "imgui.h"
 
+#include <format>
+#include <vector>
+
 namespace securepath::drum::app {
 
 static std::filesystem::path project_dir(std::string const& file) {
@@ -18,6 +21,7 @@ static std::filesystem::path project_dir(std::string const& file) {
 rumpu::rumpu(app_options options)
 : event_handler(static_cast<securepath::event_system::event_loop&>(*this))
 , add_instrument_dialog_(*this)
+, add_instruments_from_folder_dialog_(*this)
 , add_track_dialog_(*this)
 , new_song_dialog_(*this)
 , song_properties_dialog_(*this)
@@ -169,6 +173,9 @@ void rumpu::menu() {
             if (ImGui::MenuItem("Add instrument...")) {
                 add_instrument_dialog_.open();
             }
+            if (ImGui::MenuItem("Add instruments from folder...")) {
+                add_instruments_from_folder_dialog_.open();
+            }
             ImGui::EndMenu();
         }
         if (ImGui::BeginMenu("Options")) {
@@ -216,6 +223,7 @@ bool rumpu::update() {
 
     about_dialog_.draw();
     add_instrument_dialog_.draw();
+    add_instruments_from_folder_dialog_.draw();
     add_track_dialog_.draw();
     new_song_dialog_.draw();
     song_properties_dialog_.draw();
@@ -288,6 +296,28 @@ void rumpu::add_instrument(std::string path, std::string name) {
         inst.set_name(std::move(name));
     }
     song_.add_instrument(std::move(inst));
+}
+
+void rumpu::add_instruments(std::vector<std::string> paths) {
+    if (paths.empty()) {
+        return;
+    }
+
+    std::unique_lock l{mutex_};
+    namespace fs = std::filesystem;
+
+    undo_.snapshot(song_);
+
+    auto base = project_dir(current_file_);
+    for (auto const& path : paths) {
+        fs::path p{path};
+        std::string rel_path = base.empty() ? path : fs::relative(p, base).string();
+        instrument inst{rel_path};
+        inst.set_name(p.stem().string());
+        song_.add_instrument(std::move(inst));
+    }
+
+    LOG_INFO("added {} instruments", paths.size());
 }
 
 void rumpu::add_section() {
@@ -411,6 +441,7 @@ void rumpu::handle_event(std::unique_ptr<securepath::event_system::event_base> e
         , event_dest<event::add_track>(&rumpu::add_track)
         , event_dest<event::open_add_track_dialog>(&rumpu::open_add_track_dialog)
         , event_dest<event::add_instrument>(&rumpu::add_instrument)
+        , event_dest<event::add_instruments>(&rumpu::add_instruments)
         , event_dest<event::play_section>(&rumpu::play_section)
         , event_dest<event::play_song>(&rumpu::play_song)
         , event_dest<event::stop_song>(&rumpu::stop_song)

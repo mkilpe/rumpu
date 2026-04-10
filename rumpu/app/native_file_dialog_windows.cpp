@@ -147,4 +147,41 @@ void save_project_file_dialog(std::function<void(std::string)> callback) {
     run_project_dialog<IFileSaveDialog, CLSID_FileSaveDialog, IID_IFileSaveDialog>(FOS_OVERWRITEPROMPT, L"untitled.spd", std::move(callback));
 }
 
+void open_folder_dialog(std::function<void(std::string)> callback) {
+    std::thread([callback = std::move(callback)]() {
+        CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+
+        std::string result;
+        IFileOpenDialog* dialog = nullptr;
+
+        if (SUCCEEDED(CoCreateInstance(CLSID_FileOpenDialog, nullptr, CLSCTX_ALL,
+                                       IID_IFileOpenDialog, reinterpret_cast<void**>(&dialog)))) {
+            FILEOPENDIALOGOPTIONS opts{};
+            dialog->GetOptions(&opts);
+            dialog->SetOptions(opts | FOS_PICKFOLDERS | FOS_PATHMUSTEXIST);
+            dialog->SetTitle(L"Select folder");
+
+            if (SUCCEEDED(dialog->Show(nullptr))) {
+                IShellItem* item = nullptr;
+                if (SUCCEEDED(dialog->GetResult(&item))) {
+                    PWSTR path = nullptr;
+                    if (SUCCEEDED(item->GetDisplayName(SIGDN_FILESYSPATH, &path))) {
+                        int size = WideCharToMultiByte(CP_UTF8, 0, path, -1,
+                                                       nullptr, 0, nullptr, nullptr);
+                        result.resize(size - 1);
+                        WideCharToMultiByte(CP_UTF8, 0, path, -1,
+                                            result.data(), size, nullptr, nullptr);
+                        CoTaskMemFree(path);
+                    }
+                    item->Release();
+                }
+            }
+            dialog->Release();
+        }
+
+        CoUninitialize();
+        callback(std::move(result));
+    }).detach();
+}
+
 }

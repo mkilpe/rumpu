@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <string>
+#include <vector>
 #include <rumpu/core/time_signature.hpp>
 
 namespace securepath::drum::app::event {
@@ -12,6 +13,10 @@ struct new_song {
 
 struct add_instrument {
     typedef void type(std::string path, std::string name);
+};
+
+struct add_instruments {
+    typedef void type(std::vector<std::string> paths);
 };
 
 struct add_track {

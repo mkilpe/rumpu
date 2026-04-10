@@ -140,4 +140,38 @@ void save_project_file_dialog(std::function<void(std::string)> callback) {
     run_project_dialog(GTK_FILE_CHOOSER_ACTION_SAVE, "Save project", "_Save", std::move(callback));
 }
 
+void open_folder_dialog(std::function<void(std::string)> callback) {
+    std::thread([callback = std::move(callback)]() {
+        if (!gtk_init_check(nullptr, nullptr)) {
+            callback({});
+            return;
+        }
+
+        GtkWidget* dialog = gtk_file_chooser_dialog_new(
+            "Select folder",
+            nullptr,
+            GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER,
+            "_Cancel", GTK_RESPONSE_CANCEL,
+            "_Select", GTK_RESPONSE_ACCEPT,
+            nullptr
+        );
+
+        std::string result;
+        if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT) {
+            char* filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
+            if (filename) {
+                result = filename;
+                g_free(filename);
+            }
+        }
+
+        gtk_widget_destroy(dialog);
+        while (gtk_events_pending()) {
+            gtk_main_iteration();
+        }
+
+        callback(std::move(result));
+    }).detach();
+}
+
 }

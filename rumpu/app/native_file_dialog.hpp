@@ -13,4 +13,6 @@ void save_wav_file_dialog(std::function<void(std::string)> callback);
 void open_project_file_dialog(std::function<void(std::string)> callback);
 void save_project_file_dialog(std::function<void(std::string)> callback);
 
+void open_folder_dialog(std::function<void(std::string)> callback);
+
 }
