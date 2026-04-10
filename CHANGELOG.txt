@@ -1,0 +1,53 @@
+Rumpu - Release Notes
+=====================
+
+
+0.1.0-alpha1 (First alpha)
+--------------------------
+Initial alpha release.
+
+Song
+    - Songs built from sections, tracks and instruments
+    - Sections with editable name and length
+    - Reorderable sections and section cloning
+    - Per-track volume, mute and gain
+    - Editable track names
+    - Per-song and per-beat random offset / volume
+    - Choke groups
+
+Editing
+    - Section view and section info view
+    - Zoomable timeline
+    - Play / stop controls with play cursor
+    - New song, add track, add instrument and export dialogs
+    - About dialog with license and authors
+    - Track header context menu
+
+Audio
+    - ALSA playback on Linux
+    - DirectSound playback on Windows
+    - WAV export, including 32-bit float
+
+Project files
+    - Save and load .spd project files
+    - Bundled demo songs
+
+Platform
+    - Linux and Windows builds
+    - Windows installer
+    - Command-line arguments
+    - Version number reporting
+
+
+0.1.1
+-----
+    - Play cursor fix
+    - Per-track volume
+    - Play time fix on Wine
+
+
+0.1.2
+-----
+    - 24-bit audio support fix
+    - Experimental undo
+    - Smoother dialog flow across most dialogs
