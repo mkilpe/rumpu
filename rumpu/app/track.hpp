@@ -3,6 +3,9 @@
 #include "child_window.hpp"
 #include <rumpu/core/song.hpp>
 
+#include <deque>
+#include <string>
+
 namespace securepath::drum { class undo_manager; }
 
 namespace securepath::drum::app {
@@ -30,6 +33,7 @@ private:
     void context_menu(track_draw_context&);
     void divide_dialog(track_draw_context&);
     void beat_properties_dialog(track_draw_context&);
+    void apply_pattern_dialog(track_draw_context&);
 
 private:
     undo_manager* undo_{};
@@ -49,6 +53,10 @@ private:
     bool beat_props_open_{false};
     ImVec2 beat_props_mouse_pos_{};
     beat* beat_props_beat_{};
+
+    bool apply_pattern_open_{false};
+    std::deque<bar> apply_pattern_bars_;
+    ImVec2 apply_pattern_mouse_pos_{};
 };
 
 using track_ptr = std::unique_ptr<track_view>;

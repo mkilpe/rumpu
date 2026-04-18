@@ -51,3 +51,9 @@ Platform
     - 24-bit audio support fix
     - Experimental undo
     - Smoother dialog flow across most dialogs
+    - Import multiple WAV files at once
+    - Randomization across multi-sample instruments
+    - Follow-cursor option in timeline
+    - Mouse wheel restricted to zoom (no scroll)
+    - Saner default dialog sizes
+    - Track context menu: clear track and apply pattern (1-4 bar pattern editor with split/divide/clear/choke)

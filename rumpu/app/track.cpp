@@ -5,6 +5,7 @@
 
 #include "imgui.h"
 
+#include <algorithm>
 #include <print>
 
 namespace securepath::drum::app {
@@ -24,6 +25,7 @@ void track::set_context(size_t index, song* s, uint32_t section, undo_manager* u
 }
 
 struct track_draw_context {
+	track_draw_context() = default;
 	track_draw_context(drum::song& song, size_t index, uint32_t s)
 	: song_(&song)
 	{
@@ -338,6 +340,35 @@ void track::context_menu(track_draw_context& context)
     			}
     		}
     	}
+    	ImGui::Separator();
+    	if (ImGui::MenuItem("Clear track")) {
+    		if (undo_ && song_) { undo_->snapshot(*song_); }
+    		if(context.bars) {
+    			for(auto&& bar : *context.bars) {
+    				for(auto&& beat : bar.beats) {
+    					beat.action = beat::none;
+    					beat.division.clear();
+    				}
+    			}
+    		}
+    	}
+    	if (ImGui::MenuItem("Apply pattern...")) {
+    		apply_pattern_open_ = true;
+    		if(apply_pattern_bars_.empty()) {
+    			bar seed;
+    			bar_calc bc(context, ImVec2{mouse_pos_.x - context.pos.x, mouse_pos_.y - context.pos.y});
+    			if(auto b = bc.find_bar(); b && !b->beats.empty()) {
+    				seed = *b;
+    				for(auto&& beat : seed.beats) {
+    					beat.division.clear();
+    				}
+    			} else {
+    				seed.beats.assign(context.signature.beats_in_bar(), beat{});
+    			}
+    			apply_pattern_bars_.assign(1, seed);
+    		}
+    	}
+    	ImGui::Separator();
 		{
 			bar_calc bc(context, ImVec2{mouse_pos_.x - context.pos.x, mouse_pos_.y - context.pos.y});
 			auto b = bc.find_beat();
@@ -504,6 +535,187 @@ void track::beat_properties_dialog(track_draw_context& context)
 	}
 }
 
+static void pattern_context_menu_items(track_draw_context& ctx, ImVec2 rel)
+{
+	if(ImGui::MenuItem("Split beat")) {
+		bar_calc bc(ctx, rel);
+		if(auto b = bc.find_beat()) {
+			b->division.resize(2);
+			b->division.front() = b->data();
+		}
+	}
+	if(ImGui::BeginMenu("Divide beat")) {
+		std::size_t amount = 0;
+		if(ImGui::MenuItem("2")) { amount = 2; }
+		if(ImGui::MenuItem("3")) { amount = 3; }
+		if(ImGui::MenuItem("4")) { amount = 4; }
+		if(ImGui::MenuItem("5")) { amount = 5; }
+		if(amount) {
+			bar_calc bc(ctx, rel);
+			if(auto b = bc.find_beat()) {
+				b->division.resize(amount);
+				b->division.front() = b->data();
+			}
+		}
+		ImGui::EndMenu();
+	}
+	if(ImGui::BeginMenu("Divide bar")) {
+		std::size_t amount = 0;
+		if(ImGui::MenuItem("2")) { amount = 2; }
+		if(ImGui::MenuItem("3")) { amount = 3; }
+		if(ImGui::MenuItem("4")) { amount = 4; }
+		if(ImGui::MenuItem("5")) { amount = 5; }
+		if(ImGui::MenuItem("8")) { amount = 8; }
+		if(ImGui::MenuItem("16")) { amount = 16; }
+		if(amount) {
+			bar_calc bc(ctx, rel);
+			if(auto b = bc.find_bar()) {
+				b->beats.resize(amount);
+			}
+		}
+		ImGui::EndMenu();
+	}
+	if(ImGui::MenuItem("Clear bar")) {
+		bar_calc bc(ctx, rel);
+		if(auto b = bc.find_bar()) {
+			for(auto&& beat : b->beats) {
+				beat.action = beat::none;
+				beat.division.clear();
+			}
+		}
+	}
+	ImGui::Separator();
+	{
+		bar_calc bc(ctx, rel);
+		auto b = bc.find_beat();
+		bool has_none = b && b->action == beat::none;
+		bool has_stop = b && b->action == beat::stop;
+		if(ImGui::MenuItem("Set choke", nullptr, false, has_none)) {
+			if(b) {
+				b->action = beat::stop;
+				if(!b->stop_data.falloff) {
+					b->stop_data.falloff = audio_falloff::create(audio_falloff::exponential);
+				}
+			}
+		}
+		if(ImGui::MenuItem("Remove choke", nullptr, false, has_stop)) {
+			if(b) {
+				b->action = beat::none;
+				b->stop_data.falloff = nullptr;
+			}
+		}
+	}
+}
+
+void track::apply_pattern_dialog(track_draw_context& context)
+{
+	auto popup_name = "Apply pattern##" + name();
+
+	if(apply_pattern_open_) {
+		ImGui::OpenPopup(popup_name.c_str());
+		apply_pattern_open_ = false;
+	}
+
+	ImGui::SetNextWindowSize(ImVec2{520.0f, 220.0f}, ImGuiCond_Appearing);
+	if(ImGui::BeginPopupModal(popup_name.c_str(), nullptr, ImGuiWindowFlags_None)) {
+		ImGui::TextUnformatted("Left click: toggle hit.  Right click: toggle choke (stop).");
+		ImGui::TextUnformatted("Pattern is tiled across the whole track.");
+
+		int bar_count = static_cast<int>(apply_pattern_bars_.size());
+		if(bar_count < 1) { bar_count = 1; }
+		if(bar_count > 4) { bar_count = 4; }
+		if(ImGui::SliderInt("Bars", &bar_count, 1, 4)) {
+			int const old = static_cast<int>(apply_pattern_bars_.size());
+			apply_pattern_bars_.resize(bar_count);
+			std::size_t const beats_per_bar = (old > 0 && !apply_pattern_bars_[0].beats.empty())
+				? apply_pattern_bars_[0].beats.size()
+				: context.signature.beats_in_bar();
+			for(int i = old; i < bar_count; ++i) {
+				apply_pattern_bars_[i].beats.assign(beats_per_bar, beat{});
+			}
+		}
+
+		float const bar_px = 320.0f;
+		float const footer_h = ImGui::GetFrameHeightWithSpacing();
+		ImVec2 child_size{0.0f, -footer_h};
+		ImGui::BeginChild("##pattern_scroll", child_size, true,
+			ImGuiWindowFlags_HorizontalScrollbar);
+		float const track_height = std::max(40.0f,
+			ImGui::GetContentRegionAvail().y - ImGui::GetStyle().ScrollbarSize);
+		float const total_w = bar_px * apply_pattern_bars_.size();
+
+		track_draw_context pctx;
+		pctx.song_ = song_;
+		pctx.signature = song_ ? song_->default_time_signature() : time_signature{};
+		pctx.bar_count = static_cast<std::uint32_t>(apply_pattern_bars_.size());
+		pctx.bars = &apply_pattern_bars_;
+		pctx.pos = ImGui::GetCursorScreenPos();
+		pctx.size = ImVec2{total_w, track_height};
+
+		ImGui::InvisibleButton("##pattern_canvas", pctx.size,
+			ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonRight);
+		bool const hovered = ImGui::IsItemHovered();
+
+		auto* dl = ImGui::GetWindowDrawList();
+		dl->AddRectFilled(pctx.pos, ImVec2{pctx.pos.x + total_w, pctx.pos.y + track_height},
+			IM_COL32(25, 25, 25, 255));
+
+		{
+			drawer d(pctx);
+			d.draw_center_line();
+			for(auto&& b : apply_pattern_bars_) {
+				d.draw_bar(b);
+			}
+		}
+
+		float const scroll_x = ImGui::GetScrollX();
+		auto make_rel = [&](ImVec2 mouse) {
+			return ImVec2{mouse.x - pctx.pos.x - scroll_x, mouse.y - pctx.pos.y};
+		};
+
+		if(hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+			bar_calc bc(pctx, make_rel(ImGui::GetIO().MousePos), true);
+			bc.toggle_mark();
+		}
+		if(hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Right)) {
+			apply_pattern_mouse_pos_ = ImGui::GetIO().MousePos;
+			ImGui::OpenPopup("##apply_pattern_menu");
+		}
+
+		if(ImGui::BeginPopup("##apply_pattern_menu")) {
+			pattern_context_menu_items(pctx, make_rel(apply_pattern_mouse_pos_));
+			ImGui::EndPopup();
+		}
+
+		ImGui::EndChild();
+
+		bool const has_bars = context.bars && context.bar_count > 0;
+		ImGui::BeginDisabled(!has_bars);
+		if(ImGui::Button("OK")) {
+			if (undo_ && song_) { undo_->snapshot(*song_); }
+			auto& dst_bars = *context.bars;
+			for(std::size_t i = 0; i < dst_bars.size(); ++i) {
+				auto const& src = apply_pattern_bars_[i % apply_pattern_bars_.size()];
+				dst_bars[i].beats = src.beats;
+				for(auto&& b : dst_bars[i].beats) {
+					if(b.action == beat::hit) {
+						context.song_->randomise_beat(b);
+					} else if(b.action == beat::stop && !b.stop_data.falloff) {
+						b.stop_data.falloff = audio_falloff::create(audio_falloff::exponential);
+					}
+				}
+			}
+			ImGui::CloseCurrentPopup();
+		}
+		ImGui::EndDisabled();
+		ImGui::SameLine();
+		if(ImGui::Button("Cancel") || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+			ImGui::CloseCurrentPopup();
+		}
+		ImGui::EndPopup();
+	}
+}
+
 bool track::do_draw()
 {
 	if(song_) {
@@ -512,6 +724,7 @@ bool track::do_draw()
 			handle_mouse(context);
 			divide_dialog(context);
 			beat_properties_dialog(context);
+			apply_pattern_dialog(context);
 
 			drawer d(context);
 			d.draw_center_line();
