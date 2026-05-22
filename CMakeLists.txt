@@ -96,6 +96,9 @@ if(WIN32)
     set(CPACK_NSIS_ENABLE_UNINSTALL_BEFORE_INSTALL ON)
     set(CPACK_NSIS_MODIFY_PATH OFF)
 
+    # Start Menu shortcut to the bundled user manual
+    set(CPACK_NSIS_MENU_LINKS "Rumpu Manual.html" "Rumpu Manual")
+
     # .spd file association
     set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "
         WriteRegStr HKCR '.spd' '' 'RumpuProject'

@@ -41,6 +41,20 @@ if [[ "$BUILD_INSTALLER" == true ]]; then
         fi
     done
 
+    # Render the user manual to a self-contained HTML file (screenshots and
+    # stylesheet embedded), staged next to bin/ for the installer to package.
+    if ! command -v pandoc >/dev/null 2>&1; then
+        echo "Error: pandoc is required to render the manual." >&2
+        echo "       Install it (e.g. 'dnf install pandoc') and re-run." >&2
+        exit 1
+    fi
+    pandoc "${SCRIPT_DIR}/doc/MANUAL.md" \
+        --standalone --embed-resources \
+        --resource-path "${SCRIPT_DIR}/doc" \
+        --metadata pagetitle="Rumpu Manual" \
+        --css "${SCRIPT_DIR}/doc/manual.css" \
+        -o "${STAGING}/Rumpu Manual.html"
+
     cpack -G NSIS \
         -D "CPACK_INSTALL_CMAKE_PROJECTS=" \
         -D "CPACK_INSTALLED_DIRECTORIES=${STAGING};."

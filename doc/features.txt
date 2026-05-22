@@ -39,7 +39,7 @@
 * change tempo at any point between bars (should sections have default tempo which then get changed when section starts?)
 * time signature change at any point between bars (a/b division using the song default as base)
 * highlight primary hit
-* zoom the view (ctrl+mouse wheel and such)
+* zoom the view (mouse wheel)
 === Track
 * require audio file when adding track
 * volume control
