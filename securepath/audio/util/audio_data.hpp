@@ -25,10 +25,12 @@ public:
 	void save(std::string const& file, file_format = auto_format);
 	void save(std::string const& file, audio::audio_format const& format, file_format = auto_format);
 
+	// Convert to the target format: sample type, channel remap and sample-rate
+	// conversion (linear interpolation).
+	void resample(audio::audio_format const& target);
+
 	audio::audio_format format() const;
 	octet_vector data() const; //interlaced data for multiple channels
-private:
-	void resample(audio::audio_format const& target);
 private:
 	audio::audio_format format_;
 	octet_vector data_;

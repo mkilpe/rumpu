@@ -35,13 +35,13 @@ static void draw_progress(wav_exporter const& exporter) {
     ImGui::ProgressBar(fraction, {-1, 0}, overlay);
 }
 
-void export_dialog::open(song const* s) {
+void export_dialog::open(song s) {
     // Drop a result delivered after the previous dialog instance closed
     file_result_->take();
-    task_ = run(s);
+    task_ = run(std::move(s));
 }
 
-ui_task export_dialog::run(song const* s) {
+ui_task export_dialog::run(song s) {
     ImGui::OpenPopup("Export as WAV");
     co_await next_frame{};
 
@@ -110,7 +110,7 @@ ui_task export_dialog::run(song const* s) {
     // Phase 2: Export with progress
     std::string error;
     try {
-        wav_exporter exporter(path, *s, options);
+        wav_exporter exporter(path, s, options);
 
         while (exporter.process()) {
             if (!begin_export_popup()) {

@@ -4,6 +4,7 @@
 #include "events.hpp"
 #include "native_file_dialog.hpp"
 #include "toolbar.hpp"
+#include <rumpu/core/export.hpp>
 #include <rumpu/core/song_file.hpp>
 #include <rumpu/core/song_edit.hpp>
 #include <securepath/log/log.hpp>
@@ -136,15 +137,16 @@ void rumpu::menu() {
                 open_project_dialog(project_action::save);
             }
             if (ImGui::MenuItem("Export...")) {
-                auto sample_rate = player_.sample_rate();
+                // Export from a snapshot loaded at the export rate; the live
+                // song stays at the player rate so playback is unaffected.
                 try {
-                    song_edit edit{song_};
-                    song_.load_instruments(sample_rate, project_dir(current_file_));
+                    song copy{song_};
+                    copy.load_instruments(export_options{}.format.samples_per_second, project_dir(current_file_));
+                    export_dialog_.open(std::move(copy));
                 } catch(std::exception const& e) {
                     LOG_WARN("load_instruments failed: {}", e.what());
                     show_error(std::format("Failed to load instruments: {}", e.what()));
                 }
-                export_dialog_.open(&song_);
             }
             ImGui::Separator();
             if (ImGui::MenuItem("Close"))  {

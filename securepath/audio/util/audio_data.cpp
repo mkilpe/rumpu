@@ -95,35 +95,79 @@ static float remap_channel(float const* src_channels, std::uint32_t src_ch, std:
 	return src_channels[0];
 }
 
-void audio_data::resample(audio::audio_format const& target) {
-	constexpr size_t max_channels = 16;
-	if(format_.channels >= max_channels) {
-		throw std::runtime_error("Too many channels, only 16 supported");
-	}
+static constexpr std::size_t max_channels = 16;
 
-	std::uint32_t src_stride = format_.bits_per_sample / 8;
-	std::uint32_t dst_stride = target.bits_per_sample / 8;
-	std::size_t src_frame = src_stride * format_.channels;
-	std::size_t dst_frame = dst_stride * target.channels;
-	std::size_t num_frames = data_.size() / src_frame;
+// Decode source bytes to interleaved float samples remapped to dst_ch channels.
+static std::vector<float> decode_frames(octet_vector const& data, audio::audio_format const& src, std::uint32_t dst_ch) {
+	std::uint32_t src_stride = src.bits_per_sample / 8;
+	std::size_t src_frame = std::size_t{src_stride} * src.channels;
+	std::size_t num_frames = src_frame ? data.size() / src_frame : 0;
 
-	octet_vector out(num_frames * dst_frame);
-
+	std::vector<float> out(num_frames * dst_ch);
 	for(std::size_t f = 0; f != num_frames; ++f) {
-		auto* src = data_.data() + f * src_frame;
-		auto* dst = out.data() + f * dst_frame;
+		auto* p = data.data() + f * src_frame;
 
 		float channels[max_channels];
-		for(std::uint32_t c = 0; c != format_.channels; ++c) {
-			channels[c] = read_sample(src + c * src_stride, format_);
+		for(std::uint32_t c = 0; c != src.channels; ++c) {
+			channels[c] = read_sample(p + c * src_stride, src);
 		}
 
-		for(std::uint32_t c = 0; c != target.channels; ++c) {
-			write_sample(dst + c * dst_stride, remap_channel(channels, format_.channels, target.channels, c), target);
+		for(std::uint32_t c = 0; c != dst_ch; ++c) {
+			out[f * dst_ch + c] = remap_channel(channels, src.channels, dst_ch, c);
 		}
 	}
+	return out;
+}
 
-	data_ = std::move(out);
+// Rate conversion of interleaved float samples by linear interpolation.
+static std::vector<float> convert_rate(std::vector<float> const& in, std::uint32_t channels, std::uint32_t src_rate, std::uint32_t dst_rate) {
+	std::size_t src_frames = channels ? in.size() / channels : 0;
+	if(src_frames == 0) {
+		return {};
+	}
+	// Round to the nearest frame count so the duration is preserved
+	std::size_t dst_frames = std::max<std::size_t>(1, (src_frames * dst_rate + src_rate / 2) / src_rate);
+
+	std::vector<float> out(dst_frames * channels);
+	double const step = double(src_rate) / dst_rate;
+	for(std::size_t f = 0; f != dst_frames; ++f) {
+		double pos = double(f) * step;
+		auto i0 = std::min(static_cast<std::size_t>(pos), src_frames - 1);
+		auto i1 = std::min(i0 + 1, src_frames - 1);
+		float frac = static_cast<float>(pos - double(i0));
+
+		for(std::uint32_t c = 0; c != channels; ++c) {
+			float a = in[i0 * channels + c];
+			float b = in[i1 * channels + c];
+			out[f * channels + c] = a + (b - a) * frac;
+		}
+	}
+	return out;
+}
+
+static octet_vector encode_frames(std::vector<float> const& samples, audio::audio_format const& target) {
+	std::uint32_t dst_stride = target.bits_per_sample / 8;
+	octet_vector out(samples.size() * dst_stride);
+	for(std::size_t i = 0; i != samples.size(); ++i) {
+		write_sample(out.data() + i * dst_stride, samples[i], target);
+	}
+	return out;
+}
+
+void audio_data::resample(audio::audio_format const& target) {
+	if(format_.channels > max_channels) {
+		throw std::runtime_error("Too many channels, only 16 supported");
+	}
+	if(format_.samples_per_second != target.samples_per_second
+		&& (format_.samples_per_second == 0 || target.samples_per_second == 0)) {
+		throw invalid_format("cannot resample from/to a zero sample rate");
+	}
+
+	auto samples = decode_frames(data_, format_, target.channels);
+	if(format_.samples_per_second != target.samples_per_second) {
+		samples = convert_rate(samples, target.channels, format_.samples_per_second, target.samples_per_second);
+	}
+	data_ = encode_frames(samples, target);
 	format_ = target;
 }
 
