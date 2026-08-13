@@ -24,3 +24,5 @@ target_link_libraries(test_rumpu PRIVATE
 	util
 	log
 )
+
+add_test(NAME test_rumpu COMMAND test_rumpu)

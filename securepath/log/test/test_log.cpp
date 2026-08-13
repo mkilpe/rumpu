@@ -20,15 +20,18 @@ TEST_CASE("log_simple_test", "[format][log]") {
 	LOG_TRACE("{}{}{}{}test", "-",1,"--",3);
 	LOG_TRACE("{}test{}", true, false);
 	LOG_TRACE("\\% some\\a \\% test{}\\% \\%", true);
-	
+	LOG_TRACE("{{}} braces {}", 42);
+
 	std::string content = get_log_file_content(log_file1);
-		
+
 	CHECK(content.find("test 1") != std::string::npos);
 	CHECK(content.find("test 2 - 1.2") != std::string::npos);
 	CHECK(content.find("1 test t 2") != std::string::npos);
 	CHECK(content.find("-1--3test") != std::string::npos);
-	CHECK(content.find("1test0") != std::string::npos);
-	CHECK(content.find("% some\\a % test1% %") != std::string::npos);
+	// std::format semantics: bools print as true/false, % is not special
+	CHECK(content.find("truetestfalse") != std::string::npos);
+	CHECK(content.find("\\% some\\a \\% testtrue\\% \\%") != std::string::npos);
+	CHECK(content.find("{} braces 42") != std::string::npos);
 
 	log::backend::remove(log_name1);
 	std::remove(log_file1.c_str());

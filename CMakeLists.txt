@@ -31,6 +31,8 @@ set(RUMPU_VERSION_FULL "${RUMPU_VERSION}+${RUMPU_GIT_HASH}")
 set(CMAKE_CXX_STANDARD 26)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+enable_testing()
+
 get_filename_component(my_root_directory ${CMAKE_CURRENT_LIST_FILE} DIRECTORY)
 set(CMAKE_MODULE_PATH ${my_root_directory}/cmake)
 if(CMAKE_CROSSCOMPILING)
@@ -74,9 +76,7 @@ add_subdirectory(securepath)
 
 add_subdirectory(tools)
 
-if(NOT WIN32)
-    add_subdirectory(test)
-endif()
+add_subdirectory(test)
 
 if(WIN32)
     set(CPACK_GENERATOR "NSIS")

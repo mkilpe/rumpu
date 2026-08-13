@@ -124,7 +124,7 @@ TEST_CASE("log print", "[util][log]") {
 
 	std::string s = "a";
 	std::print(os, "a {} b {} cc{}{}", s, 2, 1.2, true);
-	check_and_clear(os, "a a b 2 cc1.21");
+	check_and_clear(os, "a a b 2 cc1.2true");
 
 	std::invalid_argument e("error msg");
 	std::print(os, "error: {}", e.what());
