@@ -3,9 +3,70 @@
 #include <securepath/serialisation/util.hpp>
 #include "serialisation/serialisation.hpp"
 
+#include <format>
 #include <fstream>
 
 namespace securepath::drum {
+
+// Bounds mirror what the engine can represent: the mixer clamps slide-driven
+// tempo to [1, 9999] (mixer.cpp) and divides by both time-signature fields.
+static void validate_time_signature(time_signature const& ts, char const* what) {
+	if(ts.beats_in_bar() < 1 || ts.beats_in_bar() > 128
+			|| ts.beat_type() < 1 || ts.beat_type() > 128) {
+		throw std::runtime_error(std::format("invalid {} {}/{} in project file",
+			what, ts.beats_in_bar(), ts.beat_type()));
+	}
+}
+
+static void validate_tempo(tempo const& t, char const* what) {
+	// range check also rejects NaN
+	if(!(t.value >= 1.0f && t.value <= 9999.0f)) {
+		throw std::runtime_error(std::format("invalid {} {} in project file", what, t.value));
+	}
+}
+
+static void validate_section(section const& sec, std::size_t track_count, std::size_t instrument_count) {
+	if(sec.length() < 1) {
+		throw std::runtime_error("zero-length section in project file");
+	}
+	if(sec.tracks().size() != track_count) {
+		throw std::runtime_error("sections have differing track counts in project file");
+	}
+	for(auto const& t : sec.tracks()) {
+		if(t.instrument_index() >= instrument_count) {
+			throw std::runtime_error(std::format(
+				"track references instrument {} but only {} exist in project file",
+				t.instrument_index(), instrument_count));
+		}
+		if(t.bars().size() != sec.length()) {
+			throw std::runtime_error("track bar count does not match section length in project file");
+		}
+	}
+	for(auto const& [bar, change] : sec.changes()) {
+		if(change.timing_change) {
+			validate_time_signature(*change.timing_change, "time signature change");
+		}
+		if(change.tempo_change) {
+			validate_tempo(*change.tempo_change, "tempo change");
+		}
+	}
+}
+
+void validate_song(song const& s) {
+	validate_time_signature(s.default_time_signature(), "time signature");
+	validate_tempo(s.default_tempo(), "tempo");
+	std::size_t const track_count = s.sections().empty()
+		? 0 : s.sections().begin()->second.tracks().size();
+	for(auto const& [id, sec] : s.sections()) {
+		validate_section(sec, track_count, s.instruments().size());
+	}
+	for(auto id : s.section_order()) {
+		if(!s.find_section(id)) {
+			throw std::runtime_error(std::format(
+				"section order references missing section {} in project file", id));
+		}
+	}
+}
 
 std::string const file_tag{"spd"};
 // v1: original format; v2: song-level track_settings added (2026-08)
@@ -36,6 +97,7 @@ song load_song_file(std::string const& file) {
 	deser & s;
 	// files saved before track_settings existed migrate from the first section
 	s.sync_track_settings();
+	validate_song(s);
 	return s;
 }
 

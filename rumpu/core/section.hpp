@@ -47,6 +47,8 @@ public:
 		return it != changes_.end() ? it->second : std::optional<section_bar_change>();
 	}
 
+	auto& changes(this auto& self) { return self.changes_; }
+
 	void set_tempo_change(std::uint32_t bar_index, std::optional<tempo> t) {
 		auto& change = changes_[bar_index];
 		change.tempo_change = t;

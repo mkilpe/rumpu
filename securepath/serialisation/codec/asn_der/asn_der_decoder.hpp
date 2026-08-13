@@ -16,6 +16,9 @@ namespace securepath::serialisation {
 /// Limit maximum size of the asn structures, so that memory usage is limited in case of malicious remote peer
 std::uint64_t const max_structure_size{1024*1024*2};
 
+/// Limit structure nesting depth, so that recursively decoded types cannot overflow the stack
+std::size_t const max_structure_depth{64};
+
 template<typename Stream>
 class asn_der_decoder : public decoder {
 public:
@@ -173,6 +176,9 @@ private:
 	}
 
 	void push(std::uint64_t length) {
+		if(seq_pos_.size() >= max_structure_depth) {
+			throw serialisation_error("structure nesting too deep");
+		}
 		seq_pos_.push_front(s_.pos()+length);
 	}
 

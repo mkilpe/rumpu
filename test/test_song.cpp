@@ -8,6 +8,7 @@
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
+#include <limits>
 
 using namespace securepath;
 using namespace securepath::drum;
@@ -151,5 +152,104 @@ TEST_CASE("loader rejects files newer than the current version", "[song][seriali
 	CHECK_THROWS_AS(load_song_file(file), std::runtime_error);
 	save_with_version(file, 0, s);
 	CHECK_THROWS_AS(load_song_file(file), std::runtime_error);
+	std::remove(file.c_str());
+}
+
+// M4: hostile-but-well-formed files must be rejected at load, not crash at play
+
+static song make_valid_song() {
+	song s{{}, {4, 4}, {120}};
+	s.add_instrument(instrument{});
+	auto id = s.add_section();
+	s.section_order().push_back(id);
+	return s;
+}
+
+static void check_load_rejects(song& s) {
+	auto file = (std::filesystem::temp_directory_path() / "rumpu_test_validate.spd").string();
+	save_song_file(file, s);
+	CHECK_THROWS_AS(load_song_file(file), std::runtime_error);
+	std::remove(file.c_str());
+}
+
+TEST_CASE("validate_song accepts a well-formed song", "[song][validate]") {
+	song s = make_valid_song();
+	CHECK_NOTHROW(validate_song(s));
+}
+
+TEST_CASE("load rejects out-of-range instrument index", "[song][validate]") {
+	song s = make_valid_song();
+	s.sections().begin()->second.tracks()[0].set_instrument_index(1000);
+	check_load_rejects(s);
+}
+
+TEST_CASE("load rejects invalid tempo", "[song][validate]") {
+	song zero = make_valid_song();
+	zero.set_default_tempo({0});
+	check_load_rejects(zero);
+
+	song nan = make_valid_song();
+	nan.set_default_tempo({std::numeric_limits<float>::quiet_NaN()});
+	CHECK_THROWS_AS(validate_song(nan), std::runtime_error);
+}
+
+TEST_CASE("load rejects invalid per-bar tempo change", "[song][validate]") {
+	song s = make_valid_song();
+	s.sections().begin()->second.set_tempo_change(1, tempo{0});
+	check_load_rejects(s);
+}
+
+TEST_CASE("load rejects invalid time signature", "[song][validate]") {
+	song s = make_valid_song();
+	s.set_default_time_signature({0, 4});
+	check_load_rejects(s);
+}
+
+TEST_CASE("load rejects zero-length section", "[song][validate]") {
+	song s = make_valid_song();
+	s.sections().begin()->second.set_length(0);
+	check_load_rejects(s);
+}
+
+TEST_CASE("load rejects differing per-section track counts", "[song][validate]") {
+	song s = make_valid_song();
+	auto id2 = s.add_section();
+	s.find_section(id2)->add_track(0);
+	check_load_rejects(s);
+}
+
+TEST_CASE("load rejects section order with missing ids", "[song][validate]") {
+	song s = make_valid_song();
+	s.section_order().push_back(99);
+	check_load_rejects(s);
+}
+
+TEST_CASE("load rejects absurd beat division nesting", "[song][validate]") {
+	song s = make_valid_song();
+	auto& beats = s.sections().begin()->second.tracks()[0].bars()[0].beats;
+	beats.resize(1);
+	// 100 nesting levels: enough to exceed the decoder's depth cap, shallow
+	// enough that the (recursive) encoder can still write it
+	beat* b = &beats[0];
+	for(int i = 0; i != 100; ++i) {
+		b->division.resize(1);
+		b = &b->division[0];
+	}
+	check_load_rejects(s);
+}
+
+TEST_CASE("load accepts moderate beat division nesting", "[song][validate]") {
+	song s = make_valid_song();
+	auto& beats = s.sections().begin()->second.tracks()[0].bars()[0].beats;
+	beats.resize(1);
+	beat* b = &beats[0];
+	for(int i = 0; i != 4; ++i) {
+		b->division.resize(2);
+		b = &b->division[0];
+	}
+
+	auto file = (std::filesystem::temp_directory_path() / "rumpu_test_nesting.spd").string();
+	save_song_file(file, s);
+	CHECK_NOTHROW(load_song_file(file));
 	std::remove(file.c_str());
 }
