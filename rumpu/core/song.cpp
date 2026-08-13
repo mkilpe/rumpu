@@ -21,6 +21,7 @@ song::song(song const& o)
 , rand_offset_(o.rand_offset_)
 , rand_volume_(o.rand_volume_)
 , tempo_slide_(o.tempo_slide_)
+, track_settings_(o.track_settings_)
 {
 }
 
@@ -36,6 +37,7 @@ song& song::operator=(song const& o) {
 		rand_offset_ = o.rand_offset_;
 		rand_volume_ = o.rand_volume_;
 		tempo_slide_ = o.tempo_slide_;
+		track_settings_ = o.track_settings_;
 	}
 	return *this;
 }
@@ -51,6 +53,7 @@ song::song(song&& o) noexcept
 , rand_offset_(std::move(o.rand_offset_))
 , rand_volume_(std::move(o.rand_volume_))
 , tempo_slide_(std::move(o.tempo_slide_))
+, track_settings_(std::move(o.track_settings_))
 {
 }
 
@@ -65,6 +68,7 @@ song& song::operator=(song&& o) noexcept {
 	rand_offset_ = std::move(o.rand_offset_);
 	rand_volume_ = std::move(o.rand_volume_);
 	tempo_slide_ = std::move(o.tempo_slide_);
+	track_settings_ = std::move(o.track_settings_);
 	return *this;
 }
 
@@ -161,6 +165,16 @@ void song::remove_instrument(std::size_t index) {
 		return;
 	}
 	instruments_.erase(instruments_.begin() + index);
+	// Erase settings of the tracks about to be removed; every section has the
+	// same track layout, so the first section gives the positions.
+	if(!sections_.empty()) {
+		auto const& ref_tracks = sections_.begin()->second.tracks();
+		for(std::size_t i = ref_tracks.size(); i-- > 0;) {
+			if(ref_tracks[i].instrument_index() == index && i < track_settings_.size()) {
+				track_settings_.erase(track_settings_.begin() + i);
+			}
+		}
+	}
 	for(auto& [id, sec] : sections_) {
 		auto& tracks = sec.tracks();
 		std::erase_if(tracks, [index](track const& t) {
@@ -207,6 +221,7 @@ std::uint32_t song::add_section(std::optional<section> s) {
 	if(sections_[index].name().empty()) {
 		sections_[index].set_name("Section " + std::to_string(index));
 	}
+	sync_track_settings();
 	return index;
 }
 
@@ -216,11 +231,36 @@ void song::add_section(std::uint32_t id) {
 		sections_[id].set_name("Section " + std::to_string(id));
 	}
 	populate_default_beats(sections_[id]);
+	sync_track_settings();
 }
 
 void song::remove_section(std::uint32_t id) {
 	sections_.erase(id);
 	std::erase(section_order_, id);
+}
+
+void song::add_track(std::size_t instrument_index, std::string const& name) {
+	for(auto& [id, sec] : sections_) {
+		auto& t = sec.add_track(instrument_index);
+		t.set_name(name);
+		for(auto& b : t.bars()) {
+			b.beats.resize(default_time_signature_.beats_in_bar());
+		}
+	}
+	sync_track_settings();
+}
+
+void song::sync_track_settings() {
+	if(sections_.empty()) {
+		return;
+	}
+	auto const& tracks = sections_.begin()->second.tracks();
+	while(track_settings_.size() > tracks.size()) {
+		track_settings_.pop_back();
+	}
+	for(std::size_t i = track_settings_.size(); i < tracks.size(); ++i) {
+		track_settings_.push_back({tracks[i].volume(), tracks[i].random_seed()});
+	}
 }
 
 }

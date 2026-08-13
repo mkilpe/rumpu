@@ -24,7 +24,8 @@ void track_pane::set_context(event_system::event_handler& h, song* s, std::uint3
     if(s && instrument_index_ < s->instruments().size()) {
         auto const& instr = s->instruments()[instrument_index_];
         display_name_ = t.name().empty() ? instr.name() : t.name();
-        float vol = t.volume().value;
+        float vol = track_index < s->track_settings().size()
+            ? s->track_settings()[track_index].volume.value : 1.0f;
         gain_ = 20.0f * std::log10(std::max(vol, 1e-6f));
     }
 }
@@ -48,12 +49,11 @@ bool track_pane::do_draw()
         }
     }
 
-    auto* sec = song_ ? song_->find_section(section_) : nullptr;
-    drum::track* trk = (sec && track_index_ < sec->tracks().size())
-        ? &sec->tracks()[track_index_] : nullptr;
+    auto* settings = (song_ && track_index_ < song_->track_settings().size())
+        ? &song_->track_settings()[track_index_] : nullptr;
 
-    if (trk) {
-        bool muted = trk->volume().mute;
+    if (settings) {
+        bool muted = settings->volume.mute;
 
         ImVec4 btn_color = muted
             ? ImVec4(0.7f, 0.2f, 0.2f, 1.0f)
@@ -68,9 +68,7 @@ bool track_pane::do_draw()
         std::string btn_id = "M##m" + std::to_string(track_index_);
         if (ImGui::SmallButton(btn_id.c_str())) {
             song_edit edit{*song_, undo_};
-            drum::volume v = trk->volume();
-            v.mute = !muted;
-            trk->set_volume(v);
+            settings->volume.mute = !muted;
         }
 
         ImGui::PopStyleColor(2);
@@ -78,20 +76,16 @@ bool track_pane::do_draw()
     }
 
     if (ImGuiKnobs::Knob("Gain", &gain_, -6.0f, 6.0f, 0.1f, "%.1f", ImGuiKnobVariant_Tick, 30)) {
-        if(trk) {
+        if(settings) {
             song_edit edit{*song_, undo_, coalesce_key::track_volume};
-            drum::volume v = trk->volume();
-            v.value = std::pow(10.0f, gain_ / 20.0f);
-            trk->set_volume(v);
+            settings->volume.value = std::pow(10.0f, gain_ / 20.0f);
         }
     }
     if (ImGui::IsItemActive() && ImGui::IsMouseDoubleClicked(0)) {
         gain_ = 0.0f;
-        if(trk) {
+        if(settings) {
             song_edit edit{*song_, undo_};
-            drum::volume v = trk->volume();
-            v.value = 1.0f;
-            trk->set_volume(v);
+            settings->volume.value = 1.0f;
         }
     }
     if (ImGui::BeginPopupContextWindow()) {

@@ -62,13 +62,44 @@ TEST_CASE("mixer play_position advances after processing", "[mixer]") {
 TEST_CASE("mixer muted track produces no audio", "[mixer]") {
 	song s{{}, {4, 4}, {120}};
 	add_kick_pattern(s);
-	auto sec_id = s.section_order()[0];
-	s.find_section(sec_id)->tracks()[0].set_volume(volume{true, 1.0f});
+	REQUIRE(!s.track_settings().empty());
+	s.track_settings()[0].volume = volume{true, 1.0f};
 	mixer m{s, 44100};
 	std::vector<float> buf(4096, 0.0f);
 	m.process(buf.data(), buf.size());
 	for(float v : buf) {
 		CHECK(v == 0.0f);
+	}
+}
+
+TEST_CASE("mixer honors whole-track mute when playing a later section", "[mixer][track_settings]") {
+	song s{{}, {4, 4}, {120}};
+	add_kick_pattern(s);
+	auto id2 = s.add_section();
+	s.section_order().push_back(id2);
+	auto& sec2 = *s.find_section(id2);
+	beat b;
+	b.action = beat::hit;
+	b.hit_data.volume = volume{false, 1.0f};
+	sec2.tracks()[0].bars()[0].beats[0] = b;
+
+	// audible before muting
+	{
+		mixer m{s, id2, 44100};
+		std::vector<float> buf(4096, 0.0f);
+		m.process(buf.data(), buf.size());
+		CHECK(buf[0] != 0.0f);
+	}
+
+	REQUIRE(!s.track_settings().empty());
+	s.track_settings()[0].volume.mute = true;
+	{
+		mixer m{s, id2, 44100};
+		std::vector<float> buf(4096, 0.0f);
+		m.process(buf.data(), buf.size());
+		for(float v : buf) {
+			REQUIRE(v == 0.0f);
+		}
 	}
 }
 
@@ -248,11 +279,11 @@ TEST_CASE("mixer tracks with different seeds pick different sample sequences",
 	// same hit pattern, but different track seeds. Audio outputs must differ.
 	song a{{}, {4, 4}, {120}};
 	add_multi_sample_pattern(a);
-	a.find_section(a.section_order()[0])->tracks()[0].set_random_seed(1u);
+	a.track_settings()[0].random_seed = 1u;
 
 	song b{{}, {4, 4}, {120}};
 	add_multi_sample_pattern(b);
-	b.find_section(b.section_order()[0])->tracks()[0].set_random_seed(2u);
+	b.track_settings()[0].random_seed = 2u;
 
 	std::size_t const n = 44100 * 9;
 	auto audio_a = render_whole_song(a, n);

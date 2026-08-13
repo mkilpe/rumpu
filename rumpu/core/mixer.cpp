@@ -102,13 +102,11 @@ struct mixer::impl {
 		pos_.global_tempo_slide = song_->global_tempo_slide();
 		pos_.current_timing = song_->default_time_signature();
 		pos_.current_tempo = song_->default_tempo();
-		if(!s.sections().empty()) {
-			auto const& tracks = s.sections().begin()->second.tracks();
-			infos_.resize(tracks.size());
-			for(std::size_t i = 0; i != infos_.size(); ++i) {
-				infos_[i].volume = tracks[i].volume();
-				infos_[i].seed_base = tracks[i].random_seed();
-			}
+		auto const& settings = s.track_settings();
+		infos_.resize(settings.size());
+		for(std::size_t i = 0; i != infos_.size(); ++i) {
+			infos_[i].volume = settings[i].volume;
+			infos_[i].seed_base = settings[i].random_seed;
 		}
 	}
 

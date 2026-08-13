@@ -1,7 +1,15 @@
 #include <catch2/catch_all.hpp>
 
 #include <rumpu/core/song.hpp>
+#include <rumpu/core/song_file.hpp>
+#include <rumpu/core/serialisation/serialisation.hpp>
+#include <securepath/serialisation/util.hpp>
 
+#include <cstdio>
+#include <filesystem>
+#include <fstream>
+
+using namespace securepath;
 using namespace securepath::drum;
 
 TEST_CASE("add_section does not reuse a live section id", "[song]") {
@@ -41,4 +49,107 @@ TEST_CASE("add_section starts from id 1 on an empty song", "[song]") {
 	CHECK(id1 == 1);
 	s.remove_section(id1);
 	CHECK(s.add_section() == 1);
+}
+
+TEST_CASE("add_section sizes track_settings to the track count", "[song][track_settings]") {
+	song s{{}, {4, 4}, {120}};
+	s.add_instrument(instrument{});
+	s.add_instrument(instrument{});
+	s.add_section();
+	CHECK(s.track_settings().size() == 2);
+}
+
+TEST_CASE("add_track appends a settings entry", "[song][track_settings]") {
+	song s{{}, {4, 4}, {120}};
+	s.add_instrument(instrument{});
+	s.add_section();
+	REQUIRE(s.track_settings().size() == 1);
+
+	s.add_track(0, "second");
+	REQUIRE(s.track_settings().size() == 2);
+	for(auto const& [id, sec] : s.sections()) {
+		CHECK(sec.tracks().size() == 2);
+	}
+}
+
+TEST_CASE("remove_instrument erases the matching settings entry", "[song][track_settings]") {
+	song s{{}, {4, 4}, {120}};
+	s.add_instrument(instrument{});
+	s.add_instrument(instrument{});
+	s.add_section();
+	REQUIRE(s.track_settings().size() == 2);
+	s.track_settings()[0].volume.value = 0.25f;
+	s.track_settings()[1].volume.value = 0.75f;
+
+	s.remove_instrument(0);
+	REQUIRE(s.track_settings().size() == 1);
+	CHECK(s.track_settings()[0].volume.value == 0.75f);
+}
+
+TEST_CASE("sync_track_settings migrates from the first section", "[song][track_settings]") {
+	song s{{}, {4, 4}, {120}};
+	s.add_instrument(instrument{});
+	s.add_section();
+	auto& trk = s.sections().begin()->second.tracks()[0];
+	trk.set_volume({true, 0.5f});
+	trk.set_random_seed(1234);
+
+	// simulate a pre-settings file: settings absent after load
+	s.track_settings().clear();
+	s.sync_track_settings();
+
+	REQUIRE(s.track_settings().size() == 1);
+	CHECK(s.track_settings()[0].volume.mute == true);
+	CHECK(s.track_settings()[0].volume.value == 0.5f);
+	CHECK(s.track_settings()[0].random_seed == 1234);
+}
+
+TEST_CASE("track_settings round-trip through song file", "[song][track_settings]") {
+	song s{{}, {4, 4}, {120}};
+	s.add_instrument(instrument{});
+	s.add_section();
+	REQUIRE(s.track_settings().size() == 1);
+	s.track_settings()[0].volume = {true, 0.5f};
+	s.track_settings()[0].random_seed = 4242;
+
+	auto file = (std::filesystem::temp_directory_path() / "rumpu_test_settings.spd").string();
+	save_song_file(file, s);
+	song loaded = load_song_file(file);
+	std::remove(file.c_str());
+
+	REQUIRE(loaded.track_settings().size() == 1);
+	CHECK(loaded.track_settings()[0].volume.mute == true);
+	CHECK(loaded.track_settings()[0].volume.value == 0.5f);
+	CHECK(loaded.track_settings()[0].random_seed == 4242);
+}
+
+static void save_with_version(std::string const& file, int version, song& s) {
+	std::ofstream out(file, std::ios_base::binary | std::ios_base::trunc);
+	out.write("spd", 3);
+	serialisation::asn_der_encoder enc(out);
+	serialisation::serialiser ser(enc);
+	ser & version & s;
+}
+
+TEST_CASE("loader accepts files older than the current version", "[song][serialisation]") {
+	song s{{}, {4, 4}, {120}};
+	s.add_instrument(instrument{});
+	s.add_section();
+
+	auto file = (std::filesystem::temp_directory_path() / "rumpu_test_version.spd").string();
+	save_with_version(file, 1, s);
+	CHECK_NOTHROW(load_song_file(file));
+	std::remove(file.c_str());
+}
+
+TEST_CASE("loader rejects files newer than the current version", "[song][serialisation]") {
+	song s{{}, {4, 4}, {120}};
+	s.add_section();
+
+	auto file = (std::filesystem::temp_directory_path() / "rumpu_test_version.spd").string();
+	save_with_version(file, 3, s);
+	CHECK_THROWS_AS(load_song_file(file), std::runtime_error);
+	save_with_version(file, 0, s);
+	CHECK_THROWS_AS(load_song_file(file), std::runtime_error);
+	std::remove(file.c_str());
 }

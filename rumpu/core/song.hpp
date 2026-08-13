@@ -6,6 +6,7 @@
 #include "time_signature.hpp"
 
 #include <cassert>
+#include <deque>
 #include <iterator>
 #include <map>
 #include <random>
@@ -18,6 +19,13 @@ struct song_metainfo {
 	std::string name;
 	std::string author;
 	std::string notes;
+};
+
+// Per-track state that applies to the whole track across all sections,
+// indexed in parallel with each section's tracks().
+struct track_settings {
+	drum::volume volume{};
+	std::uint32_t random_seed{std::random_device{}()};
 };
 
 class song {
@@ -67,6 +75,13 @@ public:
 	void add_section(std::uint32_t id);
 	void remove_section(std::uint32_t id);
 
+	auto& track_settings(this auto& self) { return self.track_settings_; }
+	// Adds a track for the instrument to every section and registers its settings.
+	void add_track(std::size_t instrument_index, std::string const& name);
+	// Sizes track_settings_ to the track count, pulling values for missing
+	// entries from the first section's tracks (migrates pre-settings files).
+	void sync_track_settings();
+
 	template<typename Ar>
 	friend Ar& serialise(Ar&, song&);
 
@@ -105,6 +120,9 @@ private:
 
 	// global tempo slide
 	std::optional<delta_tempo> tempo_slide_;
+
+	// whole-track volume/mute/seed, parallel to each section's tracks()
+	std::deque<drum::track_settings> track_settings_;
 
 	// rng for randomisation
 	std::mt19937 rng_{std::random_device{}()};

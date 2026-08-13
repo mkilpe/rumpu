@@ -90,11 +90,24 @@ Ar& serialise(Ar& ar, drum_sample& d) {
 }
 
 template<typename Ar>
+Ar& serialise(Ar& ar, track_settings& d) {
+	serialisation::sequence<Ar> seq(ar);
+	seq & d.volume & d.random_seed;
+	return ar;
+}
+
+template<typename Ar>
 Ar& serialise(Ar& ar, song& d) {
 	serialisation::sequence<Ar> seq(ar);
+	// trailing optional: absent in pre-settings files, migrated on load
+	std::optional<std::deque<track_settings>> settings = d.track_settings_;
 	seq & d.info_ & d.default_time_signature_ & d.default_tempo_
 		& d.instruments_ & d.sections_ & d.section_order_ & d.accent_info_
-		& d.rand_offset_ & d.rand_volume_ & serialisation::implicit_tag(1, d.tempo_slide_);
+		& d.rand_offset_ & d.rand_volume_ & serialisation::implicit_tag(1, d.tempo_slide_)
+		& settings;
+	if (settings) {
+		d.track_settings_ = std::move(*settings);
+	}
 	return ar;
 }
 

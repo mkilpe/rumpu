@@ -8,7 +8,8 @@
 namespace securepath::drum {
 
 std::string const file_tag{"spd"};
-int const format_version{1};
+// v1: original format; v2: song-level track_settings added (2026-08)
+int const format_version{2};
 
 song load_song_file(std::string const& file) {
 	std::ifstream in(file, std::ios_base::binary);
@@ -26,12 +27,15 @@ song load_song_file(std::string const& file) {
 
 	int version{};
 	deser & version;
-	if(version != format_version) {
+	// Older versions load (decode handles absent fields); newer ones are rejected.
+	if(version < 1 || version > format_version) {
 		throw std::runtime_error("incompatible file version");
 	}
 
 	song s;
 	deser & s;
+	// files saved before track_settings existed migrate from the first section
+	s.sync_track_settings();
 	return s;
 }
 
