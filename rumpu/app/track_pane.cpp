@@ -1,6 +1,7 @@
 #include "track_pane.hpp"
 #include "events.hpp"
 #include <rumpu/core/undo_manager.hpp>
+#include <rumpu/core/song_edit.hpp>
 
 #include "imgui.h"
 #include "imgui-knobs.h"
@@ -66,7 +67,7 @@ bool track_pane::do_draw()
 
         std::string btn_id = "M##m" + std::to_string(track_index_);
         if (ImGui::SmallButton(btn_id.c_str())) {
-            if (undo_ && song_) { undo_->snapshot(*song_); }
+            song_edit edit{*song_, undo_};
             drum::volume v = trk->volume();
             v.mute = !muted;
             trk->set_volume(v);
@@ -78,16 +79,16 @@ bool track_pane::do_draw()
 
     if (ImGuiKnobs::Knob("Gain", &gain_, -6.0f, 6.0f, 0.1f, "%.1f", ImGuiKnobVariant_Tick, 30)) {
         if(trk) {
-            if (undo_ && song_) { undo_->snapshot(*song_, coalesce_key::track_volume); }
+            song_edit edit{*song_, undo_, coalesce_key::track_volume};
             drum::volume v = trk->volume();
             v.value = std::pow(10.0f, gain_ / 20.0f);
             trk->set_volume(v);
         }
     }
     if (ImGui::IsItemActive() && ImGui::IsMouseDoubleClicked(0)) {
-        if (undo_ && song_) { undo_->snapshot(*song_); }
         gain_ = 0.0f;
         if(trk) {
+            song_edit edit{*song_, undo_};
             drum::volume v = trk->volume();
             v.value = 1.0f;
             trk->set_volume(v);

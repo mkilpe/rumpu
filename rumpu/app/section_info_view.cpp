@@ -1,6 +1,7 @@
 
 #include "section_info_view.hpp"
 #include <rumpu/core/undo_manager.hpp>
+#include <rumpu/core/song_edit.hpp>
 
 #include "imgui.h"
 #include "misc/cpp/imgui_stdlib.h"
@@ -33,7 +34,7 @@ bool section_info_view::do_draw() {
     }
     ImGui::SetNextItemWidth(150);
     if (ImGui::InputText("##section_name", &name_buf_)) {
-        if (undo_ && song_) { undo_->snapshot(*song_, coalesce_key::section_name); }
+        song_edit edit{*song_, undo_, coalesce_key::section_name};
         section->set_name(name_buf_);
     }
     ImGui::SameLine();
@@ -43,7 +44,7 @@ bool section_info_view::do_draw() {
     int length = section->length();
     if(ImGui::InputInt("bars", &length, 1)) {
         if(length >= 1 && length <= 1024) {
-            if (undo_ && song_) { undo_->snapshot(*song_, coalesce_key::section_length); }
+            song_edit edit{*song_, undo_, coalesce_key::section_length};
             section->set_length(length);
         }
     }

@@ -18,16 +18,9 @@ add_instruments_from_folder_dialog::add_instruments_from_folder_dialog(event_sys
 {}
 
 void add_instruments_from_folder_dialog::open() {
+    // Drop a result delivered after the previous dialog instance closed
+    folder_result_->take();
     task_ = run();
-}
-
-std::string add_instruments_from_folder_dialog::collect_folder_result() {
-    std::lock_guard l{result_mutex_};
-    if (has_result_) {
-        has_result_ = false;
-        return std::move(result_folder_);
-    }
-    return {};
 }
 
 static bool is_wav_extension(std::filesystem::path const& p) {
@@ -73,7 +66,6 @@ ui_task add_instruments_from_folder_dialog::run() {
 
     std::string folder;
     bool recursive = false;
-    bool browsing = false;
 
     std::string scanned_folder;
     bool scanned_recursive = false;
@@ -82,9 +74,8 @@ ui_task add_instruments_from_folder_dialog::run() {
     std::string scan_error;
 
     while (true) {
-        if (auto result = collect_folder_result(); !result.empty()) {
-            folder = std::move(result);
-            browsing = false;
+        if (auto result = folder_result_->take(); result && !result->empty()) {
+            folder = std::move(*result);
         }
 
         ImGui::SetNextWindowSize({640, 480}, ImGuiCond_FirstUseEver);
@@ -98,19 +89,16 @@ ui_task add_instruments_from_folder_dialog::run() {
         ImGui::InputText("##folder", &folder);
         ImGui::SameLine();
 
-        bool const was_browsing = browsing;
-        if (was_browsing) {
+        bool const browsing = folder_result_->in_flight();
+        if (browsing) {
             ImGui::BeginDisabled();
         }
-        if (ImGui::Button("Browse...")) {
-            browsing = true;
-            open_folder_dialog([this](std::string p) {
-                std::lock_guard l{result_mutex_};
-                result_folder_ = std::move(p);
-                has_result_ = true;
+        if (ImGui::Button("Browse...") && folder_result_->begin()) {
+            open_folder_dialog([r = folder_result_](std::string p) {
+                r->deliver(std::move(p));
             });
         }
-        if (was_browsing) {
+        if (browsing) {
             ImGui::EndDisabled();
         }
 

@@ -1,6 +1,7 @@
 
 #include "instruments_dialog.hpp"
 #include "native_file_dialog.hpp"
+#include <rumpu/core/song_edit.hpp>
 
 #include "imgui.h"
 #include "imgui_stdlib.h"
@@ -11,16 +12,9 @@
 namespace securepath::drum::app {
 
 void instruments_dialog::open(song* s, undo_manager* undo) {
+    // Drop a result delivered after the previous dialog instance closed
+    file_result_->take();
     task_ = run(s, undo);
-}
-
-std::string instruments_dialog::collect_file_result() {
-    std::lock_guard l{result_mutex_};
-    if (has_result_) {
-        has_result_ = false;
-        return std::move(result_path_);
-    }
-    return {};
 }
 
 static std::string sample_label(drum_sample const& s) {
@@ -42,14 +36,13 @@ ui_task instruments_dialog::run(song* s, undo_manager* undo) {
 
     int selected = s->instruments().empty() ? -1 : 0;
     int selected_sample = -1;
-    bool browsing = false;
 
     while (true) {
-        if (auto result = collect_file_result(); !result.empty()) {
+        if (auto result = file_result_->take(); result && !result->empty()) {
             if (selected >= 0 && static_cast<std::size_t>(selected) < s->instruments().size()) {
-                s->instruments()[selected].add_sample(std::move(result));
+                song_edit edit{*s};
+                s->instruments()[selected].add_sample(std::move(*result));
             }
-            browsing = false;
         }
 
         ImGui::SetNextWindowSize({720, 480}, ImGuiCond_FirstUseEver);
@@ -91,6 +84,7 @@ ui_task instruments_dialog::run(song* s, undo_manager* undo) {
             ImGui::SetNextItemWidth(-FLT_MIN);
             std::string name = inst.name();
             if (ImGui::InputText("##name", &name)) {
+                song_edit edit{*s};
                 inst.set_name(std::move(name));
             }
 
@@ -101,11 +95,13 @@ ui_task instruments_dialog::run(song* s, undo_manager* undo) {
             ImGui::SetNextItemWidth(-FLT_MIN);
             if (ImGui::SliderFloat("##volume", &vol_value, 0.0f, 1.0f, "%.2f")) {
                 vol.value = vol_value;
+                song_edit edit{*s};
                 inst.set_volume(vol);
             }
             bool mute = vol.mute;
             if (ImGui::Checkbox("Mute", &mute)) {
                 vol.mute = mute;
+                song_edit edit{*s};
                 inst.set_volume(vol);
             }
 
@@ -130,19 +126,16 @@ ui_task instruments_dialog::run(song* s, undo_manager* undo) {
                 ImGui::EndListBox();
             }
 
-            bool const was_browsing = browsing;
-            if (was_browsing) {
+            bool const browsing = file_result_->in_flight();
+            if (browsing) {
                 ImGui::BeginDisabled();
             }
-            if (ImGui::Button("Add sample...")) {
-                browsing = true;
-                open_wav_file_dialog([this](std::string p) {
-                    std::lock_guard l{result_mutex_};
-                    result_path_ = std::move(p);
-                    has_result_ = true;
+            if (ImGui::Button("Add sample...") && file_result_->begin()) {
+                open_wav_file_dialog([r = file_result_](std::string p) {
+                    r->deliver(std::move(p));
                 });
             }
-            if (was_browsing) {
+            if (browsing) {
                 ImGui::EndDisabled();
             }
 
@@ -155,7 +148,10 @@ ui_task instruments_dialog::run(song* s, undo_manager* undo) {
                 ImGui::BeginDisabled();
             }
             if (ImGui::Button("Remove sample")) {
-                inst.remove_sample(static_cast<std::size_t>(selected_sample));
+                {
+                    song_edit edit{*s};
+                    inst.remove_sample(static_cast<std::size_t>(selected_sample));
+                }
                 if (selected_sample >= static_cast<int>(inst.samples().size())) {
                     selected_sample = inst.samples().empty()
                         ? -1

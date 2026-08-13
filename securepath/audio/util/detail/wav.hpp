@@ -5,6 +5,12 @@
 
 namespace securepath::audio {
 
+// Validates a parsed WAV format chunk against what this decoder can safely and
+// correctly handle, throwing invalid_format on any unsupported or inconsistent
+// parameters. data_size is the size of the data chunk in bytes. Kept as a free
+// function so malformed inputs can be exercised without crafting a byte stream.
+void validate_wav_format(riff::riff_fmt_data const& fmt, std::size_t data_size);
+
 class wav {
 public:
 	wav(octet_vector& d)

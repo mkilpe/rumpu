@@ -61,9 +61,9 @@ public:
 		std::snprintf(buffer, 15, "%04u%02u%02u%02u%02u%02u"
 			, t.tm_year + 1900, t.tm_mon + 1, t.tm_mday
 			, t.tm_hour, t.tm_min, t.tm_sec);
-		int ms = std::chrono::duration_cast<std::chrono::milliseconds>(time.time_since_epoch()).count() % 1000;
+		int ms = std::abs(static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(time.time_since_epoch()).count() % 1000));
 		if(ms) {
-			std::snprintf(buffer + 14, 6, ".%03uZ", ms);
+			std::snprintf(buffer + 14, 6, ".%03dZ", ms);
 		} else {
 			buffer[14] = 'Z';
 		}

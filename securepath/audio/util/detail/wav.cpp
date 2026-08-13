@@ -9,6 +9,44 @@ namespace securepath::audio {
 
 using namespace securepath::audio::riff;
 
+namespace {
+	constexpr std::uint16_t wav_format_pcm = 1;
+	constexpr std::uint16_t wav_format_float = 3;
+	constexpr std::uint16_t max_channels = 16;
+	constexpr std::uint32_t max_sample_rate = 768000;
+}
+
+void validate_wav_format(riff::riff_fmt_data const& fmt, std::size_t data_size) {
+	if(fmt.audio_format != wav_format_pcm && fmt.audio_format != wav_format_float) {
+		LOG_INFO("unsupported wav audio format tag: {}", fmt.audio_format);
+		throw invalid_format("unsupported WAV format; only PCM and IEEE float are supported");
+	}
+	if(fmt.channels < 1 || fmt.channels > max_channels) {
+		LOG_INFO("invalid channel count: {}", fmt.channels);
+		throw invalid_format("unsupported channel count");
+	}
+	if(fmt.sample_rate < 1 || fmt.sample_rate > max_sample_rate) {
+		LOG_INFO("invalid sample rate: {}", fmt.sample_rate);
+		throw invalid_format("unsupported sample rate");
+	}
+	if(fmt.audio_format == wav_format_float) {
+		if(fmt.bits_per_sample != 32) {
+			LOG_INFO("invalid float bits_per_sample: {}", fmt.bits_per_sample);
+			throw invalid_format("IEEE float WAV must be 32 bits per sample");
+		}
+	} else {
+		if(fmt.bits_per_sample != 8 && fmt.bits_per_sample != 16 && fmt.bits_per_sample != 24) {
+			LOG_INFO("invalid PCM bits_per_sample: {}", fmt.bits_per_sample);
+			throw invalid_format("only 8, 16 or 24 bit PCM is supported");
+		}
+	}
+	std::size_t frame_size = std::size_t(fmt.channels) * (fmt.bits_per_sample / 8);
+	if(frame_size == 0 || (data_size % frame_size) != 0) {
+		LOG_INFO("data size {} is not a multiple of frame size {}", data_size, frame_size);
+		throw invalid_format("WAV data size is not a multiple of the frame size");
+	}
+}
+
 static octet_vector read(std::istream& in, std::size_t size) {
 	octet_vector buf(size);
 	in.read(reinterpret_cast<char*>(buf.data()), buf.size());
@@ -69,10 +107,7 @@ void wav::load(std::istream& in) {
 	if(data_.empty()) {
 		throw invalid_format("data chunk not found");
 	}
-	if(format_->bits_per_sample != 8 && format_->bits_per_sample != 16 && format_->bits_per_sample != 24 && format_->bits_per_sample != 32) {
-		LOG_INFO("invalid bits_per_sample: {}", format_->bits_per_sample);
-		throw invalid_format("only 8, 16, 24 or 32 bits per sample is supported");
-	}
+	validate_wav_format(*format_, data_.size());
 }
 
 void wav::load_chunk(std::istream& in) {

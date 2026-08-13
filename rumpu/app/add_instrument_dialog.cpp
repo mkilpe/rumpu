@@ -20,16 +20,9 @@ static std::string filename_stem(std::string const& path) {
 }
 
 void add_instrument_dialog::open() {
+    // Drop a result delivered after the previous dialog instance closed
+    file_result_->take();
     task_ = run();
-}
-
-std::string add_instrument_dialog::collect_file_result() {
-    std::lock_guard l{result_mutex_};
-    if (has_result_) {
-        has_result_ = false;
-        return std::move(result_path_);
-    }
-    return {};
 }
 
 ui_task add_instrument_dialog::run() {
@@ -38,15 +31,13 @@ ui_task add_instrument_dialog::run() {
 
     std::string path;
     std::string name;
-    bool browsing = false;
 
     while (true) {
-        if (auto result = collect_file_result(); !result.empty()) {
-            path = std::move(result);
+        if (auto result = file_result_->take(); result && !result->empty()) {
+            path = std::move(*result);
             if (name.empty()) {
                 name = filename_stem(path);
             }
-            browsing = false;
         }
 
         ImGui::SetNextWindowSize({480, 160}, ImGuiCond_FirstUseEver);
@@ -60,19 +51,16 @@ ui_task add_instrument_dialog::run() {
         ImGui::InputText("##path", &path);
         ImGui::SameLine();
 
-        bool const was_browsing = browsing;
-        if (was_browsing) {
+        bool const browsing = file_result_->in_flight();
+        if (browsing) {
             ImGui::BeginDisabled();
         }
-        if (ImGui::Button("Browse...")) {
-            browsing = true;
-            open_wav_file_dialog([this](std::string p) {
-                std::lock_guard l{result_mutex_};
-                result_path_ = std::move(p);
-                has_result_ = true;
+        if (ImGui::Button("Browse...") && file_result_->begin()) {
+            open_wav_file_dialog([r = file_result_](std::string p) {
+                r->deliver(std::move(p));
             });
         }
-        if (was_browsing) {
+        if (browsing) {
             ImGui::EndDisabled();
         }
 

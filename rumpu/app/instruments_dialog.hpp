@@ -1,11 +1,9 @@
 #pragma once
 #include "view.hpp"
 #include "ui_coroutine.hpp"
+#include "async_dialog_result.hpp"
 #include <rumpu/core/song.hpp>
 #include <rumpu/core/undo_manager.hpp>
-
-#include <mutex>
-#include <string>
 
 namespace securepath::drum::app {
 
@@ -17,13 +15,10 @@ public:
 
 private:
     ui_task run(song* s, undo_manager* undo);
-    std::string collect_file_result();
 
     ui_task task_;
-
-    std::mutex result_mutex_;
-    bool has_result_{};
-    std::string result_path_;
+    // Shared with file dialog callback thread; must outlive this object
+    async_dialog_result_ptr file_result_ = std::make_shared<async_dialog_result>();
 };
 
 }

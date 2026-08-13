@@ -10,30 +10,39 @@
 
 namespace securepath::drum {
 
-player::player(event_system::event_handler& h, audio::device_config const& config)
-: handler_(h)
-, thread_([&]{ play_entry(); })
-{
+namespace {
+
+std::shared_ptr<audio::audio_play_device> open_default_play_device(audio::device_config const& config) {
+	std::shared_ptr<audio::audio_play_device> out;
 	auto interface = audio::create_default_audio_interface();
 	if(interface) {
-		out_ = interface->play_device(config);
+		out = interface->play_device(config);
 	}
-	if(!out_) {
+	if(!out) {
 		throw std::runtime_error("Failed to find audio play device");
 	}
+	out->set_mode(audio::notification_mode{out->config().period_size});
+	return out;
+}
 
-	auto conf = out_->config();
-	out_->set_mode(audio::notification_mode{conf.period_size});
-	buffer_ = audio::audio_buffer(conf.format, conf.buffer_size);
+}
+
+// out_ and buffer_ must be fully constructed before thread_ starts: a throw after
+// thread_ is running would make ~jthread join a thread that never gets woken.
+player::player(event_system::event_handler& h, audio::device_config const& config)
+: handler_(h)
+, out_(open_default_play_device(config))
+, buffer_(out_->config().format, out_->config().buffer_size)
+, thread_([&]{ play_entry(); })
+{
 }
 
 player::player(event_system::event_handler& h, std::shared_ptr<audio::audio_play_device> device)
 : handler_(h)
 , out_(std::move(device))
+, buffer_(out_->config().format, out_->config().buffer_size)
 , thread_([&]{ play_entry(); })
 {
-	auto conf = out_->config();
-	buffer_ = audio::audio_buffer(conf.format, conf.buffer_size);
 }
 
 player::~player() {

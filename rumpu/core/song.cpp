@@ -187,7 +187,8 @@ void song::populate_default_beats(section& sec) {
 }
 
 std::uint32_t song::add_section(std::optional<section> s) {
-	std::uint32_t index = sections_.size()+1;
+	// size()+1 would reuse a live id after a removal and overwrite that section
+	std::uint32_t index = sections_.empty() ? 1 : sections_.rbegin()->first + 1;
 	if(s) {
 		sections_[index] = std::move(*s);
 	} else if(!sections_.empty()) {

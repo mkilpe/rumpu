@@ -2,6 +2,7 @@
 #include "section_view.hpp"
 #include "events.hpp"
 #include <rumpu/core/undo_manager.hpp>
+#include <rumpu/core/song_edit.hpp>
 
 #include <securepath/log/log.hpp>
 #include "imgui.h"
@@ -73,11 +74,11 @@ bool section_view::do_draw() {
         std::string ctx_id = "section_ctx_" + std::to_string(i);
         if (ImGui::BeginPopupContextItem(ctx_id.c_str())) {
             if (ImGui::Selectable("Duplicate in queue")) {
-                if (undo_ && song_) { undo_->snapshot(*song_); }
+                song_edit edit{*song_, undo_};
                 order.insert(order.begin() + static_cast<std::ptrdiff_t>(i) + 1, id);
             }
             if (ImGui::Selectable("Remove from queue")) {
-                if (undo_ && song_) { undo_->snapshot(*song_); }
+                song_edit edit{*song_, undo_};
                 order.erase(order.begin() + static_cast<std::ptrdiff_t>(i));
             }
             ImGui::EndPopup();
@@ -120,7 +121,7 @@ bool section_view::do_draw() {
 
     // Apply reorder after the loop to avoid mutating during iteration
     if (drag_source >= 0 && drag_target >= 0 && drag_source != drag_target) {
-        if (undo_ && song_) { undo_->snapshot(*song_); }
+        song_edit edit{*song_, undo_};
         auto val = order[drag_source];
         order.erase(order.begin() + drag_source);
         order.insert(order.begin() + drag_target, val);

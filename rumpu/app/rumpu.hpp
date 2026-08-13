@@ -8,6 +8,7 @@
 
 #include "app_options.hpp"
 #include "about_dialog.hpp"
+#include "async_dialog_result.hpp"
 #include "add_instrument_dialog.hpp"
 #include "add_instruments_from_folder_dialog.hpp"
 #include "add_track_dialog.hpp"
@@ -24,6 +25,7 @@ namespace securepath::drum::app {
  class rumpu : public event_system::single_thread_event_loop, public event_system::event_handler {
 public:
     rumpu(app_options options);
+    ~rumpu();
 
     bool update();
     void handle_event(std::unique_ptr<event_system::event_base> ev) override;
@@ -49,6 +51,10 @@ private:
     void player_pos_changed();
     void show_error(std::string message);
     void draw_error_dialog();
+
+    enum class project_action { none, open, save };
+    void open_project_dialog(project_action action);
+    void poll_project_dialog_result();
 
 private:
     bool running_{true};
@@ -76,6 +82,11 @@ private:
     bool error_pending_{};
     bool follow_cursor_{true};
     std::vector<child_window*> windows_;
+
+    // One guard/mailbox for all native project dialogs (Open/Save/Save As);
+    // shared with the dialog callback thread, must outlive this object
+    async_dialog_result_ptr project_dialog_result_ = std::make_shared<async_dialog_result>();
+    project_action pending_project_action_{project_action::none};
 };
 
 }

@@ -36,16 +36,9 @@ static void draw_progress(wav_exporter const& exporter) {
 }
 
 void export_dialog::open(song const* s) {
+    // Drop a result delivered after the previous dialog instance closed
+    file_result_->take();
     task_ = run(s);
-}
-
-std::string export_dialog::collect_file_result() {
-    std::lock_guard l{file_mutex_};
-    if (has_file_) {
-        has_file_ = false;
-        return std::move(file_result_);
-    }
-    return {};
 }
 
 ui_task export_dialog::run(song const* s) {
@@ -54,13 +47,11 @@ ui_task export_dialog::run(song const* s) {
 
     std::string path;
     export_options options;
-    bool browsing = false;
 
     // Phase 1: Show options until user clicks Export or Cancel
     while (true) {
-        if (auto result = collect_file_result(); !result.empty()) {
-            path = std::move(result);
-            browsing = false;
+        if (auto result = file_result_->take(); result && !result->empty()) {
+            path = std::move(*result);
         }
 
         if (!begin_export_popup()) {
@@ -72,19 +63,16 @@ ui_task export_dialog::run(song const* s) {
         ImGui::InputText("##path", &path);
         ImGui::SameLine();
 
-        bool const was_browsing = browsing;
-        if (was_browsing) {
+        bool const browsing = file_result_->in_flight();
+        if (browsing) {
             ImGui::BeginDisabled();
         }
-        if (ImGui::Button("Browse...")) {
-            browsing = true;
-            save_wav_file_dialog([this](std::string p) {
-                std::lock_guard l{file_mutex_};
-                file_result_ = std::move(p);
-                has_file_ = true;
+        if (ImGui::Button("Browse...") && file_result_->begin()) {
+            save_wav_file_dialog([r = file_result_](std::string p) {
+                r->deliver(std::move(p));
             });
         }
-        if (was_browsing) {
+        if (browsing) {
             ImGui::EndDisabled();
         }
 

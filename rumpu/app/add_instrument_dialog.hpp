@@ -1,8 +1,8 @@
 #pragma once
 #include "view.hpp"
 #include "ui_coroutine.hpp"
+#include "async_dialog_result.hpp"
 #include <securepath/event_system/event_handler.hpp>
-#include <mutex>
 #include <string>
 
 namespace securepath::drum::app {
@@ -14,15 +14,11 @@ public:
     bool draw() override;
 private:
     ui_task run();
-    std::string collect_file_result();
 
     event_system::event_handler& handler_;
     ui_task task_;
-
-    // Shared with file dialog callback thread
-    std::mutex result_mutex_;
-    bool has_result_{};
-    std::string result_path_;
+    // Shared with file dialog callback thread; must outlive this object
+    async_dialog_result_ptr file_result_ = std::make_shared<async_dialog_result>();
 };
 
 }

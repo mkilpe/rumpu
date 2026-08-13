@@ -5,11 +5,13 @@
 #include "native_file_dialog.hpp"
 #include "toolbar.hpp"
 #include <rumpu/core/song_file.hpp>
+#include <rumpu/core/song_edit.hpp>
 #include <securepath/log/log.hpp>
 
 #include "imgui.h"
 
 #include <format>
+#include <utility>
 #include <vector>
 
 namespace securepath::drum::app {
@@ -45,6 +47,14 @@ rumpu::rumpu(app_options options)
     }
 }
 
+rumpu::~rumpu() {
+    // Stop receiving events before our members are destroyed. The event-loop
+    // thread lives in a base class destroyed after us, so without this it could
+    // dispatch a queued event (e.g. player_pos_changed) into already-destroyed
+    // members during shutdown.
+    stop_handler();
+}
+
 void rumpu::perform_undo() {
     std::unique_lock l{song_.mutex};
     if (undo_.undo(song_)) {
@@ -69,6 +79,39 @@ void rumpu::perform_redo() {
     }
 }
 
+void rumpu::open_project_dialog(project_action action) {
+    // One dialog in flight at a time; the callback shares ownership of the
+    // mailbox only, so a result delivered after shutdown is dropped harmlessly.
+    if (!project_dialog_result_->begin()) {
+        return;
+    }
+    pending_project_action_ = action;
+    auto callback = [r = project_dialog_result_](std::string path) {
+        r->deliver(std::move(path));
+    };
+    if (action == project_action::open) {
+        open_project_file_dialog(std::move(callback));
+    } else {
+        save_project_file_dialog(std::move(callback));
+    }
+}
+
+void rumpu::poll_project_dialog_result() {
+    auto path = project_dialog_result_->take();
+    if (!path) {
+        return;
+    }
+    auto action = std::exchange(pending_project_action_, project_action::none);
+    if (path->empty()) {
+        return;
+    }
+    if (action == project_action::open) {
+        event_system::event_handler::emit<event::open_project>(std::move(*path));
+    } else if (action == project_action::save) {
+        event_system::event_handler::emit<event::save_project>(std::move(*path));
+    }
+}
+
 void rumpu::menu() {
     if (ImGui::BeginMenuBar()) {
         if (ImGui::BeginMenu("File")) {
@@ -76,11 +119,7 @@ void rumpu::menu() {
                 new_song_dialog_.open();
             }
             if (ImGui::MenuItem("Open...")) {
-                open_project_file_dialog([this](std::string path) {
-                    if (!path.empty()) {
-                        event_system::event_handler::emit<event::open_project>(std::move(path));
-                    }
-                });
+                open_project_dialog(project_action::open);
             }
             if (ImGui::MenuItem("Save")) {
                 if (!current_file_.empty()) {
@@ -90,23 +129,17 @@ void rumpu::menu() {
                         LOG_WARN("save_song_file failed: {}", e.what());
                     }
                 } else {
-                    save_project_file_dialog([this](std::string path) {
-                        if (!path.empty()) {
-                            event_system::event_handler::emit<event::save_project>(std::move(path));
-                        }
-                    });
+                    open_project_dialog(project_action::save);
                 }
             }
             if (ImGui::MenuItem("Save As...")) {
-                save_project_file_dialog([this](std::string path) {
-                    if (!path.empty()) {
-                        event_system::event_handler::emit<event::save_project>(std::move(path));
-                    }
-                });
+                open_project_dialog(project_action::save);
             }
             if (ImGui::MenuItem("Export...")) {
+                auto sample_rate = player_.sample_rate();
                 try {
-                    song_.load_instruments(player_.sample_rate(), project_dir(current_file_));
+                    song_edit edit{song_};
+                    song_.load_instruments(sample_rate, project_dir(current_file_));
                 } catch(std::exception const& e) {
                     LOG_WARN("load_instruments failed: {}", e.what());
                     show_error(std::format("Failed to load instruments: {}", e.what()));
@@ -136,17 +169,22 @@ void rumpu::menu() {
         }
         if (ImGui::BeginMenu("Sections")) {
             if (ImGui::MenuItem("Clone section")) {
-                undo_.snapshot(song_);
                 if (auto* sec = song_.find_section(current_section_)) {
-                    auto id = song_.add_section(*sec);
-                    song_.section_order().push_back(id);
+                    std::uint32_t id{};
+                    {
+                        song_edit edit{song_, &undo_};
+                        id = song_.add_section(*sec);
+                        song_.section_order().push_back(id);
+                    }
                     current_section_ = id;
                     track_edit_view_->set_context(&song_, id, &undo_);
                 }
             }
             if (ImGui::MenuItem("Remove section", nullptr, false, song_.sections().size() > 1)) {
-                undo_.snapshot(song_);
-                song_.remove_section(current_section_);
+                {
+                    song_edit edit{song_, &undo_};
+                    song_.remove_section(current_section_);
+                }
                 if (!song_.sections().empty()) {
                     select_section_impl(song_.sections().begin()->first);
                 }
@@ -202,6 +240,8 @@ void rumpu::menu() {
 bool rumpu::update() {
     std::unique_lock l{mutex_};
 
+    poll_project_dialog_result();
+
 #ifdef IMGUI_HAS_VIEWPORT
     ImGuiViewport* viewport = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(viewport->GetWorkPos());
@@ -217,7 +257,12 @@ bool rumpu::update() {
     
     menu();
 
-    if (ImGui::IsKeyDown(ImGuiMod_Ctrl) && ImGui::IsKeyPressed(ImGuiKey_Z, false)) {
+    // Only act on the shortcut when no text field is being edited and no modal
+    // (e.g. an in-progress export) is open, so undo cannot clobber a text edit
+    // or swap the song out from under a dialog that holds pointers into it.
+    if (!ImGui::GetIO().WantTextInput
+        && !ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopup)
+        && ImGui::IsKeyDown(ImGuiMod_Ctrl) && ImGui::IsKeyPressed(ImGuiKey_Z, false)) {
         if (ImGui::IsKeyDown(ImGuiMod_Shift)) {
             perform_redo();
         } else {
@@ -265,16 +310,18 @@ bool rumpu::update() {
 
 void rumpu::add_track(uint32_t section, std::size_t instrument_index) {
     std::unique_lock l{mutex_};
-    undo_.snapshot(song_);
-    std::string name;
-    if(instrument_index < song_.instruments().size()) {
-        name = song_.instruments()[instrument_index].name();
-    }
-    for(auto& [id, sec] : song_.sections()) {
-        auto& t = sec.add_track(instrument_index);
-        t.set_name(name);
-        for(auto& b : t.bars()) {
-            b.beats.resize(song_.default_time_signature().beats_in_bar());
+    {
+        song_edit edit{song_, &undo_};
+        std::string name;
+        if(instrument_index < song_.instruments().size()) {
+            name = song_.instruments()[instrument_index].name();
+        }
+        for(auto& [id, sec] : song_.sections()) {
+            auto& t = sec.add_track(instrument_index);
+            t.set_name(name);
+            for(auto& b : t.bars()) {
+                b.beats.resize(song_.default_time_signature().beats_in_bar());
+            }
         }
     }
     track_edit_view_->set_context(&song_, section, &undo_);
@@ -297,13 +344,13 @@ void rumpu::select_section(uint32_t section_id) {
 
 void rumpu::add_instrument(std::string path, std::string name) {
     std::unique_lock l{mutex_};
-    undo_.snapshot(song_);
     auto base = project_dir(current_file_);
     std::string rel_path = base.empty() ? path : std::filesystem::relative(path, base).string();
     instrument inst{rel_path};
     if (!name.empty()) {
         inst.set_name(std::move(name));
     }
+    song_edit edit{song_, &undo_};
     song_.add_instrument(std::move(inst));
 }
 
@@ -315,9 +362,8 @@ void rumpu::add_instruments(std::vector<std::string> paths) {
     std::unique_lock l{mutex_};
     namespace fs = std::filesystem;
 
-    undo_.snapshot(song_);
-
     auto base = project_dir(current_file_);
+    song_edit edit{song_, &undo_};
     for (auto const& path : paths) {
         fs::path p{path};
         std::string rel_path = base.empty() ? path : fs::relative(p, base).string();
@@ -331,17 +377,27 @@ void rumpu::add_instruments(std::vector<std::string> paths) {
 
 void rumpu::add_section() {
     std::unique_lock l{mutex_};
-    undo_.snapshot(song_);
     LOG_TRACE("add_section");
-    auto id = song_.add_section();
-    song_.section_order().push_back(id);
+    std::uint32_t id{};
+    {
+        song_edit edit{song_, &undo_};
+        id = song_.add_section();
+        song_.section_order().push_back(id);
+    }
     current_section_ = id;
     track_edit_view_->set_context(&song_, id, &undo_);
 }
 
 void rumpu::load_and_play(uint32_t section) {
     try {
-        song_.load_instruments(player_.sample_rate(), project_dir(current_file_));
+        // Fetch the sample rate before taking the song lock: the audio thread
+        // takes the player lock then the song lock, so we must never hold the
+        // song lock while calling into the player.
+        auto sample_rate = player_.sample_rate();
+        {
+            song_edit edit{song_};
+            song_.load_instruments(sample_rate, project_dir(current_file_));
+        }
         player_.play(&song_, false, section);
     } catch(std::exception const& e) {
         LOG_WARN("play failed: {}", e.what());
@@ -350,30 +406,41 @@ void rumpu::load_and_play(uint32_t section) {
 }
 
 void rumpu::play_section(uint32_t section) {
+    std::unique_lock l{mutex_};
     load_and_play(section);
 }
 
 void rumpu::play_song() {
+    std::unique_lock l{mutex_};
     load_and_play(0);
 }
 
 void rumpu::stop_song(uint32_t section) {
+    std::unique_lock l{mutex_};
     player_.stop();
 }
 
 void rumpu::remove_track(std::size_t index) {
     std::unique_lock l{mutex_};
-    undo_.snapshot(song_);
-    song_.remove_instrument(index);
+    {
+        song_edit edit{song_, &undo_};
+        song_.remove_instrument(index);
+    }
     track_edit_view_->set_context(&song_, current_section_, &undo_);
 }
 
 void rumpu::open_project(std::string path) {
     std::unique_lock l{mutex_};
+    // Stop the player before touching the song lock (see load_and_play) so the
+    // audio thread is no longer reading the song when we swap it out.
+    player_.stop();
     undo_.clear();
     try {
-        player_.stop();
-        song_ = load_song_file(path);
+        song loaded = load_song_file(path);
+        {
+            song_edit edit{song_};
+            song_ = std::move(loaded);
+        }
         current_file_ = path;
         auto const& order = song_.section_order();
         uint32_t section_id = order.empty() ? 0 : order.front();
@@ -398,11 +465,15 @@ void rumpu::save_project(std::string path) {
 
 void rumpu::new_song(std::string name, time_signature ts, float tempo) {
     std::unique_lock l{mutex_};
-    undo_.clear();
     player_.stop();
-    song_ = song{song_metainfo{std::move(name), "", ""}, ts, drum::tempo{tempo}};
-    auto id = song_.add_section();
-    song_.section_order().push_back(id);
+    undo_.clear();
+    std::uint32_t id{};
+    {
+        song_edit edit{song_};
+        song_ = song{song_metainfo{std::move(name), "", ""}, ts, drum::tempo{tempo}};
+        id = song_.add_section();
+        song_.section_order().push_back(id);
+    }
     current_file_.clear();
     current_section_ = id;
     track_edit_view_->set_context(&song_, id, &undo_);
@@ -410,7 +481,7 @@ void rumpu::new_song(std::string name, time_signature ts, float tempo) {
 
 void rumpu::update_song_properties(std::string name, std::string author, std::string notes, time_signature ts, float tempo, float rand_offset_ms, float rand_volume_percent) {
     std::unique_lock l{mutex_};
-    undo_.snapshot(song_);
+    song_edit edit{song_, &undo_};
     song_.set_metainfo(song_metainfo{std::move(name), std::move(author), std::move(notes)});
     song_.set_default_time_signature(ts);
     song_.set_default_tempo(drum::tempo{tempo});

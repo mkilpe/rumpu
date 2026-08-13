@@ -1,5 +1,6 @@
 #include "track.hpp"
 #include <rumpu/core/undo_manager.hpp>
+#include <rumpu/core/song_edit.hpp>
 
 #include <securepath/log/log.hpp>
 
@@ -260,7 +261,7 @@ void track::context_menu(track_draw_context& context)
     		mouse_pos_ = io.MousePos;
     	}
     	if (ImGui::MenuItem("Split beat")) {
-    		if (undo_ && song_) { undo_->snapshot(*song_); }
+    		song_edit edit{*song_, undo_};
     		bar_calc bc(context, ImVec2{mouse_pos_.x - context.pos.x, mouse_pos_.y - context.pos.y});
     		if(auto b = bc.find_beat()) {
 				b->division.resize(2);
@@ -290,7 +291,7 @@ void track::context_menu(track_draw_context& context)
             	divide_mouse_pos_ = mouse_pos_;
             }
             if(amount) {
-            	if (undo_ && song_) { undo_->snapshot(*song_); }
+            	song_edit edit{*song_, undo_};
     			bar_calc bc(context, ImVec2{mouse_pos_.x - context.pos.x, mouse_pos_.y - context.pos.y});
     			if(auto b = bc.find_beat()) {
 				    b->division.resize(amount);
@@ -321,7 +322,7 @@ void track::context_menu(track_draw_context& context)
             	divide_mouse_pos_ = mouse_pos_;
             }
             if(amount) {
-            	if (undo_ && song_) { undo_->snapshot(*song_); }
+            	song_edit edit{*song_, undo_};
     			bar_calc bc(context, ImVec2{mouse_pos_.x - context.pos.x, mouse_pos_.y - context.pos.y});
     			if(auto b = bc.find_bar()) {
     				b->beats.resize(amount);
@@ -330,7 +331,7 @@ void track::context_menu(track_draw_context& context)
             ImGui::EndMenu();
     	}
     	if (ImGui::MenuItem("Clear bar")) {
-    		if (undo_ && song_) { undo_->snapshot(*song_); }
+    		song_edit edit{*song_, undo_};
     		bar_calc bc(context, ImVec2{mouse_pos_.x - context.pos.x, mouse_pos_.y - context.pos.y});
     		if(auto b = bc.find_bar()) {
     			for(auto&& beat : b->beats) {
@@ -342,7 +343,7 @@ void track::context_menu(track_draw_context& context)
     	}
     	ImGui::Separator();
     	if (ImGui::MenuItem("Clear track")) {
-    		if (undo_ && song_) { undo_->snapshot(*song_); }
+    		song_edit edit{*song_, undo_};
     		if(context.bars) {
     			for(auto&& bar : *context.bars) {
     				for(auto&& beat : bar.beats) {
@@ -377,7 +378,7 @@ void track::context_menu(track_draw_context& context)
 			bool has_stop = b && b->action == beat::stop;
 
 			if (ImGui::MenuItem("Set choke", nullptr, false, has_none)) {
-				if (undo_ && song_) { undo_->snapshot(*song_); }
+				song_edit edit{*song_, undo_};
 				if(b) {
 					b->action = beat::stop;
 					if(!b->stop_data.falloff) {
@@ -386,7 +387,7 @@ void track::context_menu(track_draw_context& context)
 				}
 			}
 			if (ImGui::MenuItem("Remove choke", nullptr, false, has_stop)) {
-				if (undo_ && song_) { undo_->snapshot(*song_); }
+				song_edit edit{*song_, undo_};
 				if(b) {
 					b->action = beat::none;
 					b->stop_data.falloff = nullptr;
@@ -416,7 +417,7 @@ void track::handle_mouse(track_draw_context& context) {
     
 	if (hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
     {
-    	if (undo_ && song_) { undo_->snapshot(*song_); }
+    	song_edit edit{*song_, undo_};
     	bar_calc bc(context, ImVec2{io.MousePos.x - context.pos.x, io.MousePos.y - context.pos.y}, true);
     	bc.toggle_mark();
     }
@@ -453,7 +454,7 @@ void track::divide_dialog(track_draw_context& context)
 		ImGui::SliderInt("##n", &divide_amount_, 2, 16);
 
 		if(ImGui::Button("OK")) {
-			if (undo_ && song_) { undo_->snapshot(*song_); }
+			song_edit edit{*song_, undo_};
 			bar_calc bc(context, ImVec2{divide_mouse_pos_.x - context.pos.x, divide_mouse_pos_.y - context.pos.y});
 			if(is_beat) {
 				if(auto b = bc.find_beat()) {
@@ -496,15 +497,15 @@ void track::beat_properties_dialog(track_draw_context& context)
 				ImGui::SliderFloat("Rand offset (ms)", &rand_offset, -100.0f, 100.0f, "%.1f");
 				ImGui::SliderFloat("Rand volume (%)", &rand_vol, -100.0f, 100.0f, "%.1f");
 
-				if (volume != hd.volume.value || rand_offset != hd.rand_hit_offset || rand_vol != hd.rand_volume.value * 100.0f) {
-					if (undo_ && song_) { undo_->snapshot(*song_, coalesce_key::beat_property); }
-				}
+				bool const changed = volume != hd.volume.value || rand_offset != hd.rand_hit_offset || rand_vol != hd.rand_volume.value * 100.0f;
+				song_edit edit{*song_, changed ? undo_ : nullptr, coalesce_key::beat_property};
 				hd.volume.value = volume;
 				hd.rand_hit_offset = rand_offset;
 				hd.rand_volume.value = rand_vol / 100.0f;
 			} else if(beat_props_beat_->action == beat::stop) {
 				auto& sd = beat_props_beat_->stop_data;
 				if(!sd.falloff) {
+					song_edit edit{*song_};
 					sd.falloff = audio_falloff::create(audio_falloff::exponential);
 				}
 				int type = static_cast<int>(sd.falloff->type());
@@ -521,7 +522,7 @@ void track::beat_properties_dialog(track_draw_context& context)
 				ImGui::EndDisabled();
 
 				if(type != static_cast<int>(sd.falloff->type()) || duration != sd.falloff->duration_beats()) {
-					if (undo_ && song_) { undo_->snapshot(*song_, coalesce_key::beat_property); }
+					song_edit edit{*song_, undo_, coalesce_key::beat_property};
 					sd.falloff = audio_falloff::create(static_cast<audio_falloff::falloff_type>(type), duration);
 				}
 			}
@@ -692,7 +693,7 @@ void track::apply_pattern_dialog(track_draw_context& context)
 		bool const has_bars = context.bars && context.bar_count > 0;
 		ImGui::BeginDisabled(!has_bars);
 		if(ImGui::Button("OK")) {
-			if (undo_ && song_) { undo_->snapshot(*song_); }
+			song_edit edit{*song_, undo_};
 			auto& dst_bars = *context.bars;
 			for(std::size_t i = 0; i < dst_bars.size(); ++i) {
 				auto const& src = apply_pattern_bars_[i % apply_pattern_bars_.size()];

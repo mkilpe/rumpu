@@ -1,6 +1,7 @@
 #include <catch2/catch_all.hpp>
 
 #include <securepath/audio/util/audio_data.hpp>
+#include <securepath/audio/util/detail/wav.hpp>
 
 #include <cstring>
 #include <filesystem>
@@ -124,4 +125,40 @@ TEST_CASE("wav convert 32-bit float to 16-bit", "[wav]") {
 		float v = s / 32768.0f;
 		CHECK(v == Catch::Approx(samples[i]).margin(0.001f));
 	}
+}
+
+static audio::riff::riff_fmt_data make_fmt(std::uint16_t audio_format, std::uint16_t channels,
+	std::uint32_t sample_rate, std::uint16_t bits) {
+	audio::riff::riff_fmt_data fmt;
+	fmt.audio_format = audio_format;
+	fmt.channels = channels;
+	fmt.sample_rate = sample_rate;
+	fmt.bits_per_sample = bits;
+	fmt.byte_rate = sample_rate * channels * bits / 8;
+	fmt.block_align = static_cast<std::uint16_t>(channels * bits / 8);
+	return fmt;
+}
+
+TEST_CASE("wav format validation accepts supported formats", "[wav][validate]") {
+	CHECK_NOTHROW(audio::validate_wav_format(make_fmt(1, 1, 44100, 8), 16));
+	CHECK_NOTHROW(audio::validate_wav_format(make_fmt(1, 2, 44100, 16), 16));
+	CHECK_NOTHROW(audio::validate_wav_format(make_fmt(1, 1, 48000, 24), 15));
+	CHECK_NOTHROW(audio::validate_wav_format(make_fmt(3, 2, 44100, 32), 16));
+}
+
+TEST_CASE("wav format validation rejects malformed formats", "[wav][validate]") {
+	// zero channels: would divide by zero in resample (C4)
+	CHECK_THROWS_AS(audio::validate_wav_format(make_fmt(1, 0, 44100, 16), 0), audio::invalid_format);
+	// zero sample rate: would divide by zero in timing conversions (C4)
+	CHECK_THROWS_AS(audio::validate_wav_format(make_fmt(1, 1, 0, 16), 16), audio::invalid_format);
+	// float below 32 bits: float decode always reads 4 bytes -> heap over-read (C5)
+	CHECK_THROWS_AS(audio::validate_wav_format(make_fmt(3, 1, 44100, 8), 8), audio::invalid_format);
+	CHECK_THROWS_AS(audio::validate_wav_format(make_fmt(3, 1, 44100, 16), 16), audio::invalid_format);
+	// unsupported format tag e.g. WAVE_FORMAT_EXTENSIBLE / compressed (M6)
+	CHECK_THROWS_AS(audio::validate_wav_format(make_fmt(0xFFFE, 1, 44100, 16), 16), audio::invalid_format);
+	CHECK_THROWS_AS(audio::validate_wav_format(make_fmt(2, 1, 44100, 16), 16), audio::invalid_format);
+	// 32-bit integer PCM has no decoder and would be read as noise (M6)
+	CHECK_THROWS_AS(audio::validate_wav_format(make_fmt(1, 1, 44100, 32), 16), audio::invalid_format);
+	// data size not a multiple of the frame size
+	CHECK_THROWS_AS(audio::validate_wav_format(make_fmt(1, 2, 44100, 16), 5), audio::invalid_format);
 }

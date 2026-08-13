@@ -152,6 +152,23 @@ struct mixer::impl {
 		sec_order_.pop_back();
 	}
 
+	// Re-resolve the current section from its id. The song may have been edited
+	// (sections/tracks added or removed, or the whole song swapped by undo)
+	// between process() calls, which would leave a cached section pointer
+	// dangling. Called under the song's shared lock at the start of every render;
+	// structural edits therefore take effect from the next section onwards.
+	void refresh_section() {
+		if(ended_) {
+			section_ = nullptr;
+		} else {
+			section_ = song_->find_section(pos_.section_id);
+			if(!section_) {
+				// the section being played was removed; advance to the next one
+				next_section();
+			}
+		}
+	}
+
 	void next_section() {
 		if(!sec_order_.empty()) {
 			set_next_section();
@@ -159,6 +176,7 @@ struct mixer::impl {
 			reseed_track_rngs();
 		} else {
 			section_ = nullptr;
+			ended_ = true;
 			/*if(loop_) {
 				pos_.time_pos = 0.0f;
 				if(!section_play_) {
@@ -219,30 +237,32 @@ struct mixer::impl {
 	void update_track_info(track const& t, track_info& info) {
 		assert(info.actions.empty());
 		update_track_volume(t, info);
-		bar const& b = t.bars()[pos_.bar_pos];
-		if(!b.beats.empty()) {
-			std::size_t samples_per_beat = pos_.samples / b.beats.size();
-			std::int32_t sample_pos = 0;
+		if(pos_.bar_pos < t.bars().size()) {
+			bar const& b = t.bars()[pos_.bar_pos];
+			if(!b.beats.empty()) {
+				std::size_t samples_per_beat = pos_.samples / b.beats.size();
+				std::int32_t sample_pos = 0;
 
-			for(auto const& v : b.beats) {
-				if(!v.division.empty()) {
-					std::int32_t offset = sample_pos;
-					std::size_t samples_per_div = samples_per_beat / v.division.size();
-					for(auto const& div : v.division) {
-						push_info_action(info, offset, div);
-						offset += samples_per_div;
+				for(auto const& v : b.beats) {
+					if(!v.division.empty()) {
+						std::int32_t offset = sample_pos;
+						std::size_t samples_per_div = samples_per_beat / v.division.size();
+						for(auto const& div : v.division) {
+							push_info_action(info, offset, div);
+							offset += samples_per_div;
+						}
+					} else {
+						push_info_action(info, sample_pos, v);
 					}
-				} else {
-					push_info_action(info, sample_pos, v);
+					sample_pos += samples_per_beat;
 				}
-				sample_pos += samples_per_beat;
 			}
 		}
 		lookup_negative_beat_offset(t, info);
 	}
 
 	void lookup_negative_beat_offset(track const& t, track_info& info) {
-		if(pos_.bar_pos+1 < section_->length()) {
+		if(pos_.bar_pos+1 < section_->length() && pos_.bar_pos+1 < t.bars().size()) {
 			bar const& b = t.bars()[pos_.bar_pos+1];
 			if(!b.beats.empty()) {
 				beat const* value{};
@@ -303,7 +323,7 @@ struct mixer::impl {
 		if(section_) {
 			if(pos_.sample_pos + samples >= pos_.samples) {
 				++pos_.bar_pos;
-				if(pos_.bar_pos == section_->length()) {
+				if(pos_.bar_pos >= section_->length()) {
 					next_section();
 				}
 				if(section_) {
@@ -318,8 +338,12 @@ struct mixer::impl {
 	void process_track(float* buffer, std::size_t index, std::size_t samples) {
 		track_info& info = infos_[index];
 		if(!info.volume.mute) {
-			if(section_ && pos_.sample_pos == 0) {
-				update_track_info(section_->tracks()[index], info);
+			// the current section may have fewer tracks than infos_ was sized for
+			// (a track was removed during playback); such tracks simply go silent
+			track const* t = (section_ && index < section_->tracks().size())
+				? &section_->tracks()[index] : nullptr;
+			if(t && pos_.sample_pos == 0) {
+				update_track_info(*t, info);
 			}
 			std::size_t processed{};
 			while(processed < samples) {
@@ -336,7 +360,9 @@ struct mixer::impl {
 					buffer += s;
 				}
 				if(d && processed < samples) {
-					set_current_track_audio(section_->tracks()[index].instrument_index(), info, *d);
+					if(t) {
+						set_current_track_audio(t->instrument_index(), info, *d);
+					}
 					info.actions.pop_front();
 				}
 			}
@@ -389,6 +415,7 @@ struct mixer::impl {
 
 	song const* song_{};
 	section const* section_{};
+	bool ended_{};
 	bool loop_{};
 	bool section_play_{};
 	song::section_order_type sec_order_;
@@ -416,11 +443,16 @@ std::size_t mixer::process(float* buffer, std::size_t samples)  {
 
 	timer t;
 
+	// Hold the song read lock for the whole render so the song cannot be edited
+	// mid-buffer, and re-resolve the current section up front in case it moved
+	// or was removed since the previous call.
+	std::shared_lock l{impl_->song_->mutex};
+	impl_->refresh_section();
+
 	if(impl_->is_playing()) {
 		std::fill(buffer, buffer+samples, 0.0f);
 
 		while(ret < samples && impl_->is_playing()) {
-			std::shared_lock l{impl_->song_->mutex};
 			std::uint32_t samples_to_process = std::min<std::uint32_t>(impl_->pos_.samples-impl_->pos_.sample_pos, samples-ret);
 			for(std::size_t i = 0; i != impl_->infos_.size(); ++i) {
 				impl_->process_track(buffer+ret, i, samples_to_process);

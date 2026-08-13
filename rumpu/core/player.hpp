@@ -72,7 +72,6 @@ private:
 	audio::audio_buffer buffer_;
 	float gain_{1.0f};
 	bool running_{true};
-	std::jthread thread_;
 
 	// Play cursor state
 	std::uint64_t section_rendered_{};
@@ -84,6 +83,10 @@ private:
 	bool draining_{};
 	std::chrono::steady_clock::time_point drain_start_time_;
 	std::uint32_t drain_start_buffered_{};
+
+	// Must be last: every member above is constructed before the thread starts
+	// and stays alive until it joins.
+	std::jthread thread_;
 };
 
 }

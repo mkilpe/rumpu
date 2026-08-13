@@ -1,6 +1,7 @@
 
 #include "track_list.hpp"
 #include <rumpu/core/undo_manager.hpp>
+#include <rumpu/core/song_edit.hpp>
 
 #include "imgui.h"
 
@@ -67,7 +68,7 @@ void track_header::context_menu(section* sec, ImVec2 header_pos, float lead_x, f
             }
             std::snprintf(label, sizeof(label), "Remove Tempo Change (Bar %u)", bar_index + 1);
             if (ImGui::MenuItem(label)) {
-                if (undo_ && song_) { undo_->snapshot(*song_); }
+                song_edit edit{*song_, undo_};
                 sec->set_tempo_change(bar_index, std::nullopt);
             }
         } else {
@@ -103,7 +104,7 @@ void track_header::tempo_dialog(section* sec)
         if (tempo_dialog_value_ > 400.0f) tempo_dialog_value_ = 400.0f;
 
         if (ImGui::Button("OK")) {
-            if (undo_ && song_) { undo_->snapshot(*song_); }
+            song_edit edit{*song_, undo_};
             sec->set_tempo_change(tempo_dialog_bar_, tempo{tempo_dialog_value_});
             ImGui::CloseCurrentPopup();
         }

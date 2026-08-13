@@ -296,6 +296,10 @@ private:
 	template<typename Real>
 	void decode_real(Real& s, std::optional<tag_info> tag, uint64_t default_tag = asn_tag::real) {
 		asn_header header = decode_header(get_asn_class(tag), get_tag(tag, default_tag));
+		if(header.length > sizeof(Real)+sizeof(int)+2) {
+			LOG_WARN("decode_real: real value too large");
+			throw serialisation_error("real value too large");
+		}
 		std::uint8_t buffer[sizeof(Real)+sizeof(int)+2];
 		s_.read(buffer, header.length);
 		s = serialisation::decode_real<Real>(buffer, header.length);

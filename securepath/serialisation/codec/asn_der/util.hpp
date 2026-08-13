@@ -269,7 +269,7 @@ Real decode_normal_real(std::uint8_t const* buffer, std::size_t size) {
 template<typename Real>
 inline
 Real decode_real(std::uint8_t const* buffer, std::size_t size) {
-	Real value;
+	Real value{};
 	if(size) {
 		if(size == 1) {
 			value = decode_special_real<Real>(*buffer);
