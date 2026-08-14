@@ -53,3 +53,24 @@ TEST_CASE("export writes a wav in the export format", "[export]") {
 
 	std::remove(file.c_str());
 }
+
+TEST_CASE("exporting a silent song produces silence, not garbage", "[export]") {
+	// pre-fix: peak normalisation divided by zero -> every sample NaN
+	export_options opts;
+	song s = make_kick_song(opts.format.samples_per_second);
+	REQUIRE(!s.track_settings().empty());
+	s.track_settings()[0].volume.mute = true;
+
+	auto file = (std::filesystem::temp_directory_path() / "rumpu_test_silent.wav").string();
+	wav_exporter exporter(file, s, opts);
+	while(exporter.process()) {
+	}
+
+	audio::audio_data result;
+	result.load(file);
+	std::remove(file.c_str());
+
+	auto const bytes = result.data();
+	REQUIRE(!bytes.empty());
+	CHECK(std::ranges::all_of(bytes, [](auto v) { return v == 0; }));
+}

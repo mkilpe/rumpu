@@ -16,8 +16,11 @@ static void peak_normalise(std::deque<float>& song_data) {
 	}
 	float div = std::max(std::abs(min), std::abs(max));
 	LOG_TRACE("peak normalising with value {}", div);
-	for(auto& v : song_data) {
-		v /= div;
+	// a silent song has nothing to normalise (and would divide by zero)
+	if(div > 0.0f) {
+		for(auto& v : song_data) {
+			v /= div;
+		}
 	}
 }
 
