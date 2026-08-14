@@ -1,5 +1,6 @@
 
 #include "mixer.hpp"
+#include "bar_timing.hpp"
 
 #include <securepath/log/log.hpp>
 #include <securepath/util/timer.hpp>
@@ -24,44 +25,18 @@ struct current_pos {
 	// id of currently playing section
 	std::uint32_t section_id{};
 
-	time_signature current_timing;
-	tempo current_tempo;
-
-	// global tempo slide per bar
-	std::optional<delta_tempo> global_tempo_slide;
-	tempo_slide current_tempo_slide;
+	// tempo/timing state advanced per bar (shared with duration and the player cursor)
+	bar_timing timing;
 
 	void new_section() {
 		bar_pos = 0;
-		current_tempo_slide = tempo_slide{};
+		timing.new_section();
 	}
 
-	void handle_change(section_bar_change const& change) {
-		if(change.timing_change) {
-			current_timing = *change.timing_change;
-		}
-		if(change.tempo_slide_change) {
-			current_tempo_slide = *change.tempo_slide_change;
-		}
-		if(change.tempo_change) {
-			current_tempo = *change.tempo_change;
-		} else {
-			if(current_tempo_slide.is_active(bar_pos)) {
-				current_tempo.value += current_tempo_slide.bar_delta();
-			}
-			if(global_tempo_slide) {
-				current_tempo.value += global_tempo_slide->value;
-			}
-			current_tempo.value = std::clamp(current_tempo.value, 1.0f, 9999.0f);
-		}
-	}
-
-	void update_samples_to_play(time_signature const& default_timing) {
-		double timing_multiplier = default_timing.beat_type()*current_timing.beats_in_bar()
-				/ double(default_timing.beats_in_bar()*current_timing.beat_type());
-
+	void begin_bar(section const& sec) {
+		timing.begin_bar(sec, bar_pos);
 		sample_pos = 0;
-		samples = 60*timing_multiplier*sample_rate*current_timing.beats_in_bar() / current_tempo.value;
+		samples = timing.bar_samples(sample_rate);
 	}
 };
 
@@ -99,9 +74,7 @@ struct mixer::impl {
 	: song_(&s)
 	, pos_{sample_rate}
 	{
-		pos_.global_tempo_slide = song_->global_tempo_slide();
-		pos_.current_timing = song_->default_time_signature();
-		pos_.current_tempo = song_->default_tempo();
+		pos_.timing = bar_timing{song_->default_time_signature(), song_->default_tempo(), song_->global_tempo_slide()};
 		auto const& settings = s.track_settings();
 		infos_.resize(settings.size());
 		for(std::size_t i = 0; i != infos_.size(); ++i) {
@@ -110,11 +83,15 @@ struct mixer::impl {
 		}
 	}
 
-	void reseed_track_rngs() {
+	// Per-track state that restarts at every section entry: RNG (reseeded so
+	// playback is reproducible per section) and the volume slide (a slide from
+	// the previous section must not stay active in the next one).
+	void reset_section_track_state() {
 		auto const position = static_cast<std::uint32_t>(sec_order_.size());
 		for(auto& info : infos_) {
 			std::seed_seq seq{info.seed_base, pos_.section_id, position};
 			info.rng.seed(seq);
+			info.current_volume_slide = volume_slide{};
 		}
 	}
 
@@ -139,7 +116,7 @@ struct mixer::impl {
 		if(section_) {
 			update_audio_params();
 		}
-		reseed_track_rngs();
+		reset_section_track_state();
 		cached_duration_ = calculate_duration();
 	}
 
@@ -171,7 +148,7 @@ struct mixer::impl {
 		if(!sec_order_.empty()) {
 			set_next_section();
 			pos_.new_section();
-			reseed_track_rngs();
+			reset_section_track_state();
 		} else {
 			section_ = nullptr;
 			ended_ = true;
@@ -199,7 +176,7 @@ struct mixer::impl {
 
 	std::unique_ptr<audio_falloff_player> create_beat_falloff_player(beat const& b) {
 		if(b.stop_data.falloff) {
-			fp_type beat_seconds = 60.0_fp / pos_.current_tempo.value;
+			fp_type beat_seconds = 60.0_fp / pos_.timing.current_tempo.value;
 			return b.stop_data.falloff->create_player(beat_seconds);
 		}
 		return nullptr;
@@ -223,9 +200,8 @@ struct mixer::impl {
 	}
 
 	void update_track_volume(track const& t, track_info& info) {
-		if(pos_.bar_pos == 0) {
-			auto vol_slide = t.find_volume_slide(pos_.bar_pos);
-			info.current_volume_slide = vol_slide.value_or(volume_slide{});
+		if(auto vol_slide = t.find_volume_slide(pos_.bar_pos)) {
+			info.current_volume_slide = *vol_slide;
 		}
 		if(info.current_volume_slide.is_active(pos_.bar_pos)) {
 			info.volume.value += info.current_volume_slide.bar_delta();
@@ -279,10 +255,7 @@ struct mixer::impl {
  	}
 
 	float calculate_duration() const {
-		current_pos p{pos_.sample_rate};
-		p.global_tempo_slide = song_->global_tempo_slide();
-		p.current_timing = song_->default_time_signature();
-		p.current_tempo = song_->default_tempo();
+		bar_timing t{song_->default_time_signature(), song_->default_tempo(), song_->global_tempo_slide()};
 
 		auto order = section_play_
 			? song::section_order_type{pos_.section_id}
@@ -290,30 +263,20 @@ struct mixer::impl {
 
 		float total{};
 		for (auto sec_id : order) {
-			auto const* sec = song_->find_section(sec_id);
-			if (!sec) {
-				break;
-			}
-			p.new_section();
-			for (std::uint32_t bar = 0; bar < sec->length(); ++bar) {
-				p.bar_pos = bar;
-				auto change = sec->find_change(bar);
-				if (change) {
-					p.handle_change(*change);
+			// missing sections are skipped, matching playback (refresh_section)
+			if (auto const* sec = song_->find_section(sec_id)) {
+				t.new_section();
+				for (std::uint32_t bar = 0; bar < sec->length(); ++bar) {
+					t.begin_bar(*sec, bar);
+					total += t.bar_samples(pos_.sample_rate) / float(pos_.sample_rate);
 				}
-				p.update_samples_to_play(song_->default_time_signature());
-				total += p.samples / float(p.sample_rate);
 			}
 		}
 		return total;
 	}
 
 	void update_audio_params() {
-		auto change = section_->find_change(pos_.bar_pos);
-		if(change) {
-			pos_.handle_change(*change);
-		}
-		pos_.update_samples_to_play(song_->default_time_signature());
+		pos_.begin_bar(*section_);
 	}
 
 	void update_pos_data(std::uint32_t samples) {

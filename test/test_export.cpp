@@ -6,6 +6,7 @@
 #include <securepath/audio/util/audio_data.hpp>
 
 #include <cmath>
+#include <algorithm>
 #include <cstdio>
 #include <filesystem>
 
@@ -43,15 +44,8 @@ TEST_CASE("export writes a wav in the export format", "[export]") {
 	result.load(file);
 	CHECK(result.format() == opts.format);
 
-	auto const& bytes = result.data();
-	bool has_nonzero = false;
-	for(auto v : bytes) {
-		if(v != 0) {
-			has_nonzero = true;
-			break;
-		}
-	}
-	CHECK(has_nonzero);
+	auto const bytes = result.data();
+	CHECK(std::ranges::any_of(bytes, [](auto v) { return v != 0; }));
 
 	// frame count matches the song duration at the export rate
 	auto frames = double(bytes.size()) / 2; // 16-bit mono

@@ -194,13 +194,11 @@ TEST_CASE("mixer total samples matches bar_offsets total", "[player]") {
 	// Run mixer to completion
 	std::uint64_t total_produced = 0;
 	std::vector<float> buf(4096);
-	while(true) {
-		auto produced = m.process(buf.data(), buf.size());
-		if(produced == 0) {
-			break;
-		}
+	std::size_t produced = 0;
+	do {
+		produced = m.process(buf.data(), buf.size());
 		total_produced += produced;
-	}
+	} while(produced != 0);
 
 	// Compute expected total from bar_offsets logic
 	std::uint32_t sr = 44100;
@@ -243,13 +241,12 @@ TEST_CASE("player cursor is monotonic and reaches end", "[player]") {
 	float max_progress = 0.0f;
 	int backward_count = 0;
 
-	// Poll cursor at high frequency
-	for(int i = 0; i < 5000; ++i) {
+	// Poll cursor at high frequency until playback has started and finished
+	bool done = false;
+	for(int i = 0; i < 5000 && !done; ++i) {
 		std::this_thread::sleep_for(std::chrono::microseconds(100));
 		auto status = p.get_status();
-		if(!status.playing && !progress_values.empty()) {
-			break;
-		}
+		done = !status.playing && !progress_values.empty();
 		if(status.playing) {
 			float progress = status.section_progress;
 			progress_values.push_back(progress);
@@ -291,27 +288,25 @@ TEST_CASE("player cursor does not get stuck before end", "[player]") {
 	float last_progress = -1.0f;
 	float stuck_at = 0.0f;
 
-	for(int i = 0; i < 5000; ++i) {
+	bool playing = true;
+	for(int i = 0; i < 5000 && playing; ++i) {
 		std::this_thread::sleep_for(std::chrono::microseconds(100));
-		if(!p.is_playing()) {
-			break;
-		}
 		auto status = p.get_status();
-		if(!status.playing) {
-			break;
-		}
-		float progress = status.section_progress;
-		// Only count stuck when cursor is not near the end (drain phase advances slowly)
-		if(progress < 0.95f && std::abs(progress - last_progress) < 0.001f && last_progress > 0.0f) {
-			++current_stuck;
-			if(current_stuck > max_stuck) {
-				max_stuck = current_stuck;
-				stuck_at = progress;
+		playing = p.is_playing() && status.playing;
+		if(playing) {
+			float progress = status.section_progress;
+			// Only count stuck when cursor is not near the end (drain phase advances slowly)
+			if(progress < 0.95f && std::abs(progress - last_progress) < 0.001f && last_progress > 0.0f) {
+				++current_stuck;
+				if(current_stuck > max_stuck) {
+					max_stuck = current_stuck;
+					stuck_at = progress;
+				}
+			} else {
+				current_stuck = 0;
 			}
-		} else {
-			current_stuck = 0;
+			last_progress = progress;
 		}
-		last_progress = progress;
 	}
 
 	INFO("Max consecutive stuck samples: " << max_stuck << " at progress " << stuck_at);
@@ -338,29 +333,30 @@ TEST_CASE("player cursor with real ALSA", "[.][player][alsa]") {
 	int backward_count = 0;
 
 	// Poll at ~120 Hz (like a typical UI frame rate)
-	while(p.is_playing()) {
+	bool playing = p.is_playing();
+	while(playing) {
 		std::this_thread::sleep_for(std::chrono::milliseconds(8));
 		auto status = p.get_status();
-		if(!status.playing) {
-			break;
-		}
-		float progress = status.section_progress;
-		progress_values.push_back(progress);
+		playing = p.is_playing() && status.playing;
+		if(playing) {
+			float progress = status.section_progress;
+			progress_values.push_back(progress);
 
-		if(progress_values.size() > 1 && progress < progress_values[progress_values.size() - 2] - 0.01f) {
-			++backward_count;
-		}
-
-		if(progress < 0.99f && std::abs(progress - last_progress) < 0.001f && last_progress > 0.0f) {
-			++current_stuck;
-			if(current_stuck > max_stuck) {
-				max_stuck = current_stuck;
-				stuck_at = progress;
+			if(progress_values.size() > 1 && progress < progress_values[progress_values.size() - 2] - 0.01f) {
+				++backward_count;
 			}
-		} else {
-			current_stuck = 0;
+
+			if(progress < 0.99f && std::abs(progress - last_progress) < 0.001f && last_progress > 0.0f) {
+				++current_stuck;
+				if(current_stuck > max_stuck) {
+					max_stuck = current_stuck;
+					stuck_at = progress;
+				}
+			} else {
+				current_stuck = 0;
+			}
+			last_progress = progress;
 		}
-		last_progress = progress;
 	}
 
 	float max_progress = 0.0f;
@@ -409,23 +405,21 @@ TEST_CASE("player cursor resets when same section repeats", "[player]") {
 	int reset_count = 0;
 	bool past_midpoint = false;
 
-	for(int i = 0; i < 10000; ++i) {
+	bool playing = true;
+	for(int i = 0; i < 10000 && playing; ++i) {
 		std::this_thread::sleep_for(std::chrono::microseconds(100));
-		if(!p.is_playing()) {
-			break;
-		}
 		auto status = p.get_status();
-		if(!status.playing) {
-			break;
-		}
-		float progress = status.section_progress;
-		if(progress > 0.5f) {
-			past_midpoint = true;
-		}
-		// Detect cursor resetting to near zero after reaching past midpoint
-		if(past_midpoint && progress < 0.1f) {
-			++reset_count;
-			past_midpoint = false;
+		playing = p.is_playing() && status.playing;
+		if(playing) {
+			float progress = status.section_progress;
+			if(progress > 0.5f) {
+				past_midpoint = true;
+			}
+			// Detect cursor resetting to near zero after reaching past midpoint
+			if(past_midpoint && progress < 0.1f) {
+				++reset_count;
+				past_midpoint = false;
+			}
 		}
 	}
 

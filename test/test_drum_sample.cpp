@@ -1,5 +1,7 @@
 #include <catch2/catch_all.hpp>
 
+#include <algorithm>
+
 #include <rumpu/core/drum_sample.hpp>
 
 using namespace securepath::drum;
@@ -15,11 +17,7 @@ TEST_CASE("drum_sample loads from file", "[drum_sample]") {
 
 TEST_CASE("drum_sample buffer is non-silent", "[drum_sample]") {
 	auto s = load_drum_sample(kick_path);
-	bool has_nonzero = false;
-	for(float v : *s.buffer()) {
-		if(v != 0.0f) { has_nonzero = true; break; }
-	}
-	CHECK(has_nonzero);
+	CHECK(std::ranges::any_of(*s.buffer(), [](float v) { return v != 0.0f; }));
 }
 
 TEST_CASE("drum_sample peak amplitude is in valid range", "[drum_sample]") {

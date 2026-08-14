@@ -44,6 +44,8 @@ public:
 		return it != volume_slides_.end() ? it->second : std::optional<volume_slide>();
 	}
 
+	auto& volume_slides(this auto& self) { return self.volume_slides_; }
+
 	void set_length(std::uint32_t l) {
 		bars_.resize(l);
 	}

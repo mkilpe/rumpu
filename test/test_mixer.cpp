@@ -5,6 +5,7 @@
 #include <rumpu/core/song_file.hpp>
 #include <rumpu/core/instrument.hpp>
 
+#include <algorithm>
 #include <cstdio>
 #include <filesystem>
 
@@ -24,6 +25,28 @@ static void add_kick_pattern(song& s) {
 	b.action = beat::hit;
 	b.hit_data.volume = volume{false, 1.0f};
 	sec.tracks()[0].bars()[0].beats[0] = b;
+}
+
+static std::vector<float> render_whole_song(song const& s, std::size_t samples) {
+	mixer m{s, 44100};
+	std::vector<float> buf(samples, 0.0f);
+	m.process(buf.data(), buf.size());
+	return buf;
+}
+
+static std::vector<float> render_section(song const& s, std::uint32_t sec_id, std::size_t samples) {
+	mixer m{s, sec_id, 44100};
+	std::vector<float> buf(samples, 0.0f);
+	m.process(buf.data(), buf.size());
+	return buf;
+}
+
+static float peak_in_range(std::vector<float> const& audio, std::size_t begin, std::size_t len) {
+	float p = 0.0f;
+	for(std::size_t i = begin; i != begin + len && i < audio.size(); ++i) {
+		p = std::max(p, std::abs(audio[i]));
+	}
+	return p;
 }
 
 TEST_CASE("mixer produces no audio for empty song", "[mixer]") {
@@ -144,6 +167,61 @@ TEST_CASE("mixer duration with tempo change", "[mixer]") {
 	CHECK(m.duration() == Catch::Approx(24.0f).margin(0.01f));
 }
 
+TEST_CASE("mixer duration with tempo slide accumulating per bar", "[mixer][slide]") {
+	// Slide over bars [1,4) adds 40 BPM per bar: 120, 160, 200, 240
+	// Bar seconds: 2 + 1.5 + 1.2 + 1 = 5.7
+	song s{{}, {4, 4}, {120}};
+	auto id = s.add_section();
+	s.section_order().push_back(id);
+	s.find_section(id)->changes()[1].tempo_slide_change = tempo_slide{1, 4, 120.0f};
+	mixer m{s, id, 44100};
+	CHECK(m.duration() == Catch::Approx(5.7f).margin(0.01f));
+}
+
+TEST_CASE("mixer volume slide starting mid-section is applied", "[mixer][slide]") {
+	// Hits at bar 0 and bar 2; slide [1,3) drops volume by 0.25/bar,
+	// so the bar-2 hit must play at half the bar-0 amplitude.
+	song s{{}, {4, 4}, {120}};
+	add_kick_pattern(s);
+	auto sec_id = s.section_order()[0];
+	auto& trk = s.find_section(sec_id)->tracks()[0];
+	trk.bars()[2].beats.resize(4);
+	trk.bars()[2].beats[0] = trk.bars()[0].beats[0];
+	trk.volume_slides()[1] = volume_slide{1, 3, -0.5f};
+
+	std::size_t const bar_len = 88200;
+	auto audio = render_section(s, sec_id, bar_len * 4);
+
+	float bar0 = peak_in_range(audio, 0, bar_len);
+	float bar2 = peak_in_range(audio, 2 * bar_len, bar_len);
+	REQUIRE(bar0 > 0.0f);
+	CHECK(bar2 == Catch::Approx(bar0 * 0.5f).margin(0.01f));
+}
+
+TEST_CASE("mixer volume slide does not leak into the next section", "[mixer][slide]") {
+	// Section 1 fades the track to 0.5; section 2 has no slide, so its hit
+	// must stay at 0.5, not keep fading.
+	song s{{}, {4, 4}, {120}};
+	add_kick_pattern(s);
+	auto id1 = s.section_order()[0];
+	s.find_section(id1)->tracks()[0].volume_slides()[0] = volume_slide{0, 2, -0.5f};
+
+	auto id2 = s.add_section();
+	s.section_order().push_back(id2);
+	auto& trk2 = s.find_section(id2)->tracks()[0];
+	trk2.bars()[0].beats[0] = s.find_section(id1)->tracks()[0].bars()[0].beats[0];
+
+	std::size_t const bar_len = 88200;
+	auto audio = render_whole_song(s, bar_len * 8);
+
+	float section1_bar0 = peak_in_range(audio, 0, bar_len);
+	float section2_bar0 = peak_in_range(audio, 4 * bar_len, bar_len);
+	REQUIRE(section1_bar0 > 0.0f);
+	// section 1 bar 0 already has one slide step applied: 1 - 0.25 = 0.75
+	// section 2 bar 0 must hold at 0.5 (0.75 - 0.25), not fade further
+	CHECK(section2_bar0 == Catch::Approx(section1_bar0 * (0.5f / 0.75f)).margin(0.01f));
+}
+
 TEST_CASE("mixer duration for empty song is zero", "[mixer]") {
 	song s{{}, {4, 4}, {120}};
 	mixer m{s, 44100};
@@ -208,20 +286,6 @@ static std::uint32_t add_multi_sample_pattern(song& s) {
 		}
 	}
 	return sec_id;
-}
-
-static std::vector<float> render_whole_song(song const& s, std::size_t samples) {
-	mixer m{s, 44100};
-	std::vector<float> buf(samples, 0.0f);
-	m.process(buf.data(), buf.size());
-	return buf;
-}
-
-static std::vector<float> render_section(song const& s, std::uint32_t sec_id, std::size_t samples) {
-	mixer m{s, sec_id, 44100};
-	std::vector<float> buf(samples, 0.0f);
-	m.process(buf.data(), buf.size());
-	return buf;
 }
 
 TEST_CASE("multi-sample test fixtures have distinct content", "[mixer][random_sample]") {
@@ -304,11 +368,7 @@ TEST_CASE("mixer single-sample instrument plays identically to before random sel
 	auto first = render_whole_song(s, n);
 	auto second = render_whole_song(s, n);
 	CHECK(first == second);
-	bool has_audio = false;
-	for(float v : first) {
-		if(v != 0.0f) { has_audio = true; break; }
-	}
-	CHECK(has_audio);
+	CHECK(std::ranges::any_of(first, [](float v) { return v != 0.0f; }));
 }
 
 TEST_CASE("track random_seed persists across save/load", "[track][random_sample]") {

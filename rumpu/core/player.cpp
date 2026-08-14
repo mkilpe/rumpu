@@ -1,5 +1,6 @@
 
 #include "player.hpp"
+#include "bar_timing.hpp"
 #include <securepath/audio/audio_lib/audio_device_modes.hpp>
 #include <securepath/audio/audio_lib/audio_interface.hpp>
 #include <securepath/audio/audio_lib/util.hpp>
@@ -69,11 +70,8 @@ void player::update_bar_offsets(std::uint32_t section_id) {
 		return;
 	}
 
-	auto default_ts = song_->default_time_signature();
-	auto current_timing = default_ts;
-	auto current_tempo = song_->default_tempo();
-	auto global_slide = song_->global_tempo_slide();
-	tempo_slide current_slide{};
+	bar_timing timing{song_->default_time_signature(), song_->default_tempo(), song_->global_tempo_slide()};
+	timing.new_section();
 
 	std::uint64_t cumulative = 0;
 	auto sr = out_->config().format.samples_per_second;
@@ -81,32 +79,8 @@ void player::update_bar_offsets(std::uint32_t section_id) {
 	bar_offsets_.push_back(0);
 
 	for(std::uint32_t bar = 0; bar < sec->length(); ++bar) {
-		auto change = sec->find_change(bar);
-		if(change) {
-			if(change->timing_change) {
-				current_timing = *change->timing_change;
-			}
-			if(change->tempo_slide_change) {
-				current_slide = *change->tempo_slide_change;
-			}
-			if(change->tempo_change) {
-				current_tempo = *change->tempo_change;
-			} else {
-				if(current_slide.is_active(bar)) {
-					current_tempo.value += current_slide.bar_delta();
-				}
-				if(global_slide) {
-					current_tempo.value += global_slide->value;
-				}
-				current_tempo.value = std::clamp(current_tempo.value, 1.0f, 9999.0f);
-			}
-		}
-
-		double timing_multiplier = default_ts.beat_type() * current_timing.beats_in_bar()
-			/ double(default_ts.beats_in_bar() * current_timing.beat_type());
-		auto samples = static_cast<std::uint32_t>(
-			60.0 * timing_multiplier * sr * current_timing.beats_in_bar() / current_tempo.value);
-		cumulative += samples;
+		timing.begin_bar(*sec, bar);
+		cumulative += timing.bar_samples(sr);
 		bar_offsets_.push_back(cumulative);
 	}
 }
