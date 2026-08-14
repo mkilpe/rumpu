@@ -27,6 +27,18 @@ struct vector_menu : command_parser {
 	}
 };
 
+TEST_CASE("command_parser quoted argument", "[command_parser]") {
+	test_menu menu;
+	menu.parse("--order \"cheese burger\"");
+	CHECK(menu.order == "cheese burger");
+}
+
+TEST_CASE("command_parser unterminated quote throws", "[command_parser]") {
+	// pre-fix: infinite loop appending EOF characters
+	test_menu menu;
+	CHECK_THROWS_AS(menu.parse("--order \"unterminated"), invalid_argument);
+}
+
 TEST_CASE("command_parser double vector command", "[command_parser]") {
 
 	vector_menu vm;

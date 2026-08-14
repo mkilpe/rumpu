@@ -33,10 +33,13 @@ std::string command_parser::parse_name(std::istream& in) {
 std::string command_parser::parse_quoted(std::istream& in) {
 	std::string s;
 	in.ignore(); //the start of quote
-	for(; in.peek() != '"'; ) {
-		s += in.get();
+	for(; in.good() && in.peek() != '"'; ) {
+		s += static_cast<char>(in.get());
 	}
-	in.ignore();
+	if(!in.good()) {
+		throw invalid_argument("unterminated quote in arguments");
+	}
+	in.ignore(); //the end of quote
 	return s;
 }
 
