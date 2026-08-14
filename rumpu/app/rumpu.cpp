@@ -128,6 +128,7 @@ void rumpu::menu() {
                         save_song_file(current_file_, song_);
                     } catch(std::exception const& e) {
                         LOG_WARN("save_song_file failed: {}", e.what());
+                        show_error(std::format("Failed to save project: {}", e.what()));
                     }
                 } else {
                     open_project_dialog(project_action::save);

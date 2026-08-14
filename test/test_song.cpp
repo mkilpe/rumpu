@@ -238,6 +238,49 @@ TEST_CASE("load rejects absurd beat division nesting", "[song][validate]") {
 	check_load_rejects(s);
 }
 
+TEST_CASE("save to an unwritable path throws and leaves no temp file", "[song][save]") {
+	song s = make_valid_song();
+	auto file = (std::filesystem::temp_directory_path()
+		/ "rumpu_no_such_dir" / "song.spd").string();
+
+	CHECK_THROWS_AS(save_song_file(file, s), std::runtime_error);
+	CHECK(!std::filesystem::exists(file + ".tmp"));
+}
+
+TEST_CASE("failed save does not touch an existing file", "[song][save]") {
+	song s = make_valid_song();
+	auto dir = std::filesystem::temp_directory_path() / "rumpu_test_save_dir";
+	std::filesystem::create_directory(dir);
+	auto file = (dir / "song.spd").string();
+	save_song_file(file, s);
+
+	// make the directory unwritable so the temp file cannot be created
+	std::filesystem::permissions(dir, std::filesystem::perms::owner_read
+		| std::filesystem::perms::owner_exec);
+	auto restore = [&] {
+		std::filesystem::permissions(dir, std::filesystem::perms::owner_all);
+	};
+
+	bool const writable_anyway = [&] {
+		// e.g. running as root or on a filesystem without permission support
+		std::ofstream probe(file + ".probe");
+		bool ok = probe.good();
+		probe.close();
+		std::error_code ec;
+		std::filesystem::remove(file + ".probe", ec);
+		return ok;
+	}();
+
+	if(!writable_anyway) {
+		CHECK_THROWS_AS(save_song_file(file, s), std::runtime_error);
+		restore();
+		CHECK_NOTHROW(load_song_file(file));
+	} else {
+		restore();
+	}
+	std::filesystem::remove_all(dir);
+}
+
 TEST_CASE("load accepts moderate beat division nesting", "[song][validate]") {
 	song s = make_valid_song();
 	auto& beats = s.sections().begin()->second.tracks()[0].bars()[0].beats;

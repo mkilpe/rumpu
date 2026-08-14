@@ -3,6 +3,7 @@
 #include <securepath/serialisation/util.hpp>
 #include "serialisation/serialisation.hpp"
 
+#include <filesystem>
 #include <format>
 #include <fstream>
 
@@ -101,11 +102,29 @@ song load_song_file(std::string const& file) {
 	return s;
 }
 
+// Writes to a temporary file and renames over the target, so a failed save
+// (disk full, permissions...) throws instead of silently truncating the
+// previous good save.
 void save_song_file(std::string const& file, song const& s) {
-	std::ofstream out(file, std::ios_base::binary | std::ios_base::trunc);
-	out.write(file_tag.data(), file_tag.size());
-	serialisation::asn_der_encoder enc(out);
-	serialisation::serialiser ser(enc);
-	ser & format_version & s;
+	std::string const tmp = file + ".tmp";
+	try {
+		std::ofstream out(tmp, std::ios_base::binary | std::ios_base::trunc);
+		if(!out) {
+			throw std::runtime_error("unable to open file for writing: " + tmp);
+		}
+		out.write(file_tag.data(), file_tag.size());
+		serialisation::asn_der_encoder enc(out);
+		serialisation::serialiser ser(enc);
+		ser & format_version & s;
+		out.flush();
+		if(!out) {
+			throw std::runtime_error("failed to write file: " + tmp);
+		}
+	} catch(...) {
+		std::error_code ec;
+		std::filesystem::remove(tmp, ec);
+		throw;
+	}
+	std::filesystem::rename(tmp, file);
 }
 }
