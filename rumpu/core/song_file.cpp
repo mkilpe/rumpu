@@ -125,6 +125,14 @@ void save_song_file(std::string const& file, song const& s) {
 		std::filesystem::remove(tmp, ec);
 		throw;
 	}
-	std::filesystem::rename(tmp, file);
+	std::error_code ec;
+	std::filesystem::rename(tmp, file, ec);
+	if(ec) {
+		// mingw's std::filesystem::rename refuses to replace an existing
+		// destination on Windows; remove it and retry. The temp file survives
+		// a failure here, so the data is never lost.
+		std::filesystem::remove(file, ec);
+		std::filesystem::rename(tmp, file);
+	}
 }
 }

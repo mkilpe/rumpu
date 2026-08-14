@@ -238,6 +238,22 @@ TEST_CASE("load rejects absurd beat division nesting", "[song][validate]") {
 	check_load_rejects(s);
 }
 
+TEST_CASE("saving over an existing file replaces it", "[song][save]") {
+	// regression: Windows rename does not replace an existing destination
+	song s = make_valid_song();
+	auto file = (std::filesystem::temp_directory_path() / "rumpu_test_resave.spd").string();
+	save_song_file(file, s);
+
+	s.track_settings()[0].random_seed = 777;
+	save_song_file(file, s);
+
+	song loaded = load_song_file(file);
+	std::remove(file.c_str());
+	REQUIRE(!loaded.track_settings().empty());
+	CHECK(loaded.track_settings()[0].random_seed == 777);
+	CHECK(!std::filesystem::exists(file + ".tmp"));
+}
+
 TEST_CASE("save to an unwritable path throws and leaves no temp file", "[song][save]") {
 	song s = make_valid_song();
 	auto file = (std::filesystem::temp_directory_path()

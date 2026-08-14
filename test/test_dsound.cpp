@@ -1,0 +1,151 @@
+// DirectSound backend tests (M9). Windows-only; runnable on a real machine or
+// under Wine with a null ALSA device (no audio hardware needed).
+#include <catch2/catch_all.hpp>
+
+#include <securepath/audio/audio_lib/audio_buffer.hpp>
+#include <securepath/audio/audio_lib/audio_device.hpp>
+#include <securepath/audio/audio_lib/audio_device_modes.hpp>
+#include <securepath/audio/audio_lib/audio_interface.hpp>
+
+#include <chrono>
+#include <thread>
+
+using namespace securepath;
+using namespace std::chrono;
+
+// 0.2 s mono float buffer at 44100
+static audio::device_config dsound_test_config() {
+	return {{audio::float_t, 1, 32, 44100}, 8820};
+}
+
+static audio::audio_buffer silence_buffer(audio::device_config const& conf, std::size_t samples) {
+	audio::audio_buffer b(conf.format, conf.buffer_size);
+	auto* p = b.begin<float>();
+	for(std::size_t i = 0; i != samples; ++i) {
+		p[i] = 0.0f;
+	}
+	b.set_used_samples(static_cast<unsigned>(samples));
+	return b;
+}
+
+TEST_CASE("dsound default play device opens with notification support", "[dsound]") {
+	auto iface = audio::create_default_audio_interface();
+	REQUIRE(iface);
+	auto dev = iface->play_device(dsound_test_config());
+	REQUIRE(dev);
+	CHECK((dev->supported_modes() & audio::audio_device_mode::notifications) != 0);
+	CHECK(dev->buffer_size() == 8820);
+}
+
+TEST_CASE("dsound every enumerated play device opens (including primary)", "[dsound]") {
+	auto iface = audio::create_default_audio_interface();
+	REQUIRE(iface);
+	auto infos = iface->enumerate_devices(audio::audio_device_t::play);
+	REQUIRE(!infos.empty());
+	for(auto const& info : infos) {
+		INFO("device: " << info->description());
+		// the primary device is enumerated with a null guid; before the fix its
+		// guid_ member was uninitialised garbage and this open could fail
+		auto dev = iface->play_device(dsound_test_config(), info);
+		CHECK(dev);
+	}
+}
+
+TEST_CASE("dsound wait() blocks until audio is consumed", "[dsound]") {
+	auto iface = audio::create_default_audio_interface();
+	auto dev = iface->play_device(dsound_test_config());
+	auto conf = dev->config();
+
+	std::size_t const period = 2205; // 50 ms; buffer = 4 periods
+	dev->set_mode(audio::notification_mode{period});
+
+	auto buf = silence_buffer(conf, conf.buffer_size);
+	dev->write(buf);
+	dev->start();
+
+	auto t0 = steady_clock::now();
+	int woken = 0;
+	for(int i = 0; i != 8; ++i) {
+		if(dev->wait()) {
+			++woken;
+		}
+	}
+	auto elapsed = duration_cast<milliseconds>(steady_clock::now() - t0).count();
+	dev->stop();
+
+	INFO("8 waits took " << elapsed << " ms, " << woken << " woken");
+	// 8 periods of 50 ms = 400 ms of real playback; the pre-fix stub returned
+	// immediately (0 ms, busy-spin)
+	CHECK(elapsed >= 250);
+	CHECK(elapsed <= 2000);
+	CHECK(woken >= 6);
+}
+
+TEST_CASE("dsound stop(drain) returns within bounded time", "[dsound]") {
+	auto iface = audio::create_default_audio_interface();
+	auto dev = iface->play_device(dsound_test_config());
+	auto conf = dev->config();
+
+	auto buf = silence_buffer(conf, conf.buffer_size / 2);
+	dev->write(buf);
+	dev->start();
+
+	auto t0 = steady_clock::now();
+	dev->stop(audio::stop_type::drain); // pre-fix: never returned
+	auto elapsed = duration_cast<milliseconds>(steady_clock::now() - t0).count();
+
+	INFO("drain took " << elapsed << " ms");
+	// at most the 100 ms of written audio remains; allow generous scheduling slack
+	CHECK(elapsed <= 1000);
+}
+
+TEST_CASE("dsound play cursor advances in real time", "[dsound]") {
+	auto iface = audio::create_default_audio_interface();
+	auto dev = iface->play_device(dsound_test_config());
+	auto conf = dev->config();
+
+	auto buf = silence_buffer(conf, conf.buffer_size);
+	dev->write(buf);
+	dev->start();
+	std::this_thread::sleep_for(milliseconds(100));
+	auto consumed = dev->avail();
+	dev->stop();
+
+	INFO("consumed " << consumed << " samples in ~100 ms");
+	// ~4410 samples expected; require it moved meaningfully and sanely
+	CHECK(consumed > 1000);
+	CHECK(consumed < 20000);
+}
+
+TEST_CASE("dsound wait() interrupted by stop() from another thread", "[dsound]") {
+	auto iface = audio::create_default_audio_interface();
+	auto dev = iface->play_device(dsound_test_config());
+	dev->set_mode(audio::notification_mode{2205});
+
+	// not started: no notifications will fire, so wait() parks until stop()
+	auto t0 = steady_clock::now();
+	std::thread stopper{[&dev] {
+		std::this_thread::sleep_for(milliseconds(100));
+		dev->stop();
+	}};
+	bool woke_playing = dev->wait();
+	auto elapsed = duration_cast<milliseconds>(steady_clock::now() - t0).count();
+	stopper.join();
+
+	INFO("wait returned " << woke_playing << " after " << elapsed << " ms");
+	CHECK(!woke_playing); // stopped, not playing
+	CHECK(elapsed < 1000);
+}
+
+TEST_CASE("dsound capture set_notification computes points safely", "[dsound]") {
+	auto iface = audio::create_default_audio_interface();
+	REQUIRE(iface);
+	try {
+		auto dev = iface->capture_device(dsound_test_config());
+		// pre-fix: divided by an uninitialised buffer_length_ member
+		dev->set_mode(audio::notification_mode{2205});
+		SUCCEED("capture notification configured");
+	} catch(std::exception const& e) {
+		WARN("no capture device in this environment: " << e.what());
+	}
+}

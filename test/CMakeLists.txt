@@ -13,6 +13,12 @@ add_executable(test_rumpu
 	test_wav.cpp
 )
 
+if(WIN32)
+	target_sources(test_rumpu PRIVATE test_dsound.cpp)
+	# mingw libstdc++ ships std::print's terminal support in a separate archive
+	target_link_libraries(test_rumpu PRIVATE stdc++exp)
+endif()
+
 target_compile_definitions(test_rumpu PRIVATE
 	TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
 )

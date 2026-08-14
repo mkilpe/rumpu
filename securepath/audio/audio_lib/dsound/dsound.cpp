@@ -4,6 +4,7 @@
 
 #include <securepath/log/log.hpp>
 
+#include <atomic>
 #include <iostream>
 #include <cstring>
 #include <chrono>
@@ -32,10 +33,17 @@ public:
 	{
 		if(guid) {
 			CopyMemory(&guid_, guid, sizeof(GUID));
+			has_guid_ = true;
 		}
 	}
 
-	GUID guid_;
+	// DirectSound enumerates the primary device with a null guid; opening it
+	// must pass null again, not a copy of uninitialised bytes.
+	LPCGUID guid() const { return has_guid_ ? &guid_ : nullptr; }
+
+private:
+	GUID guid_{};
+	bool has_guid_{};
 };
 
 using enum_calltype = std::function<void (LPGUID, LPCWSTR)>;
@@ -51,9 +59,11 @@ class dsound_play_device : public audio_play_device {
 public:
 	dsound_play_device(LPCGUID guid, device_config config)
 		: config_(config)
-		, started_()
-		, pos_()
+		, not_handle_(::CreateEventW(NULL, FALSE, FALSE, NULL))
 	{
+		if(!not_handle_) {
+			throw std::runtime_error("failed to create notification handle");
+		}
 		if(::DirectSoundCreate8(guid, &device_, 0) != DS_OK) {
 			throw std::runtime_error("failed to create device");
 		}
@@ -70,7 +80,8 @@ public:
 
 		DSBUFFERDESC desc = {0};
 		desc.dwSize = sizeof( DSBUFFERDESC );
-		desc.dwFlags = DSBCAPS_GLOBALFOCUS | DSBCAPS_CTRLVOLUME;
+		desc.dwFlags = DSBCAPS_GLOBALFOCUS | DSBCAPS_CTRLVOLUME
+			| DSBCAPS_CTRLPOSITIONNOTIFY | DSBCAPS_GETCURRENTPOSITION2;
 		desc.dwBufferBytes = format_.nBlockAlign * config_.buffer_size;
 		desc.lpwfxFormat = &format_;
 
@@ -96,28 +107,27 @@ public:
 		buffer_->Stop();
 		buffer_->Release();
 		device_->Release();
+		::CloseHandle(not_handle_);
 	}
 
 	void start() {
-		HRESULT h = buffer_->Play(0, 0, DSCBSTART_LOOPING);
+		HRESULT h = buffer_->Play(0, 0, DSBPLAY_LOOPING);
 		if( h != DS_OK ) {
 			std::cout << "error: " << std::hex << h << std::endl;
 			throw std::runtime_error("buffer play failed");
 		}
 		started_ = true;
+		running_ = true;
 	}
 
 	void stop(stop_type s) {
-		if(s == stop_type::drain) {
-			DWORD play_pos = 0;
-			DWORD write_pos = 0;
-			HRESULT h;
-			//is there a better way?
-			while((h = buffer_->GetCurrentPosition(&play_pos, &write_pos)) == DS_OK && play_pos != write_pos) {
-				std::this_thread::sleep_for(50ms);
-			}
+		if(s == stop_type::drain && started_) {
+			drain();
 		}
+		running_ = false;
 		buffer_->Stop();
+		// wake a wait() parked on the notification event
+		::SetEvent(not_handle_);
 		started_ = false;
 	}
 
@@ -126,16 +136,38 @@ public:
 	}
 
 	virtual bool wait() {
-		//todo: implement
-		return true;
+		// finite timeout so a wedged device cannot park the caller forever;
+		// stop() signals the event to interrupt an in-progress wait
+		return ::WaitForSingleObject(not_handle_, 1000) == WAIT_OBJECT_0 && running_;
 	}
 
 	virtual int supported_modes() const {
 		return audio_device_mode::notifications;
 	}
 
+	// Must be called while the buffer is stopped (the player configures the
+	// mode right after creating the device).
 	void set_notification(std::size_t samples) {
-		//todo: implement
+		std::size_t const step = samples * format_.nBlockAlign;
+		if(step == 0 || buffer_size_in_bytes_ % step != 0) {
+			throw std::logic_error("buffer size not divisible by notification period");
+		}
+		std::size_t const points = buffer_size_in_bytes_ / step;
+
+		LPDIRECTSOUNDNOTIFY notify{};
+		if(buffer_->QueryInterface(IID_IDirectSoundNotify, (LPVOID*)&notify) != DS_OK) {
+			throw std::runtime_error("failed to query notification interface");
+		}
+		std::vector<DSBPOSITIONNOTIFY> pnot(points);
+		for(std::size_t i = 0; i != points; ++i) {
+			pnot[i].dwOffset = static_cast<DWORD>(step * (i+1) - 1);
+			pnot[i].hEventNotify = not_handle_;
+		}
+		HRESULT h = notify->SetNotificationPositions(static_cast<DWORD>(pnot.size()), pnot.data());
+		notify->Release();
+		if(h != DS_OK) {
+			throw std::runtime_error("failed to set notification positions");
+		}
 	}
 
 	virtual void set_mode(mode const& m) {
@@ -143,7 +175,7 @@ public:
 			set_notification(p->samples);
 		}
 	}
-	
+
 	virtual device_config config() const {
 		return config_;
 	}
@@ -196,16 +228,52 @@ public:
 		}
 		return consumed / format_.nBlockAlign;
 	}
+
+private:
+	// Wait until the play cursor has consumed everything written so far. The
+	// write cursor from GetCurrentPosition cannot be used here: DirectSound
+	// keeps it a fixed lead ahead of the play cursor, so the two never meet
+	// while the buffer runs. Sleep out the distance to our own write position
+	// (pos_) instead, silencing the stale region past it first.
+	void drain() {
+		DWORD play_pos = 0;
+		DWORD write_pos = 0;
+		if(buffer_->GetCurrentPosition(&play_pos, &write_pos) == DS_OK) {
+			DWORD const remaining = (pos_ + buffer_size_in_bytes_ - play_pos) % buffer_size_in_bytes_;
+			zero_buffer_region(pos_, buffer_size_in_bytes_ - remaining);
+			std::this_thread::sleep_for(
+				std::chrono::milliseconds(remaining * 1000ull / format_.nAvgBytesPerSec));
+		}
+	}
+
+	void zero_buffer_region(DWORD start, DWORD length) {
+		if(length) {
+			void* p1 = 0;
+			void* p2 = 0;
+			DWORD s1 = 0, s2 = 0;
+			if(buffer_->Lock(start, length, &p1, &s1, &p2, &s2, 0) == DS_OK) {
+				if(s1) {
+					std::memset(p1, 0, s1);
+				}
+				if(s2) {
+					std::memset(p2, 0, s2);
+				}
+				buffer_->Unlock(p1, s1, p2, s2);
+			}
+		}
+	}
+
 private:
 	device_config config_;
-	bool started_;
-	std::size_t buffer_size_in_bytes_;
-	DWORD pos_;
+	bool started_{};
+	std::atomic<bool> running_{};
+	std::size_t buffer_size_in_bytes_{};
+	DWORD pos_{};
+	HANDLE not_handle_{};
 
-	GUID guid_;
-	LPDIRECTSOUND8 device_;
-	LPDIRECTSOUNDBUFFER buffer_;
-	WAVEFORMATEX format_;
+	LPDIRECTSOUND8 device_{};
+	LPDIRECTSOUNDBUFFER buffer_{};
+	WAVEFORMATEX format_{};
 };
 
 class dsound_capture_device : public audio_capture_device  {
@@ -257,12 +325,20 @@ public:
 
 	void stop(stop_type s) {
 		if(s == stop_type::drain) {
+			// bounded: give the device one buffer's worth of time to make the
+			// remaining captured data readable, then stop regardless
+			auto const deadline = std::chrono::steady_clock::now()
+				+ std::chrono::milliseconds(1000ull * buffer_size_in_bytes_ / format_.nAvgBytesPerSec)
+				+ 100ms;
 			DWORD capture_pos = 0;
 			DWORD read_pos = 0;
-			HRESULT h;
-			//is there a better way?
-			while((h = buffer_->GetCurrentPosition(&capture_pos, &read_pos)) == DS_OK && capture_pos != read_pos) {
-				std::this_thread::sleep_for(50ms);
+			bool pending = true;
+			while(pending && std::chrono::steady_clock::now() < deadline) {
+				pending = buffer_->GetCurrentPosition(&capture_pos, &read_pos) == DS_OK
+					&& capture_pos != read_pos;
+				if(pending) {
+					std::this_thread::sleep_for(10ms);
+				}
 			}
 		}
 		buffer_->Stop();
@@ -293,36 +369,26 @@ public:
 	}
 
 	void set_notification(std::size_t samples) {
-		std::size_t milliseconds = samples_to_length(config_.format, samples).count();
-		if(buffer_length_ % milliseconds != 0) {
-			throw std::logic_error("buffer length not dividable by notification period");
+		std::size_t const step = samples * format_.nBlockAlign;
+		if(step == 0 || buffer_size_in_bytes_ % step != 0) {
+			throw std::logic_error("buffer size not divisible by notification period");
 		}
-		int notification_points = buffer_length_ / milliseconds;
+		std::size_t const points = buffer_size_in_bytes_ / step;
 
-		LPDIRECTSOUNDNOTIFY notify;
+		LPDIRECTSOUNDNOTIFY notify{};
 		if( buffer_->QueryInterface(IID_IDirectSoundNotify, (LPVOID*)&notify ) != DS_OK) {
 			throw std::runtime_error("failed to query notification interface");
 		}
-
-		std::vector<DSBPOSITIONNOTIFY> pnot;
-
-		if(!not_handle_) {
-			LOG_TRACE("error: {}", ::GetLastError());
-			throw std::runtime_error("failed to create notification handle");
+		std::vector<DSBPOSITIONNOTIFY> pnot(points);
+		for(std::size_t i = 0; i != points; ++i) {
+			pnot[i].dwOffset = static_cast<DWORD>(step * (i+1) - 1);
+			pnot[i].hEventNotify = not_handle_;
 		}
-
-		for(int i = 0; i != notification_points; ++i) {
-			DSBPOSITIONNOTIFY n = {0};
-			n.dwOffset = (buffer_size_in_bytes_ / notification_points) * (i+1) - 1;
-			n.hEventNotify = not_handle_;
-			pnot.push_back(n);
-		}
-
-		if( notify->SetNotificationPositions(pnot.size(), pnot.data() ) != DS_OK) {
-			throw std::runtime_error("failed to set notification");
-		}
-
+		HRESULT h = notify->SetNotificationPositions(static_cast<DWORD>(pnot.size()), pnot.data());
 		notify->Release();
+		if(h != DS_OK) {
+			throw std::runtime_error("failed to set notification positions");
+		}
 	}
 
 	std::size_t capture_to_buffer(uint8_t* buf, std::size_t size) {
@@ -371,15 +437,14 @@ public:
 
 private:
 	device_config config_;
-	std::size_t buffer_length_;
-	std::size_t buffer_size_in_bytes_;
+	std::size_t buffer_size_in_bytes_{};
 
-	DWORD pos_;
-	HANDLE not_handle_;
+	DWORD pos_{};
+	HANDLE not_handle_{};
 
-	LPDIRECTSOUNDCAPTURE8 device_;
-	LPDIRECTSOUNDCAPTUREBUFFER buffer_;
-	WAVEFORMATEX format_;
+	LPDIRECTSOUNDCAPTURE8 device_{};
+	LPDIRECTSOUNDCAPTUREBUFFER buffer_{};
+	WAVEFORMATEX format_{};
 };
 
 std::string dsound_audio_interface::name() const {
@@ -412,7 +477,7 @@ audio_play_device_ptr dsound_audio_interface::play_device(device_config const& c
 	if(info && (!p || !info->is_play_device())) {
 		throw std::runtime_error("invalid audio play device info");
 	}
-	return audio_play_device_ptr(new dsound_play_device(p ? &p->guid_ : nullptr, config));
+	return audio_play_device_ptr(new dsound_play_device(p ? p->guid() : nullptr, config));
 }
 
 audio_capture_device_ptr dsound_audio_interface::capture_device(device_config const& config, audio_device_info_ptr info) const {
@@ -420,7 +485,7 @@ audio_capture_device_ptr dsound_audio_interface::capture_device(device_config co
 	if(info && (!p || info->is_play_device())) {
 		throw std::runtime_error("invalid audio capture device info");
 	}
-	return audio_capture_device_ptr(new dsound_capture_device(p ?&p->guid_ : nullptr, config));
+	return audio_capture_device_ptr(new dsound_capture_device(p ? p->guid() : nullptr, config));
 }
 
 }
