@@ -36,6 +36,11 @@ void basic_event_loop::remove_receiver(receiver r) {
 	}
 }
 
+// NOTE: timers are currently unused, and the loop has two known problems to
+// fix before the first real start_timer call:
+// - process_single_event gives timers absolute priority over queued events, so
+//   a fast repeating timer can starve event delivery entirely
+// - handle_event swallows handler exceptions silently (empty catch blocks)
 timer_handle basic_event_loop::start_timer(receiver r, duration dur, bool single_shot) {
 	assert(r);
 	timer_handle ret{};
