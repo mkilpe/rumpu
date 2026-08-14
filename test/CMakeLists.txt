@@ -13,6 +13,10 @@ add_executable(test_rumpu
 	test_wav.cpp
 )
 
+if(UNIX)
+	target_sources(test_rumpu PRIVATE test_alsa.cpp)
+endif()
+
 if(WIN32)
 	target_sources(test_rumpu PRIVATE test_dsound.cpp)
 	# mingw libstdc++ ships std::print's terminal support in a separate archive

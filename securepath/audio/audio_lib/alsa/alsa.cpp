@@ -68,6 +68,39 @@ snd_pcm_format_t map_to_alsa_format(audio_format const& f) {
 	return format_map[f.type][endian_idx];
 }
 
+// ALSA counts in frames (one sample per channel across the interleave); the
+// audio_device interface counts in samples. Convert at every ALSA boundary.
+std::size_t to_frames(audio_format const& f, std::size_t samples) {
+	return samples / f.channels;
+}
+
+std::size_t to_samples(audio_format const& f, std::size_t frames) {
+	return frames * f.channels;
+}
+
+// owns an open snd_pcm_t and closes it on destruction, so a constructor throw
+// after the open cannot leak the handle
+class pcm_handle {
+public:
+	pcm_handle() = default;
+	~pcm_handle() {
+		if(handle_) {
+			snd_pcm_close(handle_);
+		}
+	}
+	pcm_handle(pcm_handle const&) = delete;
+	pcm_handle& operator=(pcm_handle const&) = delete;
+
+	int open(char const* device, snd_pcm_stream_t stream, int mode) {
+		return snd_pcm_open(&handle_, device, stream, mode);
+	}
+
+	operator snd_pcm_t*() const { return handle_; }
+
+private:
+	snd_pcm_t* handle_{};
+};
+
 device_config configure(snd_pcm_t* handle, device_config config) {
 	hw_params p;
 
@@ -106,22 +139,22 @@ device_config configure(snd_pcm_t* handle, device_config config) {
 	}
 
 	int dir = 0;
-	snd_pcm_uframes_t buffer_size = config.buffer_size;
+	snd_pcm_uframes_t buffer_size = to_frames(config.format, config.buffer_size);
 	err = snd_pcm_hw_params_set_buffer_size_near(handle, p.params, &buffer_size);
 	if(err != 0) {
 		LOG_TRACE("failed to configure parameters (buffer): {}", snd_strerror(err));
 		throw std::runtime_error("failed to configure parameters");
 	}
-	config.buffer_size = buffer_size;
+	config.buffer_size = to_samples(config.format, buffer_size);
 
-	snd_pcm_uframes_t period_size = config.period_size;
+	snd_pcm_uframes_t period_size = to_frames(config.format, config.period_size);
 	dir = 0;
 	err = snd_pcm_hw_params_set_period_size_near(handle, p.params, &period_size, &dir);
 	if(err != 0) {
 		LOG_TRACE("failed to configure parameters (period): {}", snd_strerror(err));
 		throw std::runtime_error("failed to configure parameters");
 	}
-	config.period_size = period_size;
+	config.period_size = to_samples(config.format, period_size);
 
 	err = snd_pcm_hw_params(handle, p.params);
 	if(err != 0) {
@@ -144,7 +177,7 @@ void configure_avail_min(snd_pcm_t* handle, audio_format const& format, std::siz
 
 	LOG_TRACE("Setting avail min to {} samples", samples);
 
-	err = snd_pcm_sw_params_set_avail_min(handle, p.params, samples);
+	err = snd_pcm_sw_params_set_avail_min(handle, p.params, to_frames(format, samples));
 	if(err < 0) {
 		LOG_TRACE("failed to configure parameters: {}", snd_strerror(err));
 		throw std::runtime_error("failed to configure parameters");
@@ -163,9 +196,8 @@ class alsa_play_device : public audio_play_device {
 public:
 	alsa_play_device(std::string const& device, device_config config)
 	: device_config_(config)
-	, handle_()
 	{
-		int err = snd_pcm_open(&handle_, device.c_str(), SND_PCM_STREAM_PLAYBACK, 0/*SND_PCM_NONBLOCK*/);
+		int err = handle_.open(device.c_str(), SND_PCM_STREAM_PLAYBACK, 0/*SND_PCM_NONBLOCK*/);
 		if(err != 0) {
 			LOG_TRACE("cannot open audio device for playback: {}", snd_strerror(err));
 			throw std::runtime_error("failed to open device for playback");
@@ -179,9 +211,6 @@ public:
 		LOG_INFO("ALSA: can_pause={}", can_pause_);
 	}
 
-	~alsa_play_device() {
-		snd_pcm_close(handle_);
-	}
 
 	void start() {
 		auto state = snd_pcm_state(handle_);
@@ -243,11 +272,12 @@ public:
 	virtual std::size_t avail() const {
 		auto v = snd_pcm_avail_update(handle_);
 		if(v == -EPIPE) {
-			v = buffer_size();
-		} else if(v < 0) {
+			return buffer_size();
+		}
+		if(v < 0) {
 			v = 0;
 		}
-		return v;
+		return to_samples(device_config_.format, v);
 	}
 
 	void set_notification(std::size_t samples) {
@@ -297,35 +327,37 @@ public:
 	}
 
 	virtual std::size_t write(audio_buffer& b) {
-		int samples = snd_pcm_writei(handle_, b.begin<uint8_t>(), b.used_samples());
-		if(samples < 0) {
-			if(samples == -EAGAIN) {
+		auto const& fmt = device_config_.format;
+		int frames = snd_pcm_writei(handle_, b.begin<uint8_t>(), to_frames(fmt, b.used_samples()));
+		if(frames < 0) {
+			if(frames == -EAGAIN) {
 				LOG_TRACE("play device EAGAIN");
-			} else if(samples == -EPIPE || samples == -ESTRPIPE) {
-				LOG_TRACE("play device recover ({})", snd_strerror(samples));
-				snd_pcm_recover(handle_, samples, 0);
-				samples = snd_pcm_writei(handle_, b.begin<uint8_t>(), b.used_samples());
-				if(samples < 0) {
-					LOG_TRACE("retry write failed: {}", snd_strerror(samples));
-					samples = 0;
+			} else if(frames == -EPIPE || frames == -ESTRPIPE) {
+				LOG_TRACE("play device recover ({})", snd_strerror(frames));
+				snd_pcm_recover(handle_, frames, 0);
+				frames = snd_pcm_writei(handle_, b.begin<uint8_t>(), to_frames(fmt, b.used_samples()));
+				if(frames < 0) {
+					LOG_TRACE("retry write failed: {}", snd_strerror(frames));
+					frames = 0;
 				}
 				if(snd_pcm_state(handle_) == SND_PCM_STATE_PREPARED) {
 					snd_pcm_start(handle_);
 				}
 			} else {
-				LOG_TRACE("failed to write to play device: {}", snd_strerror(samples));
+				LOG_TRACE("failed to write to play device: {}", snd_strerror(frames));
 				throw std::runtime_error("failed to write to play device");
 			}
-			if(samples < 0) {
-				samples = 0;
+			if(frames < 0) {
+				frames = 0;
 			}
 		}
+		std::size_t samples = to_samples(fmt, frames);
 		b.consume_samples(samples);
 		return samples;
 	}
 private:
 	device_config device_config_;
-	snd_pcm_t* handle_;
+	pcm_handle handle_;
 	std::vector<pollfd> fds_;
 	std::atomic<bool> running_ = false;
 	bool can_pause_ = false;
@@ -336,7 +368,7 @@ public:
 	alsa_capture_device(std::string const& device, device_config config)
 	: device_config_(config)
 	{
-		int err = snd_pcm_open(&handle_, device.c_str(), SND_PCM_STREAM_CAPTURE, SND_PCM_NONBLOCK);
+		int err = handle_.open(device.c_str(), SND_PCM_STREAM_CAPTURE, SND_PCM_NONBLOCK);
 		if(err != 0) {
 			LOG_TRACE("cannot open audio device for capture: {}", snd_strerror(err));
 			throw std::runtime_error("failed to open device for capture");
@@ -351,9 +383,6 @@ public:
 		}*/
 	}
 
-	~alsa_capture_device() {
-		snd_pcm_close(handle_);
-	}
 
 	void start() {
 		running_ = true;
@@ -390,7 +419,7 @@ public:
 		if(v < 0) {
 			v = 0;
 		}
-		return v;
+		return to_samples(device_config_.format, v);
 	}
 
 	void set_notification(std::size_t samples) {
@@ -416,20 +445,29 @@ public:
 	}
 
 	virtual std::size_t read(audio_buffer& b) {
-		int avail = snd_pcm_avail_update(handle_);
-		int samples = 0;
-		if(avail > 0) {
-			avail = std::min<uint>(avail, b.free_samples());
-			samples = snd_pcm_readi(handle_, b.free_begin<uint8_t>(), avail);
-			if(samples < 0) {
-				if(samples == -EPIPE || samples == -ESTRPIPE) {
-					snd_pcm_recover(handle_, samples, 0);
+		auto const& fmt = device_config_.format;
+		int avail_frames = snd_pcm_avail_update(handle_);
+		if(avail_frames < 0) {
+			// xrun surfaces here as a negative avail; without recovery the
+			// capture stream stays wedged for good
+			LOG_TRACE("capture device recover ({})", snd_strerror(avail_frames));
+			snd_pcm_recover(handle_, avail_frames, 0);
+			avail_frames = 0;
+		}
+		std::size_t samples = 0;
+		if(avail_frames > 0) {
+			auto to_read = std::min<std::size_t>(avail_frames, to_frames(fmt, b.free_samples()));
+			int frames = snd_pcm_readi(handle_, b.free_begin<uint8_t>(), to_read);
+			if(frames < 0) {
+				if(frames == -EPIPE || frames == -ESTRPIPE) {
+					snd_pcm_recover(handle_, frames, 0);
 				} else {
-					LOG_TRACE("failed to read from capture device: {}", snd_strerror(samples));
+					LOG_TRACE("failed to read from capture device: {}", snd_strerror(frames));
 					throw std::runtime_error("failed to read from capture device");
 				}
-				samples = 0;
+				frames = 0;
 			}
+			samples = to_samples(fmt, frames);
 			b.conserve_samples(samples);
 		}
 		return samples;
@@ -463,7 +501,7 @@ public:
 
 private:
 	device_config device_config_;
-	snd_pcm_t* handle_;
+	pcm_handle handle_;
 	std::vector<pollfd> fds_;
 	std::atomic<bool> running_ = false;
 };

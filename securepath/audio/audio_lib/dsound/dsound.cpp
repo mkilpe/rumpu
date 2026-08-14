@@ -46,6 +46,52 @@ private:
 	bool has_guid_{};
 };
 
+// owns a COM interface pointer and releases it on destruction, so a
+// constructor throw between acquisition and completion cannot leak it
+template<typename T>
+class com_ptr {
+public:
+	com_ptr() = default;
+	~com_ptr() {
+		if(p_) {
+			p_->Release();
+		}
+	}
+	com_ptr(com_ptr const&) = delete;
+	com_ptr& operator=(com_ptr const&) = delete;
+
+	// for COM factory out-parameters
+	T** out() { return &p_; }
+
+	T* operator->() const { return p_; }
+	operator T*() const { return p_; }
+
+private:
+	T* p_{};
+};
+
+// owns the win32 event handle used for buffer position notifications
+class event_handle {
+public:
+	event_handle()
+	: h_(::CreateEventW(NULL, FALSE, FALSE, NULL))
+	{
+	}
+	~event_handle() {
+		if(h_) {
+			::CloseHandle(h_);
+		}
+	}
+	event_handle(event_handle const&) = delete;
+	event_handle& operator=(event_handle const&) = delete;
+
+	operator HANDLE() const { return h_; }
+	explicit operator bool() const { return h_ != nullptr; }
+
+private:
+	HANDLE h_{};
+};
+
 using enum_calltype = std::function<void (LPGUID, LPCWSTR)>;
 
 BOOL CALLBACK enumerate_devices(LPGUID lpGuid, LPCWSTR lpszDesc, LPCWSTR lpszModule, LPVOID context) {
@@ -59,12 +105,11 @@ class dsound_play_device : public audio_play_device {
 public:
 	dsound_play_device(LPCGUID guid, device_config config)
 		: config_(config)
-		, not_handle_(::CreateEventW(NULL, FALSE, FALSE, NULL))
 	{
 		if(!not_handle_) {
 			throw std::runtime_error("failed to create notification handle");
 		}
-		if(::DirectSoundCreate8(guid, &device_, 0) != DS_OK) {
+		if(::DirectSoundCreate8(guid, device_.out(), 0) != DS_OK) {
 			throw std::runtime_error("failed to create device");
 		}
 		if(device_->SetCooperativeLevel(::GetDesktopWindow(), DSSCL_NORMAL) != DS_OK) {
@@ -85,7 +130,7 @@ public:
 		desc.dwBufferBytes = format_.nBlockAlign * config_.buffer_size;
 		desc.lpwfxFormat = &format_;
 
-		HRESULT res = device_->CreateSoundBuffer(&desc, &buffer_, 0);
+		HRESULT res = device_->CreateSoundBuffer(&desc, buffer_.out(), 0);
 		if( res != DS_OK ) {
 			std::cerr << "Error code: " << std::hex << res << std::endl;
 			throw std::runtime_error("failed to create play buffer");
@@ -104,10 +149,9 @@ public:
 	}
 
 	~dsound_play_device() {
-		buffer_->Stop();
-		buffer_->Release();
-		device_->Release();
-		::CloseHandle(not_handle_);
+		if(buffer_) {
+			buffer_->Stop();
+		}
 	}
 
 	void start() {
@@ -154,8 +198,8 @@ public:
 		}
 		std::size_t const points = buffer_size_in_bytes_ / step;
 
-		LPDIRECTSOUNDNOTIFY notify{};
-		if(buffer_->QueryInterface(IID_IDirectSoundNotify, (LPVOID*)&notify) != DS_OK) {
+		com_ptr<IDirectSoundNotify> notify;
+		if(buffer_->QueryInterface(IID_IDirectSoundNotify, (LPVOID*)notify.out()) != DS_OK) {
 			throw std::runtime_error("failed to query notification interface");
 		}
 		std::vector<DSBPOSITIONNOTIFY> pnot(points);
@@ -163,9 +207,7 @@ public:
 			pnot[i].dwOffset = static_cast<DWORD>(step * (i+1) - 1);
 			pnot[i].hEventNotify = not_handle_;
 		}
-		HRESULT h = notify->SetNotificationPositions(static_cast<DWORD>(pnot.size()), pnot.data());
-		notify->Release();
-		if(h != DS_OK) {
+		if(notify->SetNotificationPositions(static_cast<DWORD>(pnot.size()), pnot.data()) != DS_OK) {
 			throw std::runtime_error("failed to set notification positions");
 		}
 	}
@@ -269,10 +311,10 @@ private:
 	std::atomic<bool> running_{};
 	std::size_t buffer_size_in_bytes_{};
 	DWORD pos_{};
-	HANDLE not_handle_{};
+	event_handle not_handle_;
 
-	LPDIRECTSOUND8 device_{};
-	LPDIRECTSOUNDBUFFER buffer_{};
+	com_ptr<IDirectSound8> device_;
+	com_ptr<IDirectSoundBuffer> buffer_;
 	WAVEFORMATEX format_{};
 };
 
@@ -280,10 +322,11 @@ class dsound_capture_device : public audio_capture_device  {
 public:
 	dsound_capture_device(LPCGUID guid, device_config config)
 		: config_(config)
-		, pos_()
-		, not_handle_( ::CreateEventW(NULL, FALSE, FALSE, NULL) )
 	{
-		HRESULT device_res = ::DirectSoundCaptureCreate8(guid, &device_, 0);
+		if(!not_handle_) {
+			throw std::runtime_error("failed to create notification handle");
+		}
+		HRESULT device_res = ::DirectSoundCaptureCreate8(guid, device_.out(), 0);
 		if(device_res != DS_OK) {
 			std::cerr << "Error code: " << std::hex << device_res << std::endl;
 			throw std::runtime_error("failed to create device");
@@ -303,7 +346,7 @@ public:
 		desc.dwBufferBytes = format_.nBlockAlign * config_.buffer_size;
 		desc.lpwfxFormat = &format_;
 
-		HRESULT res = device_->CreateCaptureBuffer(&desc, &buffer_, 0);
+		HRESULT res = device_->CreateCaptureBuffer(&desc, buffer_.out(), 0);
 		if(res != DS_OK) {
 			std::cerr << "Error code: " << std::hex << res << std::endl;
 			throw std::runtime_error("failed to create capture buffer");
@@ -313,10 +356,9 @@ public:
 	}
 
 	~dsound_capture_device() {
-		CloseHandle(not_handle_);
-		buffer_->Stop();
-		buffer_->Release();
-		device_->Release();
+		if(buffer_) {
+			buffer_->Stop();
+		}
 	}
 
 	void start() {
@@ -375,8 +417,8 @@ public:
 		}
 		std::size_t const points = buffer_size_in_bytes_ / step;
 
-		LPDIRECTSOUNDNOTIFY notify{};
-		if( buffer_->QueryInterface(IID_IDirectSoundNotify, (LPVOID*)&notify ) != DS_OK) {
+		com_ptr<IDirectSoundNotify> notify;
+		if( buffer_->QueryInterface(IID_IDirectSoundNotify, (LPVOID*)notify.out() ) != DS_OK) {
 			throw std::runtime_error("failed to query notification interface");
 		}
 		std::vector<DSBPOSITIONNOTIFY> pnot(points);
@@ -384,9 +426,7 @@ public:
 			pnot[i].dwOffset = static_cast<DWORD>(step * (i+1) - 1);
 			pnot[i].hEventNotify = not_handle_;
 		}
-		HRESULT h = notify->SetNotificationPositions(static_cast<DWORD>(pnot.size()), pnot.data());
-		notify->Release();
-		if(h != DS_OK) {
+		if(notify->SetNotificationPositions(static_cast<DWORD>(pnot.size()), pnot.data()) != DS_OK) {
 			throw std::runtime_error("failed to set notification positions");
 		}
 	}
@@ -440,10 +480,10 @@ private:
 	std::size_t buffer_size_in_bytes_{};
 
 	DWORD pos_{};
-	HANDLE not_handle_{};
+	event_handle not_handle_;
 
-	LPDIRECTSOUNDCAPTURE8 device_{};
-	LPDIRECTSOUNDCAPTUREBUFFER buffer_{};
+	com_ptr<IDirectSoundCapture8> device_;
+	com_ptr<IDirectSoundCaptureBuffer> buffer_;
 	WAVEFORMATEX format_{};
 };
 
