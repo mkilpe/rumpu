@@ -15,7 +15,7 @@ public:
 	error(std::error_code ec = {}, std::string msg = {})
 	: code_(ec)
 	, msg_(std::move(msg))
-	, formatted_(code_.message())
+	, formatted_(msg_.empty() ? code_.message() : code_.message() + ": " + msg_)
 	{}
 
 	template<typename Enum, std::enable_if_t<std::is_enum_v<Enum>, int> = 0>

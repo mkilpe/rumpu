@@ -5,14 +5,17 @@
 namespace securepath {
 
 error::error(std::exception_ptr ex)
-: code_(make_error_code(errc::exception_occurred))
+: error(make_error_code(errc::exception_occurred), [&] {
+		std::string msg;
+		try {
+			std::rethrow_exception(ex);
+		} catch(std::exception const& e) {
+			msg = e.what();
+		} catch(...) {
+		}
+		return msg;
+	}())
 {
-	try {
-		std::rethrow_exception(ex);
-	} catch(std::exception const& ex) {
-		msg_ = ex.what();
-	} catch(...) {
-	}
 }
 
 namespace {

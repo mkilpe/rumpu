@@ -247,6 +247,9 @@ struct mixer::impl {
 				}
 				if(value && value->action == beat::hit && value->hit_data.rand_hit_offset < 0) {
 					std::int32_t adj_offset = pos_.samples + static_cast<std::int32_t>(value->hit_data.rand_hit_offset / 1000.0f * pos_.sample_rate);
+					// an offset reaching before this bar cannot be honored; play at
+					// the bar start instead of wrapping into a huge unsigned position
+					adj_offset = std::max(adj_offset, 0);
 					info.actions.push_back(
 						action_data{static_cast<std::uint32_t>(adj_offset), value->action, info.volume.value * value->combined_hit_volume()});
 				}

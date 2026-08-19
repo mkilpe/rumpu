@@ -9,6 +9,7 @@ add_executable(test_rumpu
 	test_player_cursor.cpp
 	test_song.cpp
 	test_timing.cpp
+	test_ui_task.cpp
 	test_undo_manager.cpp
 	test_wav.cpp
 )

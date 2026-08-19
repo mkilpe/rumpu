@@ -1,6 +1,9 @@
 #pragma once
 
+#include <securepath/log/log.hpp>
+
 #include <coroutine>
+#include <exception>
 #include <utility>
 
 namespace securepath::drum::app {
@@ -27,7 +30,9 @@ public:
         std::suspend_always initial_suspend() noexcept { return {}; }
         std::suspend_always final_suspend() noexcept { return {}; }
         void return_void() {}
-        void unhandled_exception() {}
+        void unhandled_exception() { exception = std::current_exception(); }
+
+        std::exception_ptr exception;
     };
 
     ui_task() = default;
@@ -52,11 +57,23 @@ public:
     ~ui_task() { destroy(); }
 
     /// Resume the coroutine for one frame. Returns true if still active.
+    /// An exception escaping the coroutine ends it (the dialog closes) and is
+    /// logged rather than silently discarded; it is not rethrown because the
+    /// ImGui window stack is already unbalanced at that point.
     bool tick() {
         if (!handle_ || handle_.done()) {
             return false;
         }
         handle_.resume();
+        if (auto ex = std::exchange(handle_.promise().exception, {})) {
+            try {
+                std::rethrow_exception(ex);
+            } catch (std::exception const& e) {
+                LOG_WARN("ui coroutine ended with exception: {}", e.what());
+            } catch (...) {
+                LOG_WARN("ui coroutine ended with unknown exception");
+            }
+        }
         return !handle_.done();
     }
 

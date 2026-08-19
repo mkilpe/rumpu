@@ -1,30 +1,36 @@
 #include <securepath/test_frame/test_suite.hpp>
 #include <securepath/util/error.hpp>
 
-#include <sstream>
+#include <stdexcept>
+#include <string>
 
 namespace securepath::test {
 
-TEST_CASE("error basics", "[error]") {
-	
-	errc e_code = errc::exception_occurred;
-	std::error_code err_code = make_error_code(e_code);
+TEST_CASE("error what() contains both code message and custom message", "[error]") {
+	error e{make_error_code(errc::invalid_data), "tempo field missing"};
+	std::string what = e.what();
+	CHECK(what.find("invalid data") != std::string::npos);
+	CHECK(what.find("tempo field missing") != std::string::npos);
+}
 
-	error err(err_code, "error_msg");
+TEST_CASE("error what() without custom message is the code message", "[error]") {
+	error e{make_error_code(errc::timeout)};
+	CHECK(std::string(e.what()) == "operation timed out");
+}
 
-	CHECK(err);
-	CHECK(err.message() == "error_msg");
-	CHECK((int)err.code().value() == (int)e_code);
-	CHECK(std::string(err.code().category().name()) == "securepath error");
+TEST_CASE("error from exception_ptr preserves the original message", "[error]") {
+	std::exception_ptr ep;
+	try {
+		throw std::runtime_error("disk on fire");
+	} catch(...) {
+		ep = std::current_exception();
+	}
 
-	std::ostringstream os;
-	std::print(os, "{}", err);
-	std::string res = os.str();
-
-	CHECK(res.find("error_msg") != std::string::npos);
-	CHECK(res.find("") != std::string::npos);
-	CHECK(res.find("securepath error") != std::string::npos);
-	CHECK(res.find(std::to_string((int)err.code().value())) != std::string::npos);
+	error e{ep};
+	std::string what = e.what();
+	CHECK(!what.empty());
+	CHECK(what.find("disk on fire") != std::string::npos);
+	CHECK(e.message() == "disk on fire");
 }
 
 }

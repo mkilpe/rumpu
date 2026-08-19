@@ -222,6 +222,28 @@ TEST_CASE("mixer volume slide does not leak into the next section", "[mixer][sli
 	CHECK(section2_bar0 == Catch::Approx(section1_bar0 * (0.5f / 0.75f)).margin(0.01f));
 }
 
+TEST_CASE("mixer clamps a negative hit offset larger than the bar", "[mixer]") {
+	// a hit in bar 1 with a huge negative random offset is pulled into bar 0;
+	// the position must clamp to the bar start, not wrap to a huge unsigned
+	// value that never plays
+	song s{{}, {4, 4}, {120}};
+	s.add_instrument(instrument{kick_path});
+	s.load_instruments(44100);
+	auto sec_id = s.add_section();
+	s.section_order().push_back(sec_id);
+	auto& trk = s.find_section(sec_id)->tracks()[0];
+	trk.bars()[1].beats.resize(4);
+	beat b;
+	b.action = beat::hit;
+	b.hit_data.volume = volume{false, 1.0f};
+	b.hit_data.rand_hit_offset = -5000.0f; // 5 s back; a 120 BPM bar is 2 s
+	trk.bars()[1].beats[0] = b;
+
+	std::size_t const bar_len = 88200;
+	auto audio = render_section(s, sec_id, bar_len);
+	CHECK(peak_in_range(audio, 0, bar_len) > 0.0f);
+}
+
 TEST_CASE("mixer duration for empty song is zero", "[mixer]") {
 	song s{{}, {4, 4}, {120}};
 	mixer m{s, 44100};
