@@ -1,6 +1,8 @@
 #ifndef SECUREPATH_LOG_BACKEND_FILE_OUTPUT_HEADER
 #define SECUREPATH_LOG_BACKEND_FILE_OUTPUT_HEADER
 
+#include "output.hpp"
+
 #include <fstream>
 #include <string>
 
@@ -15,22 +17,26 @@ class file_output : public output_base {
 public:
 	/**
 	 *	\param String file is name for the file where log messages will be written.
+	 *	\param flush_each_message set false to leave flushing to the stream's own
+	 *	buffering: much cheaper per message, but the tail may be lost on a crash.
 	 */
-	file_output(std::string const& file, int level = 0)
+	file_output(std::string const& file, int level = 0, bool flush_each_message = true)
 	: out_(file, std::ios_base::app)
 	, level_(level)
+	, flush_each_message_(flush_each_message)
 	{}
 
 	/**
 	 *	\param Virtual output function that logs message to file.
 	 */
 	virtual void log(formatted_message const& m) {
-
 		if(level_ <= m.info.level) {
 			out_.write(m.message.data(), m.message.size());
-			out_ << std::endl;		
+			out_.put('\n');
+			if(flush_each_message_) {
+				out_.flush();
+			}
 		}
-		
 	}
 
 	/**
@@ -44,6 +50,7 @@ public:
 private:
 	std::ofstream out_;
 	int level_;
+	bool flush_each_message_{true};
 };
 
 }

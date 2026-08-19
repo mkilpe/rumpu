@@ -29,7 +29,9 @@ struct endian_convert<endian::little> {
 		std::make_unsigned_t<T> value{};
 		std::size_t shift{};
 		for( std::size_t i{}; i != sizeof(T); ++i, shift += 8 ) {
-			value |= static_cast<T>(source[i]) << shift;
+			// shift through the unsigned type: shifting into a signed sign bit
+			// is undefined before C++20
+			value |= static_cast<std::make_unsigned_t<T>>(source[i]) << shift;
 
 		}
 		return static_cast<T>(value);
@@ -53,7 +55,7 @@ struct endian_convert<endian::big> {
 		std::make_unsigned_t<T> value{};
 		std::size_t shift{};
 		for( std::size_t i{}; i != sizeof(T); ++i, shift += 8 ) {
-			value |= static_cast<T>(source[sizeof(T)-i-1]) << shift;
+			value |= static_cast<std::make_unsigned_t<T>>(source[sizeof(T)-i-1]) << shift;
 		}
 		return static_cast<T>(value);
 	}

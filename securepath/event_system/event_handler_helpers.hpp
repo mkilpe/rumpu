@@ -2,6 +2,7 @@
 #define SECUREPATH_EVENT_SYSTEM_EVENT_HANDLER_HELPERS_HEADER
 
 #include <tuple>
+#include <typeindex>
 #include <typeinfo>
 
 namespace securepath::event_system {
