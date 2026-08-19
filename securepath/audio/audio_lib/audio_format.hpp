@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_AUDIO_FORMAT_HEADER
-#define SECUREPATH_AUDIO_FORMAT_HEADER
+#pragma once
 
 #include <securepath/serialisation/sequence.hpp>
 #include <securepath/serialisation/serialiser.hpp>
@@ -91,4 +90,3 @@ struct std::formatter<securepath::audio::device_config> {
     }
 };
 
-#endif

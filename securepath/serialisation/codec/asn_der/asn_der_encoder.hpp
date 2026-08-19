@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_SERIALISATION_CODEC_ASN_DER_ENCODER_HEADER
-#define SECUREPATH_SERIALISATION_CODEC_ASN_DER_ENCODER_HEADER
+#pragma once
 
 #include "types.hpp"
 #include "util.hpp"
@@ -240,4 +239,3 @@ private:
 
 }
 
-#endif

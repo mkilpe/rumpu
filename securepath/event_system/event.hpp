@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_EVENT_SYSTEM_EVENT_HEADER
-#define SECUREPATH_EVENT_SYSTEM_EVENT_HEADER
+#pragma once
 
 #include <cstdint>
 #include <memory>
@@ -60,4 +59,3 @@ struct timer_event {
 
 }
 
-#endif

@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_SERIALISATION_HELPERS_HEADER
-#define SECUREPATH_SERIALISATION_HELPERS_HEADER
+#pragma once
 
 #include "has_serialise.hpp"
 #include "tag.hpp"
@@ -49,4 +48,3 @@ deserialiser& operator&(deserialiser& s, T&& v) {
 
 }
 
-#endif

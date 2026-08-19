@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_UTIL_PRINT_ALIGN_HEADER
-#define SECUREPATH_UTIL_PRINT_ALIGN_HEADER
+#pragma once
 
 #include <sstream>
 
@@ -38,4 +37,3 @@ struct print_align {
 
 }
 
-#endif

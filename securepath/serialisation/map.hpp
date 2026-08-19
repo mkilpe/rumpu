@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_SERIALISATION_MAP_HEADER
-#define SECUREPATH_SERIALISATION_MAP_HEADER
+#pragma once
 
 #include "container.hpp"
 
@@ -39,4 +38,3 @@ deserialiser& serialise(deserialiser& s, std::map<K, T>& v) {
 
 }
 
-#endif

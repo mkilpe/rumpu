@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_SERIALISATION_SET_HEADER
-#define SECUREPATH_SERIALISATION_SET_HEADER
+#pragma once
 
 #include "container.hpp"
 
@@ -24,5 +23,3 @@ deserialiser& serialise(deserialiser& s, std::set<K>& v) {
 }
 
 }
-
-#endif

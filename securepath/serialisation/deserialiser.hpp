@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_SERIALISATION_DESERIALISER_HEADER
-#define SECUREPATH_SERIALISATION_DESERIALISER_HEADER
+#pragma once
 
 #include "has_serialise.hpp"
 #include "helpers.hpp"
@@ -156,4 +155,3 @@ deserialiser make_deserialiser(Args&&... args) {
 
 }
 
-#endif

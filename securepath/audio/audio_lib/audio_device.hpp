@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_AUDIO_AUDIO_DEVICE_HEADER
-#define SECUREPATH_AUDIO_AUDIO_DEVICE_HEADER
+#pragma once
 
 #include "audio_buffer.hpp"
 #include <securepath/util/string_util.hpp>
@@ -86,4 +85,3 @@ typedef std::unique_ptr<audio_play_device> audio_play_device_ptr;
 
 }
 
-#endif

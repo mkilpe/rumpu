@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_UTIL_DEBUG_PRINT_HEADER
-#define SECUREPATH_UTIL_DEBUG_PRINT_HEADER
+#pragma once
 
 #include <securepath/log/log.hpp>
 
@@ -17,4 +16,3 @@ void debug_print(std::format_string<Params...> fmt, Params&&... params) {
 
 }
 
-#endif

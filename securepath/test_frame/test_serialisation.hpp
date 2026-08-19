@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_TEST_FRAME_TEST_SERIALISATION_HEADER
-#define SECUREPATH_TEST_FRAME_TEST_SERIALISATION_HEADER
+#pragma once
 
 #include <securepath/serialisation/util.hpp>
 
@@ -44,4 +43,3 @@ bool compare_ser(Type const& t1, Type const& t2) {
 
 }
 
-#endif

@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_EVENT_SYSTEM_EVENT_HANDLER_HELPERS_HEADER
-#define SECUREPATH_EVENT_SYSTEM_EVENT_HANDLER_HELPERS_HEADER
+#pragma once
 
 #include <tuple>
 #include <typeindex>
@@ -45,4 +44,3 @@ private:
 
 }
 
-#endif

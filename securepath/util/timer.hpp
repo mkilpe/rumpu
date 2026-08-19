@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_UTIL_TIMER_HEADER
-#define SECUREPATH_UTIL_TIMER_HEADER
+#pragma once
 
 #include <chrono>
 
@@ -51,4 +50,3 @@ using monotonic_timer = basic_timer<std::chrono::steady_clock>;
 
 }
 
-#endif

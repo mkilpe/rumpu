@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_SERIALISATION_CODEC_ENCODE_HEADER
-#define SECUREPATH_SERIALISATION_CODEC_ENCODE_HEADER
+#pragma once
 
 #include <securepath/serialisation/types.hpp>
 
@@ -27,4 +26,3 @@ struct encoder {
 
 }
 
-#endif

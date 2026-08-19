@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_SERIALISATION_TEST_TYPES_HEADER
-#define SECUREPATH_SERIALISATION_TEST_TYPES_HEADER
+#pragma once
 
 #include <securepath/serialisation/choice.hpp>
 #include <securepath/serialisation/tag.hpp>
@@ -179,4 +178,3 @@ using test_types2 =
 
 }
 
-#endif

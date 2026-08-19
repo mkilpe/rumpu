@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_UTIL_BYTE_ORDER_HEADER
-#define SECUREPATH_UTIL_BYTE_ORDER_HEADER
+#pragma once
 
 #include <cstdint>
 #include <stdexcept>
@@ -177,4 +176,3 @@ using big_endian_import = endian_import<endian::big>;
 
 }
 
-#endif

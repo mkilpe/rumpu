@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_LOG_TYPES_HEADER
-#define SECUREPATH_LOG_TYPES_HEADER
+#pragma once
 
 #include <cstddef>
 #include <string_view>
@@ -28,4 +27,3 @@ struct formatted_message {
 
 }
 
-#endif

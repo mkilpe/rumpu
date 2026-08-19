@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_SERIALISATION_TEST_UTIL_HEADER
-#define SECUREPATH_SERIALISATION_TEST_UTIL_HEADER
+#pragma once
 
 #include <securepath/test_frame/test_serialisation.hpp>
 
@@ -19,4 +18,3 @@ bool check_same_ser(Type t1, Type t2) {
 
 }
 
-#endif

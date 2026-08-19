@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_LOG_STREAMBUF_HEADER
-#define SECUREPATH_LOG_STREAMBUF_HEADER
+#pragma once
 
 #include <cassert>
 #include <optional>
@@ -58,4 +57,3 @@ private:
 
 }
 
-#endif

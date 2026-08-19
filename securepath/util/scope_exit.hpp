@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_UTIL_SCOPE_EXIT_HEADER
-#define SECUREPATH_UTIL_SCOPE_EXIT_HEADER
+#pragma once
 
 #include <utility>
 
@@ -28,4 +27,3 @@ private:
 
 }
 
-#endif

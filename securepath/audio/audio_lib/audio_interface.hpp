@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_AUDIO_AUDIO_INTERFACE_HEADER
-#define SECUREPATH_AUDIO_AUDIO_INTERFACE_HEADER
+#pragma once
 
 #include "audio_device.hpp"
 
@@ -20,4 +19,3 @@ audio_interface_ptr create_default_audio_interface();
 
 }
 
-#endif

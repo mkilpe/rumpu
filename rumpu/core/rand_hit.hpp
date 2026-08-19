@@ -1,5 +1,4 @@
-#ifndef SPDRUM_COMMON_RAND_HIT_HEADER
-#define SPDRUM_COMMON_RAND_HIT_HEADER
+#pragma once
 
 #include <securepath/serialisation/sequence.hpp>
 
@@ -16,5 +15,3 @@ struct rand_hit_offset {
 };
 
 }
-
-#endif

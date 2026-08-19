@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_SERIALISATION_CODEC_ASN_DER_DECODER_HEADER
-#define SECUREPATH_SERIALISATION_CODEC_ASN_DER_DECODER_HEADER
+#pragma once
 
 #include "buffered_stream.hpp"
 #include "types.hpp"
@@ -325,4 +324,3 @@ private:
 
 }
 
-#endif

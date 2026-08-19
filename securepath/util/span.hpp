@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_UTIL_SPAN_HEADER
-#define SECUREPATH_UTIL_SPAN_HEADER
+#pragma once
 
 #include <cstdint>
 #include <span>
@@ -13,4 +12,3 @@ using octet_span = std::span<std::uint8_t const>;
 
 }
 
-#endif

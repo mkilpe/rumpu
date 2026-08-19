@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_UTIL_COMMAND_PARSER_HEADER
-#define SECUREPATH_UTIL_COMMAND_PARSER_HEADER
+#pragma once
 
 #include "print_util.hpp"
 
@@ -211,4 +210,3 @@ void command_parser::add(std::optional<T>& var, std::string name, std::string al
 
 }
 
-#endif

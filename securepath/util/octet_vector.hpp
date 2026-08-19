@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_UTIL_OCTET_VECTOR_HEADER
-#define SECUREPATH_UTIL_OCTET_VECTOR_HEADER
+#pragma once
 
 #include "types.hpp"
 
@@ -50,4 +49,3 @@ inline octet_vector to_octet_vector(std::string const& s) {
 
 }
 
-#endif

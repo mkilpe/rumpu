@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_TEST_TEST_UTILS_HEADER
-#define SECUREPATH_TEST_TEST_UTILS_HEADER
+#pragma once
 
 #include <securepath/util/octet_vector.hpp>
 #include <string>
@@ -13,4 +12,3 @@ std::uint32_t random_uint32(std::uint32_t min, std::uint32_t max);
 
 }
 
-#endif

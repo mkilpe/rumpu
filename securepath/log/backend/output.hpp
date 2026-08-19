@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_LOG_BACKEND_OUTPUT_HEADER
-#define SECUREPATH_LOG_BACKEND_OUTPUT_HEADER
+#pragma once
 
 #include <securepath/log/types.hpp>
 #include <memory>
@@ -22,4 +21,3 @@ using output_ptr = std::unique_ptr<output_base>;
 
 }
 
-#endif

@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_UTIL_TYPELIST_HEADER
-#define SECUREPATH_UTIL_TYPELIST_HEADER
+#pragma once
 
 #include <type_traits>
 
@@ -60,4 +59,3 @@ struct nth_element {
 
 }
 
-#endif

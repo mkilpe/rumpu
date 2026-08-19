@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_SERIALISATION_CONTAINER_HEADER
-#define SECUREPATH_SERIALISATION_CONTAINER_HEADER
+#pragma once
 
 #include <securepath/serialisation/deserialiser.hpp>
 #include <securepath/serialisation/sequence.hpp>
@@ -36,4 +35,3 @@ void container_serialise(deserialiser& s, Container& v) {
 
 }
 
-#endif

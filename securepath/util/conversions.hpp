@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_UTIL_CONVERSIONS_HEADER
-#define SECUREPATH_UTIL_CONVERSIONS_HEADER
+#pragma once
 
 #include "types.hpp"
 #include "span.hpp"
@@ -16,4 +15,3 @@ namespace securepath {
 
 }
 
-#endif

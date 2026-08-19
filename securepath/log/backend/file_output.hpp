@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_LOG_BACKEND_FILE_OUTPUT_HEADER
-#define SECUREPATH_LOG_BACKEND_FILE_OUTPUT_HEADER
+#pragma once
 
 #include "output.hpp"
 
@@ -55,4 +54,3 @@ private:
 
 }
 
-#endif

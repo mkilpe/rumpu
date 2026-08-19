@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_SERIALISATION_ENUM_HEADER
-#define SECUREPATH_SERIALISATION_ENUM_HEADER
+#pragma once
 
 #include "deserialiser.hpp"
 #include "serialiser.hpp"
@@ -25,5 +24,3 @@ deserialiser& serialise(deserialiser& s, T& v) {
 }
 
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_SERIALISATION_CHOICE_HEADER
-#define SECUREPATH_SERIALISATION_CHOICE_HEADER
+#pragma once
 
 #include "tag.hpp"
 #include <securepath/util/typelist.hpp>
@@ -90,4 +89,3 @@ struct choice {
 
 }
 
-#endif

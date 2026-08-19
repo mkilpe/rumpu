@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_SERIALISATION_CODEC_ASN_DER_TYPES_HEADER
-#define SECUREPATH_SERIALISATION_CODEC_ASN_DER_TYPES_HEADER
+#pragma once
 
 #include <cstdint>
 
@@ -52,4 +51,3 @@ std::uint64_t const max_constructed_size{std::uint64_t(1024)*1024*512};
 
 }
 
-#endif

@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_UTIL_TYPES_HEADER
-#define SECUREPATH_UTIL_TYPES_HEADER
+#pragma once
 
 #include <cstdint>
 #include <functional>
@@ -25,4 +24,3 @@ namespace std {
 	};
 }
 
-#endif

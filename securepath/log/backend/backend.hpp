@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_LOG_BACKEND_BACKEND_HEADER
-#define SECUREPATH_LOG_BACKEND_BACKEND_HEADER
+#pragma once
 
 #include "output.hpp"
 #include <string>
@@ -37,4 +36,3 @@ void add_backend(std::string name, Args&&... args) {
 
 }
 
-#endif

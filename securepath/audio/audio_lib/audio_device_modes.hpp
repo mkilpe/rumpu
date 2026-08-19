@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_AUDIO_AUDIO_DEVICE_MODES_HEADER
-#define SECUREPATH_AUDIO_AUDIO_DEVICE_MODES_HEADER
+#pragma once
 
 #include <cstdlib>
 
@@ -20,4 +19,3 @@ struct notification_mode : mode {
 
 }
 
-#endif

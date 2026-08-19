@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_AUDIO_BUFFER_HEADER
-#define SECUREPATH_AUDIO_BUFFER_HEADER
+#pragma once
 
 #include "audio_format.hpp"
 #include <securepath/util/types.hpp>
@@ -84,4 +83,3 @@ protected:
 
 }
 
-#endif

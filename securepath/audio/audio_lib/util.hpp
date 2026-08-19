@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_AUDIO_UTIL_HEADER
-#define SECUREPATH_AUDIO_UTIL_HEADER
+#pragma once
 
 #include "audio_buffer.hpp"
 #include <chrono>
@@ -27,4 +26,3 @@ void adjust_volume(audio_buffer&, double adjust, double noise_threshold);
 
 }
 
-#endif

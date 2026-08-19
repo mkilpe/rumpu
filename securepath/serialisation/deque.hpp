@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_SERIALISATION_DEQUE_HEADER
-#define SECUREPATH_SERIALISATION_DEQUE_HEADER
+#pragma once
 
 #include "container.hpp"
 
@@ -23,4 +22,3 @@ deserialiser& serialise(deserialiser& s, std::deque<T>& v) {
 
 }
 
-#endif

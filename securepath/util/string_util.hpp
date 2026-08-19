@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_UTIL_STRING_UTIL_HEADER
-#define SECUREPATH_UTIL_STRING_UTIL_HEADER
+#pragma once
 
 #include "span.hpp"
 
@@ -21,4 +20,3 @@ std::vector<std::wstring_view> tokenise_view(std::wstring_view view, std::wstrin
 
 }
 
-#endif

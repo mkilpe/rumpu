@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_SERIALISATION_OCTET_VECTOR_STREAM_HEADER
-#define SECUREPATH_SERIALISATION_OCTET_VECTOR_STREAM_HEADER
+#pragma once
 
 #include <securepath/util/span.hpp>
 #include <securepath/util/types.hpp>
@@ -44,4 +43,3 @@ public:
 
 }
 
-#endif

@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_AUDIO_CODEC_HEADER
-#define SECUREPATH_AUDIO_CODEC_HEADER
+#pragma once
 
 #include "audio_buffer.hpp"
 
@@ -39,4 +38,3 @@ struct codec_operation_failed : std::runtime_error {
 
 }
 
-#endif

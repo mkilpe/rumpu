@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_SERIALISATION_TYPES_HEADER
-#define SECUREPATH_SERIALISATION_TYPES_HEADER
+#pragma once
 
 #include <securepath/util/types.hpp>
 
@@ -91,4 +90,3 @@ bool operator!=(trailing_data const& l, trailing_data const& r) {
 
 }
 
-#endif

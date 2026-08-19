@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_SERIALISATION_TAG_HEADER
-#define SECUREPATH_SERIALISATION_TAG_HEADER
+#pragma once
 
 #include "types.hpp"
 
@@ -34,4 +33,3 @@ namespace securepath::serialisation {
 
 }
 
-#endif

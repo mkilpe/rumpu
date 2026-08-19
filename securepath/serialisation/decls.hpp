@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_SERIALISATION_DECLS_HEADER
-#define SECUREPATH_SERIALISATION_DECLS_HEADER
+#pragma once
 
 namespace securepath::serialisation {
 
@@ -11,4 +10,3 @@ class sequence;
 
 }
 
-#endif

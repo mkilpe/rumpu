@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_UTIL_TUPLE_UTIL_HEADER
-#define SECUREPATH_UTIL_TUPLE_UTIL_HEADER
+#pragma once
 
 #include <tuple>
 #include <type_traits>
@@ -28,4 +27,3 @@ auto make_tuple_without(Args&&... args) {
 
 }
 
-#endif

@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_SERIALISATION_HAS_SERIALISE_HEADER
-#define SECUREPATH_SERIALISATION_HAS_SERIALISE_HEADER
+#pragma once
 
 #include <type_traits>
 
@@ -24,4 +23,3 @@ namespace securepath::serialisation {
 
 }
 
-#endif

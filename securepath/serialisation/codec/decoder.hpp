@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_SERIALISATION_CODEC_DECODER_HEADER
-#define SECUREPATH_SERIALISATION_CODEC_DECODER_HEADER
+#pragma once
 
 #include <securepath/serialisation/types.hpp>
 
@@ -56,4 +55,3 @@ private:
 
 }
 
-#endif

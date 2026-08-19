@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_LOG_UTIL_HEADER
-#define SECUREPATH_LOG_UTIL_HEADER
+#pragma once
 
 #include <securepath/log/types.hpp>
 
@@ -70,4 +69,3 @@ inline void print(std::ostream& out, char const* msg, Params const&... params) {
 
 }
 
-#endif

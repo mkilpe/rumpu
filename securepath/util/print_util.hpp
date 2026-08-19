@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_UTIL_PRINT_UTIL_HEADER
-#define SECUREPATH_UTIL_PRINT_UTIL_HEADER
+#pragma once
 
 #include <securepath/log/detail/util.hpp>
 
@@ -31,4 +30,3 @@ namespace securepath {
 	}
 }
 
-#endif

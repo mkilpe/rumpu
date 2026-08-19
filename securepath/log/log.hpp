@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_LOG_LOG_HEADER
-#define SECUREPATH_LOG_LOG_HEADER
+#pragma once
 
 #include "log_handler.hpp"
 
@@ -19,4 +18,3 @@
 		} \
 	} while(false)
 
-#endif

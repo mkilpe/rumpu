@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_TEST_PRINT_UTILS_HEADER
-#define SECUREPATH_TEST_PRINT_UTILS_HEADER
+#pragma once
 
 #include <chrono>
 #include <string>
@@ -28,4 +27,3 @@ std::string duration_to_string(T dur) {
 
 }
 
-#endif

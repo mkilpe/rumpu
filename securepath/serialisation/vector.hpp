@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_SERIALISATION_VECTOR_HEADER
-#define SECUREPATH_SERIALISATION_VECTOR_HEADER
+#pragma once
 
 #include "container.hpp"
 
@@ -35,4 +34,3 @@ deserialiser& serialise(deserialiser& s, octet_vector& v) {
 
 }
 
-#endif

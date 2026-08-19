@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_SERIALISATION_UTIL_HEADER
-#define SECUREPATH_SERIALISATION_UTIL_HEADER
+#pragma once
 
 #include <securepath/serialisation/deserialiser.hpp>
 #include <securepath/serialisation/serialiser.hpp>
@@ -167,4 +166,3 @@ public:
 
 }
 
-#endif

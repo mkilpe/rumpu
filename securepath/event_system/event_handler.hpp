@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_EVENT_SYSTEM_EVENT_HANDLER_HEADER
-#define SECUREPATH_EVENT_SYSTEM_EVENT_HANDLER_HEADER
+#pragma once
 
 #include "event.hpp"
 #include "event_handler_helpers.hpp"
@@ -93,4 +92,3 @@ bool event_handler::dispatch(event_base const& ev, Arg&& arg, Args&&... args) {
 
 }
 
-#endif

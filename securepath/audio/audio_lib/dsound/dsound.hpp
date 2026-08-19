@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_AUDIO_DSOUND_HEADER
-#define SECUREPATH_AUDIO_DSOUND_HEADER
+#pragma once
 
 #include "../audio_interface.hpp"
 
@@ -16,4 +15,3 @@ public:
 
 }
 
-#endif

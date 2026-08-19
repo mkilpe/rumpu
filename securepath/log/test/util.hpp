@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_LOG_TEST_UTIL_HEADER
-#define SECUREPATH_LOG_TEST_UTIL_HEADER
+#pragma once
 
 #include <securepath/log/backend/backend.hpp>
 #include <securepath/log/backend/file_output.hpp>
@@ -216,4 +215,3 @@ bool file_contains_string(std::string const& file, std::string const& s) {
 
 }
 
-#endif

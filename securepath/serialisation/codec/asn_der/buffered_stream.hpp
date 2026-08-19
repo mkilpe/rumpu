@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_SERIALISATION_CODEC_ASN_DER_BUFFERED_STREAM_HEADER
-#define SECUREPATH_SERIALISATION_CODEC_ASN_DER_BUFFERED_STREAM_HEADER
+#pragma once
 
 #include <securepath/serialisation/types.hpp>
 #include <securepath/util/types.hpp>
@@ -131,4 +130,3 @@ private:
 
 }
 
-#endif

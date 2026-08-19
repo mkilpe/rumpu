@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_SERIALISATION_SERIALISER_HEADER
-#define SECUREPATH_SERIALISATION_SERIALISER_HEADER
+#pragma once
 
 #include "has_serialise.hpp"
 #include "helpers.hpp"
@@ -112,4 +111,3 @@ serialiser make_serialiser(Args&&... args) {
 
 }
 
-#endif

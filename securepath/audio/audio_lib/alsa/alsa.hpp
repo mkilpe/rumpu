@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_AUDIO_ALSA_HEADER
-#define SECUREPATH_AUDIO_ALSA_HEADER
+#pragma once
 
 #include "../audio_interface.hpp"
 
@@ -15,4 +14,3 @@ public:
 
 }
 
-#endif

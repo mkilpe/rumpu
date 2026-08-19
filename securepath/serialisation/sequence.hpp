@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_SERIALISATION_SEQUENCE_HEADER
-#define SECUREPATH_SERIALISATION_SEQUENCE_HEADER
+#pragma once
 
 #include "types.hpp"
 
@@ -36,4 +35,3 @@ private:
 
 }
 
-#endif

@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_SERIALISATION_CODEC_ASN_DER_UTIL_HEADER
-#define SECUREPATH_SERIALISATION_CODEC_ASN_DER_UTIL_HEADER
+#pragma once
 
 #include "types.hpp"
 
@@ -282,4 +281,3 @@ Real decode_real(std::uint8_t const* buffer, std::size_t size) {
 
 }
 
-#endif

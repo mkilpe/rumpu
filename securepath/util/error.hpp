@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_UTIL_ERROR_HEADER
-#define SECUREPATH_UTIL_ERROR_HEADER
+#pragma once
 
 #include <exception>
 #include <iosfwd>
@@ -142,4 +141,3 @@ struct std::formatter<securepath::error> {
 };
 
 
-#endif

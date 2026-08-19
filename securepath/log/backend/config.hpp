@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_LOG_CONFIG_HEADER
-#define SECUREPATH_LOG_CONFIG_HEADER
+#pragma once
 
 #include <mutex>
 
@@ -13,4 +12,3 @@ using lock_guard = std::lock_guard<mutex_type>;
 
 }
 
-#endif

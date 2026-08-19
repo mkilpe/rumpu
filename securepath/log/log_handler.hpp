@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_LOG_LOG_HANDLER_HEADER
-#define SECUREPATH_LOG_LOG_HANDLER_HEADER
+#pragma once
 
 #include "default_logger.hpp"
 
@@ -29,4 +28,3 @@ void log_handler(log_info const& info, Logger& logger, std::format_string<Args..
 
 }
 
-#endif

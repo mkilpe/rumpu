@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_LOG_DEFAULT_LOGGER_HEADER
-#define SECUREPATH_LOG_DEFAULT_LOGGER_HEADER
+#pragma once
 
 #include "backend/backend.hpp"
 #include "detail/streambuf.hpp"
@@ -42,4 +41,3 @@ void default_log(log_info const& info, std::format_string<Args...> fmt, Args&&..
 
 }
 
-#endif

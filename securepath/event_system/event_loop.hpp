@@ -1,5 +1,4 @@
-#ifndef SECUREPATH_EVENT_SYSTEM_EVENT_LOOP_HEADER
-#define SECUREPATH_EVENT_SYSTEM_EVENT_LOOP_HEADER
+#pragma once
 
 #include "event.hpp"
 
@@ -88,4 +87,3 @@ private:
 
 }
 
-#endif
