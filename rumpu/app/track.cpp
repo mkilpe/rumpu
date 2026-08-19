@@ -47,6 +47,9 @@ struct track_draw_context {
 	drum::song* song_{};
 	ImVec2 pos  = ImGui::GetCursorScreenPos();
 	ImVec2 size = ImGui::GetWindowSize();
+	// captured at construction, inside the window that owns the canvas: popup
+	// code runs in a different window whose ambient GetScrollX() is useless
+	float scroll_x = ImGui::GetScrollX();
 	time_signature signature;
 	std::uint32_t bar_count{};
 	std::deque<bar>* bars{};
@@ -64,7 +67,9 @@ struct drawer {
 	, bars(c.bar_count)
 	, bar_width(size.x / bars)
 	{
-		hit_size = std::clamp(double(hit_size), 5.0, size.y/3.0);
+		// absolute cap: the circle marks a position, so on tall canvases
+		// (apply-pattern dialog, tall track rows) it should stop growing
+		hit_size = std::clamp(double(hit_size), 5.0, 12.0);
 	}
 
 	void draw_mark(float x, bool accent, beat::action_type action) {
@@ -157,8 +162,11 @@ struct bar_calc {
 	bar_calc(track_draw_context& context, const ImVec2& rel_pos, bool closest_beat = false)
 	: context(context)
 	, bar_width(context.size.x / context.bar_count)
-	, content_x(ImGui::GetScrollX() + rel_pos.x - lead_x)
-	, index(content_x / bar_width)
+	, content_x(context.scroll_x + rel_pos.x - lead_x)
+	// a click in the lead-in margin gives a negative position; map it past the
+	// last bar instead of converting a negative float to size_t (UB)
+	, index(content_x < 0 ? std::numeric_limits<std::size_t>::max()
+		: static_cast<std::size_t>(content_x / bar_width))
 	, closest_beat(closest_beat)
 	{
 	}
@@ -219,6 +227,15 @@ struct bar_calc {
 		return res;
 	}
 
+
+	// true when toggle_mark() would actually change the song; lets the caller
+	// take the undo snapshot only for real edits
+	bool would_toggle() const {
+		if(index >= context.bars->size()) {
+			return false;
+		}
+		return (*context.bars)[index].beats.empty() || find_beat() != nullptr;
+	}
 
 	void toggle_mark() const {
 		if(index < context.bars->size()) {
@@ -353,7 +370,9 @@ void track::context_menu(track_draw_context& context)
     			}
     		}
     	}
-    	if (ImGui::MenuItem("Apply pattern...")) {
+    	// disabled while playing: the follow-cursor section switch rebuilds the
+    	// track views, which would pull this dialog's state out from under it
+    	if (ImGui::MenuItem("Apply pattern...", nullptr, false, !playing_)) {
     		apply_pattern_open_ = true;
     		if(apply_pattern_bars_.empty()) {
     			bar seed;
@@ -417,9 +436,11 @@ void track::handle_mouse(track_draw_context& context) {
     
 	if (hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
     {
-    	song_edit edit{*song_, undo_};
     	bar_calc bc(context, ImVec2{io.MousePos.x - context.pos.x, io.MousePos.y - context.pos.y}, true);
-    	bc.toggle_mark();
+    	if (bc.would_toggle()) {
+    		song_edit edit{*song_, undo_};
+    		bc.toggle_mark();
+    	}
     }
 
     context_menu(context);
@@ -619,7 +640,15 @@ void track::apply_pattern_dialog(track_draw_context& context)
 
 	ImGui::SetNextWindowSize(ImVec2{520.0f, 220.0f}, ImGuiCond_Appearing);
 	if(ImGui::BeginPopupModal(popup_name.c_str(), nullptr, ImGuiWindowFlags_None)) {
-		ImGui::TextUnformatted("Left click: toggle hit.  Right click: toggle choke (stop).");
+		// the popup can outlive this object (track views are rebuilt on every
+		// set_context while ImGui keeps the popup open by name) — reseed the
+		// pattern instead of running the dialog on an empty vector
+		if(apply_pattern_bars_.empty()) {
+			bar seed;
+			seed.beats.assign(context.signature.beats_in_bar(), beat{});
+			apply_pattern_bars_.assign(1, seed);
+		}
+		ImGui::TextUnformatted("Left click: toggle hit.  Right click: more actions (divide, choke...).");
 		ImGui::TextUnformatted("Pattern is tiled across the whole track.");
 
 		int bar_count = static_cast<int>(apply_pattern_bars_.size());
@@ -636,11 +665,15 @@ void track::apply_pattern_dialog(track_draw_context& context)
 			}
 		}
 
-		float const bar_px = 320.0f;
 		float const footer_h = ImGui::GetFrameHeightWithSpacing();
 		ImVec2 child_size{0.0f, -footer_h};
 		ImGui::BeginChild("##pattern_scroll", child_size, true,
-			ImGuiWindowFlags_HorizontalScrollbar);
+			ImGuiWindowFlags_HorizontalScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+		// wheel zooms the pattern view, matching the track area behaviour
+		if(ImGuiIO& io = ImGui::GetIO(); io.MouseWheel && ImGui::IsWindowHovered()) {
+			apply_pattern_zoom_ = std::clamp(apply_pattern_zoom_ + 0.05f * io.MouseWheel, 0.25f, 4.0f);
+		}
+		float const bar_px = 320.0f * apply_pattern_zoom_;
 		float const track_height = std::max(40.0f,
 			ImGui::GetContentRegionAvail().y - ImGui::GetStyle().ScrollbarSize);
 		float const total_w = bar_px * apply_pattern_bars_.size();
@@ -669,9 +702,11 @@ void track::apply_pattern_dialog(track_draw_context& context)
 			}
 		}
 
-		float const scroll_x = ImGui::GetScrollX();
+		// pctx.pos is the (scroll-adjusted) content origin, so mouse - pos is a
+		// content coordinate already; pre-subtract the captured scroll that
+		// bar_calc adds back, popup or not
 		auto make_rel = [&](ImVec2 mouse) {
-			return ImVec2{mouse.x - pctx.pos.x - scroll_x, mouse.y - pctx.pos.y};
+			return ImVec2{mouse.x - pctx.pos.x - pctx.scroll_x, mouse.y - pctx.pos.y};
 		};
 
 		if(hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
@@ -690,7 +725,7 @@ void track::apply_pattern_dialog(track_draw_context& context)
 
 		ImGui::EndChild();
 
-		bool const has_bars = context.bars && context.bar_count > 0;
+		bool const has_bars = context.bars && context.bar_count > 0 && !apply_pattern_bars_.empty();
 		ImGui::BeginDisabled(!has_bars);
 		if(ImGui::Button("OK")) {
 			song_edit edit{*song_, undo_};

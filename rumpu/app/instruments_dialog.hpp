@@ -5,16 +5,18 @@
 #include <rumpu/core/song.hpp>
 #include <rumpu/core/undo_manager.hpp>
 
+#include <filesystem>
+
 namespace securepath::drum::app {
 
 class instruments_dialog : public view {
 public:
     instruments_dialog() = default;
-    void open(song* s, undo_manager* undo);
+    void open(song* s, undo_manager* undo, std::filesystem::path project_base);
     bool draw() override;
 
 private:
-    ui_task run(song* s, undo_manager* undo);
+    ui_task run(song* s, undo_manager* undo, std::filesystem::path project_base);
 
     ui_task task_;
     // Shared with file dialog callback thread; must outlive this object

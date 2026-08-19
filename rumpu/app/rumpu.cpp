@@ -218,7 +218,7 @@ void rumpu::menu() {
                 add_instruments_from_folder_dialog_.open();
             }
             if (ImGui::MenuItem("Manage instruments...")) {
-                instruments_dialog_.open(&song_, &undo_);
+                instruments_dialog_.open(&song_, &undo_, project_dir(current_file_));
             }
             ImGui::EndMenu();
         }
@@ -342,8 +342,7 @@ void rumpu::select_section(uint32_t section_id) {
 void rumpu::add_instrument(std::string path, std::string name) {
     std::unique_lock l{mutex_};
     auto base = project_dir(current_file_);
-    std::string rel_path = base.empty() ? path : std::filesystem::relative(path, base).string();
-    instrument inst{rel_path};
+    instrument inst{project_relative_path(path, base)};
     if (!name.empty()) {
         inst.set_name(std::move(name));
     }
@@ -363,8 +362,7 @@ void rumpu::add_instruments(std::vector<std::string> paths) {
     song_edit edit{song_, &undo_};
     for (auto const& path : paths) {
         fs::path p{path};
-        std::string rel_path = base.empty() ? path : fs::relative(p, base).string();
-        instrument inst{rel_path};
+        instrument inst{project_relative_path(path, base)};
         inst.set_name(p.stem().string());
         song_.add_instrument(std::move(inst));
     }
@@ -431,9 +429,11 @@ void rumpu::open_project(std::string path) {
     // Stop the player before touching the song lock (see load_and_play) so the
     // audio thread is no longer reading the song when we swap it out.
     player_.stop();
-    undo_.clear();
     try {
         song loaded = load_song_file(path);
+        // only clear history once the load has succeeded, so a failed open
+        // keeps the current song's undo intact
+        undo_.clear();
         {
             song_edit edit{song_};
             song_ = std::move(loaded);

@@ -5,9 +5,9 @@
 #include <rumpu/core/time_signature.hpp>
 
 #include "imgui.h"
+#include "imgui_stdlib.h"
 
 #include <algorithm>
-#include <cstring>
 
 namespace securepath::drum::app {
 
@@ -22,12 +22,9 @@ void song_properties_dialog::open(song const* s) {
 ui_task song_properties_dialog::run(song const* s) {
     auto const& info = s->meta_info();
 
-    char name[256]{};
-    char author[256]{};
-    char notes[1024]{};
-    std::strncpy(name, info.name.c_str(), sizeof(name) - 1);
-    std::strncpy(author, info.author.c_str(), sizeof(author) - 1);
-    std::strncpy(notes, info.notes.c_str(), sizeof(notes) - 1);
+    std::string name = info.name;
+    std::string author = info.author;
+    std::string notes = info.notes;
 
     auto ts = s->default_time_signature();
     int beats = ts.beats_in_bar();
@@ -47,15 +44,15 @@ ui_task song_properties_dialog::run(song const* s) {
 
         ImGui::Text("Name:");
         ImGui::SetNextItemWidth(-FLT_MIN);
-        ImGui::InputText("##name", name, sizeof(name));
+        ImGui::InputText("##name", &name);
 
         ImGui::Text("Author:");
         ImGui::SetNextItemWidth(-FLT_MIN);
-        ImGui::InputText("##author", author, sizeof(author));
+        ImGui::InputText("##author", &author);
 
         ImGui::Text("Notes:");
         float const notes_reserve = ImGui::GetFrameHeightWithSpacing() * 12;
-        ImGui::InputTextMultiline("##notes", notes, sizeof(notes), ImVec2(-FLT_MIN, -notes_reserve));
+        ImGui::InputTextMultiline("##notes", &notes, ImVec2(-FLT_MIN, -notes_reserve));
 
         ImGui::Text("Time signature:");
         ImGui::SetNextItemWidth(100);
@@ -85,9 +82,9 @@ ui_task song_properties_dialog::run(song const* s) {
 
         if (ImGui::Button("OK")) {
             handler_.emit<event::update_song_properties>(
-                std::string(name),
-                std::string(author),
-                std::string(notes),
+                name,
+                author,
+                notes,
                 time_signature{static_cast<uint16_t>(beats), static_cast<uint16_t>(beat_type)},
                 tempo,
                 rand_offset_ms,

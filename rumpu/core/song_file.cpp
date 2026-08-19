@@ -53,6 +53,18 @@ static void validate_section(section const& sec, std::size_t track_count, std::s
 	}
 }
 
+std::string project_relative_path(std::string const& path, std::filesystem::path const& base) {
+	if(base.empty()) {
+		return path;
+	}
+	std::error_code ec;
+	auto rel = std::filesystem::relative(path, base, ec);
+	if(ec || rel.empty()) {
+		return path;
+	}
+	return rel.string();
+}
+
 void validate_song(song const& s) {
 	validate_time_signature(s.default_time_signature(), "time signature");
 	validate_tempo(s.default_tempo(), "tempo");

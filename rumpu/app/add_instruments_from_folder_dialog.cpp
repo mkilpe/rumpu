@@ -72,10 +72,15 @@ ui_task add_instruments_from_folder_dialog::run() {
     std::vector<std::filesystem::path> scan_paths;
     std::vector<bool> selected;
     std::string scan_error;
+    // scanning happens after the folder text has been stable for a moment, so
+    // typing a path does not hit the filesystem on every keystroke
+    double changed_time = -1.0;
+    bool scan_now = false;
 
     while (true) {
         if (auto result = folder_result_->take(); result && !result->empty()) {
             folder = std::move(*result);
+            scan_now = true;
         }
 
         ImGui::SetNextWindowSize({640, 480}, ImGuiCond_FirstUseEver);
@@ -102,14 +107,26 @@ ui_task add_instruments_from_folder_dialog::run() {
             ImGui::EndDisabled();
         }
 
-        ImGui::Checkbox("Recursive (include subfolders)", &recursive);
-
-        if (folder != scanned_folder || recursive != scanned_recursive) {
-            scanned_folder = folder;
-            scanned_recursive = recursive;
-            scan_folder(folder, recursive, scan_paths, scan_error);
-            selected.assign(scan_paths.size(), false);
+        if (ImGui::Checkbox("Recursive (include subfolders)", &recursive)) {
+            scan_now = true;
         }
+
+        bool const dirty = folder != scanned_folder || recursive != scanned_recursive;
+        if (dirty) {
+            if (changed_time < 0.0) {
+                changed_time = ImGui::GetTime();
+            }
+            if (scan_now || ImGui::GetTime() - changed_time > 0.4) {
+                scanned_folder = folder;
+                scanned_recursive = recursive;
+                scan_folder(folder, recursive, scan_paths, scan_error);
+                selected.assign(scan_paths.size(), false);
+                changed_time = -1.0;
+            }
+        } else {
+            changed_time = -1.0;
+        }
+        scan_now = false;
 
         std::size_t const selected_count = static_cast<std::size_t>(
             std::count(selected.begin(), selected.end(), true));

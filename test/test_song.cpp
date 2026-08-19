@@ -238,6 +238,14 @@ TEST_CASE("load rejects absurd beat division nesting", "[song][validate]") {
 	check_load_rejects(s);
 }
 
+TEST_CASE("project_relative_path relativises against the project dir", "[song][paths]") {
+	CHECK(project_relative_path("/proj/samples/kick.wav", "/proj") == "samples/kick.wav");
+	// no project directory yet: keep the original path
+	CHECK(project_relative_path("/somewhere/kick.wav", {}) == "/somewhere/kick.wav");
+	// outside the project dir still yields a usable (dotted) relative path
+	CHECK(project_relative_path("/other/kick.wav", "/proj") == "../other/kick.wav");
+}
+
 TEST_CASE("saving over an existing file replaces it", "[song][save]") {
 	// regression: Windows rename does not replace an existing destination
 	song s = make_valid_song();

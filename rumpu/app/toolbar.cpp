@@ -21,12 +21,9 @@ void toolbar::set_context(song* s, uint32_t section)
 
 template<typename Event>
 void toolbar::button(const std::string& label) {
-    ImGui::Button(label.c_str());
-    if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
-        if(song_) {
-            handler_.emit<Event>(section_);
-        }
-    }   
+    if (ImGui::Button(label.c_str()) && song_) {
+        handler_.emit<Event>(section_);
+    }
 }
 
 void toolbar::set_play_status(play_status const& s)

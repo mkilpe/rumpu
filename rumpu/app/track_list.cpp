@@ -53,6 +53,9 @@ void track_list::update_tracks(song* s, uint32_t section)
 void track_list::set_play_status(play_status const& s)
 {
 	play_status_ = s;
+	for(auto&& v : tracks_) {
+		v.track->set_playing(s.playing);
+	}
 }
 
 void track_list::set_context(song* s, uint32_t section, undo_manager* undo)
@@ -148,7 +151,9 @@ bool track_list::do_draw()
 	}
 
 	bool zoom_changed = false;
-	if(io.MouseWheel && ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows)) {
+	// no zooming underneath an open popup/modal (e.g. the apply-pattern dialog)
+	if(io.MouseWheel && ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows)
+		&& !ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopup)) {
 		zoom_changed = true;
 		zoom_ += 0.05f * (max_zoom / 20.0f) * io.MouseWheel;
 		if(zoom_ > max_zoom) {

@@ -15,6 +15,8 @@ public:
     using child_window_base::child_window_base;
     virtual void set_context(size_t index, song*, uint32_t section, undo_manager* undo = nullptr) = 0;
     virtual void zoom(float) = 0;
+    // playback state, for disabling edits that don't mix with a running player
+    virtual void set_playing(bool) {}
 };
 
 struct track_draw_context;
@@ -27,6 +29,7 @@ public:
     void set_context(size_t index, song*, uint32_t section, undo_manager* undo = nullptr) override;
     void set_size(const ImVec2& size) override;
     void zoom(float) override;
+    void set_playing(bool p) override { playing_ = p; }
 private:
     void toggle_mark(track_draw_context&, const ImVec2& rel_pos);
     void handle_mouse(track_draw_context&);
@@ -43,6 +46,7 @@ private:
     ImVec2 mouse_pos_{};
     float zoom_{1.0f};
     ImVec2 original_size_{};
+    bool playing_{};
 
     enum class divide_target { beat, bar };
     bool divide_dialog_open_{false};
@@ -57,6 +61,7 @@ private:
     bool apply_pattern_open_{false};
     std::deque<bar> apply_pattern_bars_;
     ImVec2 apply_pattern_mouse_pos_{};
+    float apply_pattern_zoom_{1.0f};
 };
 
 using track_ptr = std::unique_ptr<track_view>;

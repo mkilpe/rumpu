@@ -13,6 +13,7 @@ enum class coalesce_key {
     section_name,
     section_length,
     bar_tempo,
+    instrument_edit,
 };
 
 class undo_manager {
