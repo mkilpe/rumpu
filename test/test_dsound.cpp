@@ -99,6 +99,53 @@ TEST_CASE("dsound stop(drain) returns within bounded time", "[dsound]") {
 	CHECK(elapsed <= 1000);
 }
 
+TEST_CASE("dsound stereo device counts in samples, not frames", "[dsound]") {
+	// 0.4 s stereo float buffer: 35280 samples = 17640 frames
+	audio::device_config conf{{audio::float_t, 2, 32, 44100}, 35280};
+	auto iface = audio::create_default_audio_interface();
+	auto dev = iface->play_device(conf);
+	CHECK(dev->buffer_size() == 35280);
+
+	auto buf = silence_buffer(dev->config(), dev->config().buffer_size);
+	auto written = dev->write(buf);
+	// the pre-start fill takes (nearly) the whole buffer, counted in samples;
+	// counting frames would report half
+	CHECK(written > 35280 / 2);
+
+	dev->start();
+	std::this_thread::sleep_for(milliseconds(100));
+	auto consumed = dev->avail();
+	dev->stop();
+
+	INFO("consumed " << consumed << " samples in ~100 ms");
+	// ~100 ms of stereo at 44100 = ~8820 samples; counting frames gives half,
+	// and a ring sized in frames instead of samples skews it further
+	CHECK(consumed > 6600);
+	CHECK(consumed < 14000);
+}
+
+TEST_CASE("dsound stop(drain) after a full pre-start fill plays the audio out", "[dsound]") {
+	auto iface = audio::create_default_audio_interface();
+	auto dev = iface->play_device(dsound_test_config()); // 0.2 s mono buffer
+	auto conf = dev->config();
+
+	// fill the whole ring before starting, so the write position lands exactly
+	// on the play cursor: the empty and full states look identical there
+	auto buf = silence_buffer(conf, conf.buffer_size);
+	dev->write(buf);
+	dev->start();
+
+	auto t0 = steady_clock::now();
+	dev->stop(audio::stop_type::drain);
+	auto elapsed = duration_cast<milliseconds>(steady_clock::now() - t0).count();
+
+	INFO("drain took " << elapsed << " ms");
+	// ~200 ms of audio was queued; a drain that mistakes full for empty
+	// zeroes it and returns immediately
+	CHECK(elapsed >= 120);
+	CHECK(elapsed <= 1000);
+}
+
 TEST_CASE("dsound play cursor advances in real time", "[dsound]") {
 	auto iface = audio::create_default_audio_interface();
 	auto dev = iface->play_device(dsound_test_config());

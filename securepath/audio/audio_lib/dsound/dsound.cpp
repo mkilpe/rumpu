@@ -92,6 +92,17 @@ private:
 	HANDLE h_{};
 };
 
+// DirectSound counts buffer positions in bytes (and sizes in whole frames);
+// the audio_device interface counts in interleaved samples. Convert at every
+// DirectSound boundary.
+std::size_t to_bytes(WAVEFORMATEX const& f, std::size_t samples) {
+	return samples * (f.wBitsPerSample / 8);
+}
+
+std::size_t to_samples(WAVEFORMATEX const& f, std::size_t bytes) {
+	return bytes / (f.wBitsPerSample / 8);
+}
+
 using enum_calltype = std::function<void (LPGUID, LPCWSTR)>;
 
 BOOL CALLBACK enumerate_devices(LPGUID lpGuid, LPCWSTR lpszDesc, LPCWSTR lpszModule, LPVOID context) {
@@ -127,7 +138,10 @@ public:
 		desc.dwSize = sizeof( DSBUFFERDESC );
 		desc.dwFlags = DSBCAPS_GLOBALFOCUS | DSBCAPS_CTRLVOLUME
 			| DSBCAPS_CTRLPOSITIONNOTIFY | DSBCAPS_GETCURRENTPOSITION2;
-		desc.dwBufferBytes = format_.nBlockAlign * config_.buffer_size;
+		// buffer_size is in samples; size the ring in whole frames and report
+		// the rounded size back through config(), like the ALSA backend
+		desc.dwBufferBytes = static_cast<DWORD>(
+			config_.buffer_size / format_.nChannels * format_.nBlockAlign);
 		desc.lpwfxFormat = &format_;
 
 		HRESULT res = device_->CreateSoundBuffer(&desc, buffer_.out(), 0);
@@ -136,6 +150,7 @@ public:
 			throw std::runtime_error("failed to create play buffer");
 		}
 		buffer_size_in_bytes_ = desc.dwBufferBytes;
+		config_.buffer_size = to_samples(format_, buffer_size_in_bytes_);
 
 		//initialise to zeros
 		void* p = 0;
@@ -192,7 +207,7 @@ public:
 	// Must be called while the buffer is stopped (the player configures the
 	// mode right after creating the device).
 	void set_notification(std::size_t samples) {
-		std::size_t const step = samples * format_.nBlockAlign;
+		std::size_t const step = to_bytes(format_, samples);
 		if(step == 0 || buffer_size_in_bytes_ % step != 0) {
 			throw std::logic_error("buffer size not divisible by notification period");
 		}
@@ -234,7 +249,10 @@ public:
 		if( size < 0 ) {
 			size += buffer_size_in_bytes_;
 		}
-		return size / format_.nBlockAlign;
+		// keep one frame unwritten so pos_ == play cursor always means "all
+		// played", never "exactly full": drain() relies on the distinction
+		size = std::max(size - int(format_.nBlockAlign), 0);
+		return to_samples(format_, size);
 	}
 
 	std::size_t write_to_buffer(uint8_t const* buf, std::size_t size) {
@@ -259,16 +277,17 @@ public:
 	}
 
 	virtual std::size_t write(audio_buffer& b) {
-		std::size_t size = avail() * format_.nBlockAlign;
+		std::size_t size = to_bytes(format_, avail());
 		if( pos_ == 0 && !started_ ) {
-			size = std::min<std::size_t>(b.used_size(), buffer_size_in_bytes_);
+			// pre-start fill: same one-frame reservation as avail()
+			size = std::min<std::size_t>(b.used_size(), buffer_size_in_bytes_ - format_.nBlockAlign);
 		}
 		std::size_t consumed = 0;
 		if( size ) {
 			consumed = write_to_buffer(b.begin<uint8_t>(), std::min<std::size_t>( size, b.used_size() ));
 			b.consume(consumed);
 		}
-		return consumed / format_.nBlockAlign;
+		return to_samples(format_, consumed);
 	}
 
 private:
@@ -276,7 +295,9 @@ private:
 	// write cursor from GetCurrentPosition cannot be used here: DirectSound
 	// keeps it a fixed lead ahead of the play cursor, so the two never meet
 	// while the buffer runs. Sleep out the distance to our own write position
-	// (pos_) instead, silencing the stale region past it first.
+	// (pos_) instead, silencing the stale region past it first. remaining == 0
+	// unambiguously means "all played": writes reserve one frame, so pos_ can
+	// never wrap onto the play cursor from behind.
 	void drain() {
 		DWORD play_pos = 0;
 		DWORD write_pos = 0;
@@ -343,7 +364,10 @@ public:
 		DSCBUFFERDESC desc = {0};
 		desc.dwSize = sizeof(DSCBUFFERDESC);
 		desc.dwFlags = DSCBCAPS_WAVEMAPPED;
-		desc.dwBufferBytes = format_.nBlockAlign * config_.buffer_size;
+		// buffer_size is in samples; size the ring in whole frames and report
+		// the rounded size back through config(), like the ALSA backend
+		desc.dwBufferBytes = static_cast<DWORD>(
+			config_.buffer_size / format_.nChannels * format_.nBlockAlign);
 		desc.lpwfxFormat = &format_;
 
 		HRESULT res = device_->CreateCaptureBuffer(&desc, buffer_.out(), 0);
@@ -353,6 +377,7 @@ public:
 		}
 
 		buffer_size_in_bytes_ = desc.dwBufferBytes;
+		config_.buffer_size = to_samples(format_, buffer_size_in_bytes_);
 	}
 
 	~dsound_capture_device() {
@@ -407,11 +432,11 @@ public:
 		if(size < 0) {
 			size += buffer_size_in_bytes_;
 		}
-		return size;
+		return to_samples(format_, size);
 	}
 
 	void set_notification(std::size_t samples) {
-		std::size_t const step = samples * format_.nBlockAlign;
+		std::size_t const step = to_bytes(format_, samples);
 		if(step == 0 || buffer_size_in_bytes_ % step != 0) {
 			throw std::logic_error("buffer size not divisible by notification period");
 		}
@@ -452,12 +477,12 @@ public:
 
 	virtual std::size_t read(audio_buffer& b) {
 		std::size_t read_size = 0;
-		std::size_t size = avail();
+		std::size_t size = to_bytes(format_, avail());
 		if(size) {
 			read_size = capture_to_buffer(b.free_begin<uint8_t>(), std::min<std::size_t>( size, b.free_size() ));
 			b.conserve(read_size);
 		}
-		return 8*read_size/config_.format.bits_per_sample;
+		return to_samples(format_, read_size);
 	}
 
 	virtual int supported_modes() const {
