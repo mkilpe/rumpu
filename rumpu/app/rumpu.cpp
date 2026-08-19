@@ -115,151 +115,164 @@ void rumpu::poll_project_dialog_result() {
 
 void rumpu::menu() {
     if (ImGui::BeginMenuBar()) {
-        if (ImGui::BeginMenu("File")) {
-            if (ImGui::MenuItem("New Song")) {
-                new_song_dialog_.open();
-            }
-            if (ImGui::MenuItem("Open...")) {
-                open_project_dialog(project_action::open);
-            }
-            if (ImGui::MenuItem("Save")) {
-                if (!current_file_.empty()) {
-                    try {
-                        save_song_file(current_file_, song_);
-                    } catch(std::exception const& e) {
-                        LOG_WARN("save_song_file failed: {}", e.what());
-                        show_error(std::format("Failed to save project: {}", e.what()));
-                    }
-                } else {
-                    open_project_dialog(project_action::save);
-                }
-            }
-            if (ImGui::MenuItem("Save As...")) {
-                open_project_dialog(project_action::save);
-            }
-            if (ImGui::MenuItem("Export...")) {
-                // Export from a snapshot loaded at the export rate; the live
-                // song stays at the player rate so playback is unaffected.
-                try {
-                    song copy{song_};
-                    copy.load_instruments(export_options{}.format.samples_per_second, project_dir(current_file_));
-                    export_dialog_.open(std::move(copy));
-                } catch(std::exception const& e) {
-                    LOG_WARN("load_instruments failed: {}", e.what());
-                    show_error(std::format("Failed to load instruments: {}", e.what()));
-                }
-            }
-            ImGui::Separator();
-            if (ImGui::MenuItem("Close"))  {
-                running_ = false;
-            }
-            ImGui::EndMenu();
-        }
-        if (ImGui::BeginMenu("Edit")) {
-            if (ImGui::MenuItem("Undo", "Ctrl+Z", false, undo_.can_undo())) {
-                perform_undo();
-            }
-            if (ImGui::MenuItem("Redo", "Ctrl+Shift+Z", false, undo_.can_redo())) {
-                perform_redo();
-            }
-            ImGui::EndMenu();
-        }
-        if (ImGui::BeginMenu("Song")) {
-            if (ImGui::MenuItem("Properties...")) {
-                song_properties_dialog_.open(&song_);
-            }
-            ImGui::EndMenu();
-        }
-        if (ImGui::BeginMenu("Sections")) {
-            if (ImGui::MenuItem("Clone section")) {
-                if (auto* sec = song_.find_section(current_section_)) {
-                    std::uint32_t id{};
-                    {
-                        song_edit edit{song_, &undo_};
-                        id = song_.add_section(*sec);
-                        song_.section_order().push_back(id);
-                    }
-                    current_section_ = id;
-                    track_edit_view_->set_context(&song_, id, &undo_);
-                }
-            }
-            if (ImGui::MenuItem("Remove section", nullptr, false, song_.sections().size() > 1)) {
-                {
-                    song_edit edit{song_, &undo_};
-                    song_.remove_section(current_section_);
-                }
-                if (!song_.sections().empty()) {
-                    select_section_impl(song_.sections().begin()->first);
-                }
-            }
-            ImGui::Separator();
-            for (auto const& [id, section] : song_.sections()) {
-                std::string label = "Section " + std::to_string(id);
-                bool is_selected = (id == current_section_);
-                if (ImGui::MenuItem(label.c_str(), nullptr, is_selected)) {
-                    select_section_impl(id);
-                }
-            }
-            ImGui::EndMenu();
-        }
-        if (ImGui::BeginMenu("Views")) {
-            for(auto&& w : windows_) {
-                if (ImGui::MenuItem(w->name().c_str(), nullptr, w->is_visible())) {
-                    w->set_visible(!w->is_visible());
-                }
-            }
-            ImGui::EndMenu();
-        }
-        if (ImGui::BeginMenu("Instruments")) {
-            if (ImGui::MenuItem("Add instrument...")) {
-                add_instrument_dialog_.open();
-            }
-            if (ImGui::MenuItem("Add instruments from folder...")) {
-                add_instruments_from_folder_dialog_.open();
-            }
-            if (ImGui::MenuItem("Manage instruments...")) {
-                instruments_dialog_.open(&song_, &undo_, project_dir(current_file_));
-            }
-            ImGui::EndMenu();
-        }
-        if (ImGui::BeginMenu("Options")) {
-            if (ImGui::MenuItem("Follow play cursor", nullptr, follow_cursor_)) {
-                follow_cursor_ = !follow_cursor_;
-                track_edit_view_->set_follow_cursor(follow_cursor_);
-            }
-            ImGui::EndMenu();
-        }
-        if (ImGui::BeginMenu("Help")) {
-            ImGui::Separator();
-            if (ImGui::MenuItem("About")) {
-                about_dialog_.open();
-            }
-            ImGui::EndMenu();
-        }
+        file_menu();
+        edit_menu();
+        sections_menu();
+        other_menus();
         ImGui::EndMenuBar();
     }
 }
 
-bool rumpu::update() {
-    std::unique_lock l{mutex_};
+void rumpu::save_current_file() {
+    try {
+        save_song_file(current_file_, song_);
+    } catch(std::exception const& e) {
+        LOG_WARN("save_song_file failed: {}", e.what());
+        show_error(std::format("Failed to save project: {}", e.what()));
+    }
+}
 
-    poll_project_dialog_result();
+void rumpu::open_export_dialog() {
+    // Export from a snapshot loaded at the export rate; the live
+    // song stays at the player rate so playback is unaffected.
+    try {
+        song copy{song_};
+        copy.load_instruments(export_options{}.format.samples_per_second, project_dir(current_file_));
+        export_dialog_.open(std::move(copy));
+    } catch(std::exception const& e) {
+        LOG_WARN("load_instruments failed: {}", e.what());
+        show_error(std::format("Failed to load instruments: {}", e.what()));
+    }
+}
 
-#ifdef IMGUI_HAS_VIEWPORT
-    ImGuiViewport* viewport = ImGui::GetMainViewport();
-    ImGui::SetNextWindowPos(viewport->GetWorkPos());
-    ImGui::SetNextWindowSize(viewport->GetWorkSize());
-    ImGui::SetNextWindowViewport(viewport->ID);
-#else 
-    ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f));
-    ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);
-#endif
-   
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
-    ImGui::Begin("Rumpu", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_MenuBar);
-    
-    menu();
+void rumpu::file_menu() {
+    if (ImGui::BeginMenu("File")) {
+        if (ImGui::MenuItem("New Song")) {
+            new_song_dialog_.open();
+        }
+        if (ImGui::MenuItem("Open...")) {
+            open_project_dialog(project_action::open);
+        }
+        if (ImGui::MenuItem("Save")) {
+            if (!current_file_.empty()) {
+                save_current_file();
+            } else {
+                open_project_dialog(project_action::save);
+            }
+        }
+        if (ImGui::MenuItem("Save As...")) {
+            open_project_dialog(project_action::save);
+        }
+        if (ImGui::MenuItem("Export...")) {
+            open_export_dialog();
+        }
+        ImGui::Separator();
+        if (ImGui::MenuItem("Close"))  {
+            running_ = false;
+        }
+        ImGui::EndMenu();
+    }
+}
 
+void rumpu::edit_menu() {
+    if (ImGui::BeginMenu("Edit")) {
+        if (ImGui::MenuItem("Undo", "Ctrl+Z", false, undo_.can_undo())) {
+            perform_undo();
+        }
+        if (ImGui::MenuItem("Redo", "Ctrl+Shift+Z", false, undo_.can_redo())) {
+            perform_redo();
+        }
+        ImGui::EndMenu();
+    }
+    if (ImGui::BeginMenu("Song")) {
+        if (ImGui::MenuItem("Properties...")) {
+            song_properties_dialog_.open(&song_);
+        }
+        ImGui::EndMenu();
+    }
+}
+
+void rumpu::clone_current_section() {
+    if (auto* sec = song_.find_section(current_section_)) {
+        std::uint32_t id{};
+        {
+            song_edit edit{song_, &undo_};
+            id = song_.add_section(*sec);
+            song_.section_order().push_back(id);
+        }
+        current_section_ = id;
+        track_edit_view_->set_context(&song_, id, &undo_);
+    }
+}
+
+void rumpu::remove_current_section() {
+    {
+        song_edit edit{song_, &undo_};
+        song_.remove_section(current_section_);
+    }
+    if (!song_.sections().empty()) {
+        select_section_impl(song_.sections().begin()->first);
+    }
+}
+
+void rumpu::sections_menu() {
+    if (ImGui::BeginMenu("Sections")) {
+        if (ImGui::MenuItem("Clone section")) {
+            clone_current_section();
+        }
+        if (ImGui::MenuItem("Remove section", nullptr, false, song_.sections().size() > 1)) {
+            remove_current_section();
+        }
+        ImGui::Separator();
+        for (auto const& [id, section] : song_.sections()) {
+            std::string label = "Section " + std::to_string(id);
+            bool is_selected = (id == current_section_);
+            if (ImGui::MenuItem(label.c_str(), nullptr, is_selected)) {
+                select_section_impl(id);
+            }
+        }
+        ImGui::EndMenu();
+    }
+}
+
+void rumpu::other_menus() {
+    if (ImGui::BeginMenu("Views")) {
+        for(auto&& w : windows_) {
+            if (ImGui::MenuItem(w->name().c_str(), nullptr, w->is_visible())) {
+                w->set_visible(!w->is_visible());
+            }
+        }
+        ImGui::EndMenu();
+    }
+    if (ImGui::BeginMenu("Instruments")) {
+        if (ImGui::MenuItem("Add instrument...")) {
+            add_instrument_dialog_.open();
+        }
+        if (ImGui::MenuItem("Add instruments from folder...")) {
+            add_instruments_from_folder_dialog_.open();
+        }
+        if (ImGui::MenuItem("Manage instruments...")) {
+            instruments_dialog_.open(&song_, &undo_, project_dir(current_file_));
+        }
+        ImGui::EndMenu();
+    }
+    if (ImGui::BeginMenu("Options")) {
+        if (ImGui::MenuItem("Follow play cursor", nullptr, follow_cursor_)) {
+            follow_cursor_ = !follow_cursor_;
+            track_edit_view_->set_follow_cursor(follow_cursor_);
+        }
+        ImGui::EndMenu();
+    }
+    if (ImGui::BeginMenu("Help")) {
+        ImGui::Separator();
+        if (ImGui::MenuItem("About")) {
+            about_dialog_.open();
+        }
+        ImGui::EndMenu();
+    }
+}
+
+void rumpu::handle_undo_shortcut() {
     // Only act on the shortcut when no text field is being edited and no modal
     // (e.g. an in-progress export) is open, so undo cannot clobber a text edit
     // or swap the song out from under a dialog that holds pointers into it.
@@ -272,7 +285,9 @@ bool rumpu::update() {
             perform_undo();
         }
     }
+}
 
+void rumpu::draw_dialogs() {
     about_dialog_.draw();
     add_instrument_dialog_.draw();
     add_instruments_from_folder_dialog_.draw();
@@ -282,7 +297,9 @@ bool rumpu::update() {
     instruments_dialog_.draw();
     export_dialog_.draw();
     draw_error_dialog();
+}
 
+void rumpu::draw_windows() {
     if (player_.is_playing()) {
         auto status = player_.get_status();
         if (follow_cursor_ && status.section_id != current_section_ && song_.find_section(status.section_id)) {
@@ -304,10 +321,34 @@ bool rumpu::update() {
             w->draw();
         }
     }
+}
+
+bool rumpu::update() {
+    std::unique_lock l{mutex_};
+
+    poll_project_dialog_result();
+
+#ifdef IMGUI_HAS_VIEWPORT
+    ImGuiViewport* viewport = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(viewport->GetWorkPos());
+    ImGui::SetNextWindowSize(viewport->GetWorkSize());
+    ImGui::SetNextWindowViewport(viewport->ID);
+#else
+    ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f));
+    ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);
+#endif
+
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+    ImGui::Begin("Rumpu", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_MenuBar);
+
+    menu();
+    handle_undo_shortcut();
+    draw_dialogs();
+    draw_windows();
 
     ImGui::End();
     ImGui::PopStyleVar(1);
-    
+
     return running_;
 }
 

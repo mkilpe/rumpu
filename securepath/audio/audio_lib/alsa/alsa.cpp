@@ -101,66 +101,35 @@ private:
 	snd_pcm_t* handle_{};
 };
 
+static void check_config(int err, char const* what) {
+	if(err < 0) {
+		LOG_TRACE("failed to configure parameters ({}): {}", what, snd_strerror(err));
+		throw std::runtime_error("failed to configure parameters");
+	}
+}
+
 device_config configure(snd_pcm_t* handle, device_config config) {
 	hw_params p;
 
 	LOG_TRACE("trying configuration: {}", config);
 
-	int err = snd_pcm_hw_params_any(handle, p.params);
-	if(err < 0) {
-		LOG_TRACE("failed to configure parameters: {}", snd_strerror(err));
-		throw std::runtime_error("failed to configure parameters");
-	}
-	err = snd_pcm_hw_params_set_rate_resample(handle, p.params, 1);
-	if(err < 0) {
-		LOG_TRACE("failed to configure parameters (resample): {}", snd_strerror(err));
-		throw std::runtime_error("failed to configure parameters");
-	}
-	err = snd_pcm_hw_params_set_access(handle, p.params, SND_PCM_ACCESS_RW_INTERLEAVED);
-	if(err < 0) {
-		LOG_TRACE("failed to configure parameters (access): {}", snd_strerror(err));
-		throw std::runtime_error("failed to configure parameters");
-	}
-	err = snd_pcm_hw_params_set_format(handle, p.params, map_to_alsa_format(config.format));
-	if(err != 0) {
-		LOG_TRACE("failed to configure parameters (format): {}", snd_strerror(err));
-		throw std::runtime_error("failed to configure parameters");
-	}
-	err = snd_pcm_hw_params_set_channels(handle, p.params, config.format.channels);
-	if(err != 0) {
-		LOG_TRACE("failed to configure parameters (channels): {}", snd_strerror(err));
-		throw std::runtime_error("failed to configure parameters");
-	}
+	check_config(snd_pcm_hw_params_any(handle, p.params), "any");
+	check_config(snd_pcm_hw_params_set_rate_resample(handle, p.params, 1), "resample");
+	check_config(snd_pcm_hw_params_set_access(handle, p.params, SND_PCM_ACCESS_RW_INTERLEAVED), "access");
+	check_config(snd_pcm_hw_params_set_format(handle, p.params, map_to_alsa_format(config.format)), "format");
+	check_config(snd_pcm_hw_params_set_channels(handle, p.params, config.format.channels), "channels");
+	check_config(snd_pcm_hw_params_set_rate(handle, p.params, config.format.samples_per_second, 0), "rate");
 
-	err = snd_pcm_hw_params_set_rate(handle, p.params, config.format.samples_per_second, 0);
-	if(err != 0) {
-		LOG_TRACE("failed to configure parameters (rate): {}", snd_strerror(err));
-		throw std::runtime_error("failed to configure parameters");
-	}
-
-	int dir = 0;
 	snd_pcm_uframes_t buffer_size = to_frames(config.format, config.buffer_size);
-	err = snd_pcm_hw_params_set_buffer_size_near(handle, p.params, &buffer_size);
-	if(err != 0) {
-		LOG_TRACE("failed to configure parameters (buffer): {}", snd_strerror(err));
-		throw std::runtime_error("failed to configure parameters");
-	}
+	check_config(snd_pcm_hw_params_set_buffer_size_near(handle, p.params, &buffer_size), "buffer");
 	config.buffer_size = to_samples(config.format, buffer_size);
 
+	int dir = 0;
 	snd_pcm_uframes_t period_size = to_frames(config.format, config.period_size);
-	dir = 0;
-	err = snd_pcm_hw_params_set_period_size_near(handle, p.params, &period_size, &dir);
-	if(err != 0) {
-		LOG_TRACE("failed to configure parameters (period): {}", snd_strerror(err));
-		throw std::runtime_error("failed to configure parameters");
-	}
+	check_config(snd_pcm_hw_params_set_period_size_near(handle, p.params, &period_size, &dir), "period");
 	config.period_size = to_samples(config.format, period_size);
 
-	err = snd_pcm_hw_params(handle, p.params);
-	if(err != 0) {
-		LOG_TRACE("failed to set device parameters: {}", snd_strerror(err));
-		throw std::runtime_error("failed to set device parameters");
-	}
+	check_config(snd_pcm_hw_params(handle, p.params), "apply");
 
 	LOG_TRACE("using configuration: {}", config);
 

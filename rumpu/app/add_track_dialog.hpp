@@ -14,6 +14,7 @@ public:
     bool draw() override;
 private:
     ui_task run(song* s, std::uint32_t section);
+    void instrument_list(song const& s, int& selected);
 
     event_system::event_handler& handler_;
     ui_task task_;

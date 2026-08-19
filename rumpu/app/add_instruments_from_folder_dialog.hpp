@@ -12,7 +12,14 @@ public:
     void open();
     bool draw() override;
 private:
+    struct scan_state;
+
     ui_task run();
+    void folder_row(scan_state&);
+    void update_scan(scan_state&);
+    void selection_controls(scan_state&);
+    void file_list(scan_state&);
+    bool import_footer(scan_state&); // true when the dialog should close
 
     event_system::event_handler& handler_;
     ui_task task_;

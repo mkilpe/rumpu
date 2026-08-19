@@ -28,6 +28,7 @@ private:
     void set_track(drum::track const& t);
     void draw_play_cursor(float col_x, float col_top, float col_bottom);
     void apply_follow_scroll();
+    bool update_wheel_zoom();
 private:
     event_system::event_handler& handler_;
     struct track_info {

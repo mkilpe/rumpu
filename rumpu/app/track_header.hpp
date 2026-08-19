@@ -17,7 +17,9 @@ public:
 
 private:
     void context_menu(section* sec, ImVec2 header_pos, float lead_x, float bar_width);
+    void tempo_menu_items(section* sec, uint32_t bar_index);
     void tempo_dialog(section* sec);
+    void draw_ticks(section const* sec, ImVec2 pos, ImVec2 size, float lead_x);
 
     undo_manager* undo_{};
     song* song_{};

@@ -224,35 +224,40 @@ float player::gain() const {
 	return gain_;
 }
 
+// Detect and commit section transitions for the play cursor (includes the
+// same section replayed: bar resets). The commit is deferred until the old
+// section's audio has drained from the device buffer.
+void player::update_cursor_section(std::size_t samples) {
+	section_rendered_ += samples;
+
+	std::uint32_t bar_after = mixer_->currently_playing_bar();
+	std::uint32_t section_after = mixer_->currently_playing_section();
+	if(pending_section_id_ == 0) {
+		bool transition = (section_after != cursor_section_id_
+			|| (bar_after < last_bar_ && last_bar_ > 0)) && mixer_->is_playing();
+		if(transition) {
+			pending_section_id_ = section_after;
+		}
+	}
+	if(pending_section_id_ != 0) {
+		std::uint64_t section_total = bar_offsets_.empty() ? 0 : bar_offsets_.back();
+		if(section_rendered_ >= section_total + out_->buffer_size()) {
+			section_rendered_ -= section_total;
+			cursor_section_id_ = pending_section_id_;
+			update_bar_offsets(cursor_section_id_);
+			pending_section_id_ = 0;
+		}
+	}
+	last_bar_ = bar_after;
+}
+
 void player::write_data() {
 	std::size_t process = std::min<std::size_t>(out_->avail(), buffer_.free_samples());
 	if(process) {
 		float* start = &*buffer_.free_begin<float>();
 		int samples = mixer_->process(start, process);
 		if(samples) {
-			section_rendered_ += samples;
-
-			// Detect section transition (includes same section replayed: bar resets)
-			std::uint32_t bar_after = mixer_->currently_playing_bar();
-			std::uint32_t section_after = mixer_->currently_playing_section();
-			if(pending_section_id_ == 0) {
-				bool transition = (section_after != cursor_section_id_
-					|| (bar_after < last_bar_ && last_bar_ > 0)) && mixer_->is_playing();
-				if(transition) {
-					pending_section_id_ = section_after;
-				}
-			}
-			// Commit deferred transition once old section audio has drained from buffer
-			if(pending_section_id_ != 0) {
-				std::uint64_t section_total = bar_offsets_.empty() ? 0 : bar_offsets_.back();
-				if(section_rendered_ >= section_total + out_->buffer_size()) {
-					section_rendered_ -= section_total;
-					cursor_section_id_ = pending_section_id_;
-					update_bar_offsets(cursor_section_id_);
-					pending_section_id_ = 0;
-				}
-			}
-			last_bar_ = bar_after;
+			update_cursor_section(samples);
 
 			buffer_.conserve_samples(samples);
 			std::for_each(start, start+samples, [&](float& v)

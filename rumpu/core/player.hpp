@@ -60,6 +60,7 @@ private:
 	void play_entry();
 	void write_data();
 	void update_bar_offsets(std::uint32_t section_id);
+	void update_cursor_section(std::size_t samples);
 	void compute_cursor(play_status&, std::uint64_t bar_played) const;
 
 private:

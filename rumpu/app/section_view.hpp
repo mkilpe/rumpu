@@ -16,6 +16,11 @@ public:
     bool do_draw() override;
 
 private:
+    struct drag_move;
+    void section_button(std::size_t index, drag_move&);
+    void queue_context_menu(std::size_t index, std::uint32_t id);
+    void end_drop_target(drag_move&);
+
     undo_manager* undo_{};
     event_system::event_handler& handler_;
     song* song_{};

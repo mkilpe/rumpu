@@ -48,113 +48,124 @@ ui_task export_dialog::run(song s) {
     std::string path;
     export_options options;
 
-    // Phase 1: Show options until user clicks Export or Cancel
-    while (true) {
-        if (auto result = file_result_->take(); result && !result->empty()) {
-            path = std::move(*result);
-        }
-
+    // Phase 1: show options until the user clicks Export or Cancel
+    export_action action = export_action::none;
+    while (action == export_action::none) {
         if (!begin_export_popup()) {
             co_return;
         }
-
-        ImGui::Text("Output file:");
-        ImGui::SetNextItemWidth(-90);
-        ImGui::InputText("##path", &path);
-        ImGui::SameLine();
-
-        bool const browsing = file_result_->in_flight();
-        if (browsing) {
-            ImGui::BeginDisabled();
-        }
-        if (ImGui::Button("Browse...") && file_result_->begin()) {
-            save_wav_file_dialog([r = file_result_](std::string p) {
-                r->deliver(std::move(p));
-            });
-        }
-        if (browsing) {
-            ImGui::EndDisabled();
-        }
-
-        ImGui::SeparatorText("Gain control");
-        int gain = static_cast<int>(options.gain_control);
-        ImGui::RadioButton("Peak normalise", &gain, export_options::peak_normalise);
-        ImGui::RadioButton("None", &gain, export_options::none);
-        options.gain_control = static_cast<export_options::gain_control_type>(gain);
-
-        ImGui::Separator();
-        bool const path_empty = path.empty();
-        if (path_empty) {
-            ImGui::BeginDisabled();
-        }
-        bool const do_export = ImGui::Button("Export");
-        if (path_empty) {
-            ImGui::EndDisabled();
-        }
-        if (do_export) {
-            ImGui::EndPopup();
-            break;
-        }
-
-        ImGui::SameLine();
-        if (ImGui::Button("Cancel") || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
-            ImGui::CloseCurrentPopup();
-            ImGui::EndPopup();
+        action = options_frame(path, options);
+        ImGui::EndPopup();
+        if (action == export_action::cancel) {
             co_return;
         }
-
-        ImGui::EndPopup();
         co_await next_frame{};
     }
 
-    // Phase 2: Export with progress
+    // Phase 2: one exporter chunk per frame, then a done/failed screen
     std::string error;
+    std::optional<wav_exporter> exporter;
     try {
-        wav_exporter exporter(path, s, options);
-
-        while (exporter.process()) {
-            if (!begin_export_popup()) {
-                co_return;
-            }
-            ImGui::Text("Exporting...");
-            draw_progress(exporter);
-            ImGui::EndPopup();
-            co_await next_frame{};
-        }
-
-        // Phase 3: Done
-        while (true) {
-            if (!begin_export_popup()) {
-                co_return;
-            }
-            ImGui::Text("Export complete.");
-            draw_progress(exporter);
-            if (ImGui::Button("Close")) {
-                ImGui::CloseCurrentPopup();
-                ImGui::EndPopup();
-                co_return;
-            }
-            ImGui::EndPopup();
-            co_await next_frame{};
-        }
+        exporter.emplace(path, std::move(s), options);
     } catch (std::exception const& e) {
         error = e.what();
     }
 
-    // Phase 3: Failed
+    bool done = false;
     while (true) {
         if (!begin_export_popup()) {
             co_return;
         }
-        ImGui::TextColored({1.0f, 0.3f, 0.3f, 1.0f}, "Export failed: %s", error.c_str());
-        if (ImGui::Button("Close")) {
-            ImGui::CloseCurrentPopup();
-            ImGui::EndPopup();
-            co_return;
+        bool close = false;
+        if (!error.empty()) {
+            close = failed_frame(error);
+        } else if (!done) {
+            export_step(*exporter, error, done);
+        } else {
+            close = completed_frame(*exporter);
         }
         ImGui::EndPopup();
+        if (close) {
+            co_return;
+        }
         co_await next_frame{};
     }
+}
+
+export_dialog::export_action export_dialog::options_frame(std::string& path, export_options& options) {
+    if (auto result = file_result_->take(); result && !result->empty()) {
+        path = std::move(*result);
+    }
+
+    ImGui::Text("Output file:");
+    ImGui::SetNextItemWidth(-90);
+    ImGui::InputText("##path", &path);
+    ImGui::SameLine();
+
+    bool const browsing = file_result_->in_flight();
+    if (browsing) {
+        ImGui::BeginDisabled();
+    }
+    if (ImGui::Button("Browse...") && file_result_->begin()) {
+        save_wav_file_dialog([r = file_result_](std::string p) {
+            r->deliver(std::move(p));
+        });
+    }
+    if (browsing) {
+        ImGui::EndDisabled();
+    }
+
+    ImGui::SeparatorText("Gain control");
+    int gain = static_cast<int>(options.gain_control);
+    ImGui::RadioButton("Peak normalise", &gain, export_options::peak_normalise);
+    ImGui::RadioButton("None", &gain, export_options::none);
+    options.gain_control = static_cast<export_options::gain_control_type>(gain);
+
+    ImGui::Separator();
+    bool const path_empty = path.empty();
+    if (path_empty) {
+        ImGui::BeginDisabled();
+    }
+    export_action action = ImGui::Button("Export") ? export_action::start : export_action::none;
+    if (path_empty) {
+        ImGui::EndDisabled();
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Cancel") || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+        ImGui::CloseCurrentPopup();
+        action = export_action::cancel;
+    }
+    return action;
+}
+
+// run one exporter chunk and draw the progress frame
+void export_dialog::export_step(wav_exporter& exporter, std::string& error, bool& done) {
+    try {
+        done = !exporter.process();
+    } catch (std::exception const& e) {
+        error = e.what();
+    }
+    ImGui::Text("Exporting...");
+    draw_progress(exporter);
+}
+
+bool export_dialog::completed_frame(wav_exporter const& exporter) {
+    ImGui::Text("Export complete.");
+    draw_progress(exporter);
+    bool const close = ImGui::Button("Close");
+    if (close) {
+        ImGui::CloseCurrentPopup();
+    }
+    return close;
+}
+
+bool export_dialog::failed_frame(std::string const& error) {
+    ImGui::TextColored({1.0f, 0.3f, 0.3f, 1.0f}, "Export failed: %s", error.c_str());
+    bool const close = ImGui::Button("Close");
+    if (close) {
+        ImGui::CloseCurrentPopup();
+    }
+    return close;
 }
 
 bool export_dialog::draw() {

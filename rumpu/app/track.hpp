@@ -31,12 +31,26 @@ public:
     void zoom(float) override;
     void set_playing(bool p) override { playing_ = p; }
 private:
+    enum class divide_target { beat, bar };
+
     void toggle_mark(track_draw_context&, const ImVec2& rel_pos);
     void handle_mouse(track_draw_context&);
     void context_menu(track_draw_context&);
+    void beat_menu_items(track_draw_context&, ImVec2 rel);
+    void divide_submenu(track_draw_context&, ImVec2 rel, char const* label, divide_target);
+    void track_menu_items(track_draw_context&, ImVec2 rel);
+    void choke_menu_items(track_draw_context&, ImVec2 rel);
+    void seed_apply_pattern(track_draw_context&, ImVec2 rel);
     void divide_dialog(track_draw_context&);
     void beat_properties_dialog(track_draw_context&);
+    void hit_beat_properties(beat&);
+    void choke_beat_properties(beat&);
     void apply_pattern_dialog(track_draw_context&);
+    void apply_pattern_bars_slider(track_draw_context const&);
+    void apply_pattern_canvas();
+    void apply_pattern_canvas_input(track_draw_context&, bool hovered);
+    void apply_pattern_footer(track_draw_context&);
+    void apply_pattern_to_track(track_draw_context&);
 
 private:
     undo_manager* undo_{};
@@ -47,8 +61,6 @@ private:
     float zoom_{1.0f};
     ImVec2 original_size_{};
     bool playing_{};
-
-    enum class divide_target { beat, bar };
     bool divide_dialog_open_{false};
     divide_target divide_dialog_target_{};
     int divide_amount_{2};

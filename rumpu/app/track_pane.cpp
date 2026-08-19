@@ -32,6 +32,28 @@ void track_pane::set_context(event_system::event_handler& h, song* s, std::uint3
 
 bool track_pane::do_draw()
 {
+    clipped_name();
+
+    auto* settings = (song_ && track_index_ < song_->track_settings().size())
+        ? &song_->track_settings()[track_index_] : nullptr;
+    if (settings) {
+        mute_button(*settings);
+        ImGui::SameLine();
+    }
+    gain_knob(settings);
+
+    if (ImGui::BeginPopupContextWindow()) {
+        if (ImGui::MenuItem("Remove track") && handler_) {
+            handler_->emit<event::remove_track>(instrument_index_);
+        }
+        ImGui::EndPopup();
+    }
+
+    return true;
+}
+
+void track_pane::clipped_name()
+{
     if (!display_name_.empty()) {
         float avail = ImGui::GetContentRegionAvail().x;
         ImVec2 text_size = ImGui::CalcTextSize(display_name_.c_str());
@@ -48,33 +70,32 @@ bool track_pane::do_draw()
             ImGui::SetTooltip("%s", display_name_.c_str());
         }
     }
+}
 
-    auto* settings = (song_ && track_index_ < song_->track_settings().size())
-        ? &song_->track_settings()[track_index_] : nullptr;
+void track_pane::mute_button(track_settings& settings)
+{
+    bool const muted = settings.volume.mute;
+    ImVec4 btn_color = muted
+        ? ImVec4(0.7f, 0.2f, 0.2f, 1.0f)
+        : ImVec4(0.25f, 0.25f, 0.25f, 1.0f);
+    ImVec4 btn_hovered = muted
+        ? ImVec4(0.8f, 0.3f, 0.3f, 1.0f)
+        : ImVec4(0.35f, 0.35f, 0.35f, 1.0f);
 
-    if (settings) {
-        bool muted = settings->volume.mute;
+    ImGui::PushStyleColor(ImGuiCol_Button, btn_color);
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, btn_hovered);
 
-        ImVec4 btn_color = muted
-            ? ImVec4(0.7f, 0.2f, 0.2f, 1.0f)
-            : ImVec4(0.25f, 0.25f, 0.25f, 1.0f);
-        ImVec4 btn_hovered = muted
-            ? ImVec4(0.8f, 0.3f, 0.3f, 1.0f)
-            : ImVec4(0.35f, 0.35f, 0.35f, 1.0f);
-
-        ImGui::PushStyleColor(ImGuiCol_Button, btn_color);
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, btn_hovered);
-
-        std::string btn_id = "M##m" + std::to_string(track_index_);
-        if (ImGui::SmallButton(btn_id.c_str())) {
-            song_edit edit{*song_, undo_};
-            settings->volume.mute = !muted;
-        }
-
-        ImGui::PopStyleColor(2);
-        ImGui::SameLine();
+    std::string btn_id = "M##m" + std::to_string(track_index_);
+    if (ImGui::SmallButton(btn_id.c_str())) {
+        song_edit edit{*song_, undo_};
+        settings.volume.mute = !muted;
     }
 
+    ImGui::PopStyleColor(2);
+}
+
+void track_pane::gain_knob(track_settings* settings)
+{
     if (ImGuiKnobs::Knob("Gain", &gain_, -6.0f, 6.0f, 0.1f, "%.1f", ImGuiKnobVariant_Tick, 30)) {
         if(settings) {
             song_edit edit{*song_, undo_, coalesce_key::track_volume};
@@ -88,14 +109,6 @@ bool track_pane::do_draw()
             settings->volume.value = 1.0f;
         }
     }
-    if (ImGui::BeginPopupContextWindow()) {
-        if (ImGui::MenuItem("Remove track") && handler_) {
-            handler_->emit<event::remove_track>(instrument_index_);
-        }
-        ImGui::EndPopup();
-    }
-
-    return true;
 }
 
 }

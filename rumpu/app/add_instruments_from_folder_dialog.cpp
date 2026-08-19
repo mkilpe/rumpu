@@ -60,10 +60,7 @@ static void scan_folder(std::string const& folder, bool recursive,
     }
 }
 
-ui_task add_instruments_from_folder_dialog::run() {
-    ImGui::OpenPopup("Add instruments from folder");
-    co_await next_frame{};
-
+struct add_instruments_from_folder_dialog::scan_state {
     std::string folder;
     bool recursive = false;
 
@@ -77,10 +74,21 @@ ui_task add_instruments_from_folder_dialog::run() {
     double changed_time = -1.0;
     bool scan_now = false;
 
+    std::size_t selected_count() const {
+        return static_cast<std::size_t>(std::count(selected.begin(), selected.end(), true));
+    }
+    bool have_paths() const { return !scan_paths.empty() && scan_error.empty(); }
+};
+
+ui_task add_instruments_from_folder_dialog::run() {
+    ImGui::OpenPopup("Add instruments from folder");
+    co_await next_frame{};
+
+    scan_state state;
     while (true) {
         if (auto result = folder_result_->take(); result && !result->empty()) {
-            folder = std::move(*result);
-            scan_now = true;
+            state.folder = std::move(*result);
+            state.scan_now = true;
         }
 
         ImGui::SetNextWindowSize({640, 480}, ImGuiCond_FirstUseEver);
@@ -88,138 +96,150 @@ ui_task add_instruments_from_folder_dialog::run() {
             co_return;
         }
 
-        ImGui::Text("Folder:");
-        float browse_width = ImGui::CalcTextSize("Browse...").x + ImGui::GetStyle().FramePadding.x * 2 + ImGui::GetStyle().ItemSpacing.x;
-        ImGui::SetNextItemWidth(-browse_width);
-        ImGui::InputText("##folder", &folder);
-        ImGui::SameLine();
-
-        bool const browsing = folder_result_->in_flight();
-        if (browsing) {
-            ImGui::BeginDisabled();
-        }
-        if (ImGui::Button("Browse...") && folder_result_->begin()) {
-            open_folder_dialog([r = folder_result_](std::string p) {
-                r->deliver(std::move(p));
-            });
-        }
-        if (browsing) {
-            ImGui::EndDisabled();
-        }
-
-        if (ImGui::Checkbox("Recursive (include subfolders)", &recursive)) {
-            scan_now = true;
-        }
-
-        bool const dirty = folder != scanned_folder || recursive != scanned_recursive;
-        if (dirty) {
-            if (changed_time < 0.0) {
-                changed_time = ImGui::GetTime();
-            }
-            if (scan_now || ImGui::GetTime() - changed_time > 0.4) {
-                scanned_folder = folder;
-                scanned_recursive = recursive;
-                scan_folder(folder, recursive, scan_paths, scan_error);
-                selected.assign(scan_paths.size(), false);
-                changed_time = -1.0;
-            }
-        } else {
-            changed_time = -1.0;
-        }
-        scan_now = false;
-
-        std::size_t const selected_count = static_cast<std::size_t>(
-            std::count(selected.begin(), selected.end(), true));
-
+        folder_row(state);
+        update_scan(state);
         ImGui::Separator();
-
-        if (!scan_error.empty()) {
-            ImGui::TextColored({1.0f, 0.5f, 0.5f, 1.0f}, "Error: %s", scan_error.c_str());
-        } else if (folder.empty()) {
-            ImGui::TextDisabled("Select a folder to preview WAV files.");
-        } else if (scan_paths.empty()) {
-            ImGui::TextDisabled("No WAV files found.");
-        } else if (selected_count > 0) {
-            ImGui::Text("%zu of %zu selected (click rows to toggle)",
-                        selected_count, scan_paths.size());
-        } else {
-            ImGui::Text("%zu WAV file(s) — none selected, all will be imported",
-                        scan_paths.size());
-        }
-
-        bool const have_paths = !scan_paths.empty() && scan_error.empty();
-        if (!have_paths) {
-            ImGui::BeginDisabled();
-        }
-        if (ImGui::Button("Select all")) {
-            selected.assign(scan_paths.size(), true);
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("Select none")) {
-            selected.assign(scan_paths.size(), false);
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("Invert")) {
-            for (std::size_t i = 0; i < selected.size(); ++i) {
-                selected[i] = !selected[i];
-            }
-        }
-        if (!have_paths) {
-            ImGui::EndDisabled();
-        }
-
-        float const button_height = ImGui::GetFrameHeightWithSpacing() + ImGui::GetStyle().ItemSpacing.y;
-        if (ImGui::BeginListBox("##files", ImVec2(-FLT_MIN, -button_height))) {
-            namespace fs = std::filesystem;
-            for (std::size_t i = 0; i < scan_paths.size(); ++i) {
-                auto const& p = scan_paths[i];
-                std::error_code ec;
-                auto rel = fs::relative(p, folder, ec);
-                std::string label = (ec || rel.empty()) ? p.string() : rel.string();
-
-                ImGui::PushID(static_cast<int>(i));
-                bool is_selected = selected[i];
-                if (ImGui::Selectable(label.c_str(), is_selected)) {
-                    selected[i] = !is_selected;
-                }
-                ImGui::PopID();
-            }
-            ImGui::EndListBox();
-        }
-
-        bool const can_import = !scan_paths.empty() && scan_error.empty();
-        if (!can_import) {
-            ImGui::BeginDisabled();
-        }
-        bool const import_clicked = ImGui::Button("Import");
-        if (!can_import) {
-            ImGui::EndDisabled();
-        }
-        if (import_clicked) {
-            std::vector<std::string> paths;
-            paths.reserve(scan_paths.size());
-            bool const filter = selected_count > 0;
-            for (std::size_t i = 0; i < scan_paths.size(); ++i) {
-                if (!filter || selected[i]) {
-                    paths.push_back(scan_paths[i].string());
-                }
-            }
-            handler_.emit<event::add_instruments>(std::move(paths));
-            ImGui::CloseCurrentPopup();
-            ImGui::EndPopup();
-            co_return;
-        }
-
-        ImGui::SameLine();
-        if (ImGui::Button("Cancel") || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
-            ImGui::CloseCurrentPopup();
-            ImGui::EndPopup();
-            co_return;
-        }
-
+        selection_controls(state);
+        file_list(state);
+        bool const close = import_footer(state);
         ImGui::EndPopup();
+        if (close) {
+            co_return;
+        }
         co_await next_frame{};
     }
+}
+
+void add_instruments_from_folder_dialog::folder_row(scan_state& state) {
+    ImGui::Text("Folder:");
+    float browse_width = ImGui::CalcTextSize("Browse...").x + ImGui::GetStyle().FramePadding.x * 2 + ImGui::GetStyle().ItemSpacing.x;
+    ImGui::SetNextItemWidth(-browse_width);
+    ImGui::InputText("##folder", &state.folder);
+    ImGui::SameLine();
+
+    bool const browsing = folder_result_->in_flight();
+    if (browsing) {
+        ImGui::BeginDisabled();
+    }
+    if (ImGui::Button("Browse...") && folder_result_->begin()) {
+        open_folder_dialog([r = folder_result_](std::string p) {
+            r->deliver(std::move(p));
+        });
+    }
+    if (browsing) {
+        ImGui::EndDisabled();
+    }
+}
+
+void add_instruments_from_folder_dialog::update_scan(scan_state& state) {
+    if (ImGui::Checkbox("Recursive (include subfolders)", &state.recursive)) {
+        state.scan_now = true;
+    }
+
+    bool const dirty = state.folder != state.scanned_folder || state.recursive != state.scanned_recursive;
+    if (dirty) {
+        if (state.changed_time < 0.0) {
+            state.changed_time = ImGui::GetTime();
+        }
+        if (state.scan_now || ImGui::GetTime() - state.changed_time > 0.4) {
+            state.scanned_folder = state.folder;
+            state.scanned_recursive = state.recursive;
+            scan_folder(state.folder, state.recursive, state.scan_paths, state.scan_error);
+            state.selected.assign(state.scan_paths.size(), false);
+            state.changed_time = -1.0;
+        }
+    } else {
+        state.changed_time = -1.0;
+    }
+    state.scan_now = false;
+}
+
+void add_instruments_from_folder_dialog::selection_controls(scan_state& state) {
+    if (!state.scan_error.empty()) {
+        ImGui::TextColored({1.0f, 0.5f, 0.5f, 1.0f}, "Error: %s", state.scan_error.c_str());
+    } else if (state.folder.empty()) {
+        ImGui::TextDisabled("Select a folder to preview WAV files.");
+    } else if (state.scan_paths.empty()) {
+        ImGui::TextDisabled("No WAV files found.");
+    } else if (state.selected_count() > 0) {
+        ImGui::Text("%zu of %zu selected (click rows to toggle)",
+                    state.selected_count(), state.scan_paths.size());
+    } else {
+        ImGui::Text("%zu WAV file(s) — none selected, all will be imported",
+                    state.scan_paths.size());
+    }
+
+    if (!state.have_paths()) {
+        ImGui::BeginDisabled();
+    }
+    if (ImGui::Button("Select all")) {
+        state.selected.assign(state.scan_paths.size(), true);
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Select none")) {
+        state.selected.assign(state.scan_paths.size(), false);
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Invert")) {
+        for (std::size_t i = 0; i < state.selected.size(); ++i) {
+            state.selected[i] = !state.selected[i];
+        }
+    }
+    if (!state.have_paths()) {
+        ImGui::EndDisabled();
+    }
+}
+
+void add_instruments_from_folder_dialog::file_list(scan_state& state) {
+    float const button_height = ImGui::GetFrameHeightWithSpacing() + ImGui::GetStyle().ItemSpacing.y;
+    if (ImGui::BeginListBox("##files", ImVec2(-FLT_MIN, -button_height))) {
+        namespace fs = std::filesystem;
+        for (std::size_t i = 0; i < state.scan_paths.size(); ++i) {
+            auto const& p = state.scan_paths[i];
+            std::error_code ec;
+            auto rel = fs::relative(p, state.folder, ec);
+            std::string label = (ec || rel.empty()) ? p.string() : rel.string();
+
+            ImGui::PushID(static_cast<int>(i));
+            bool is_selected = state.selected[i];
+            if (ImGui::Selectable(label.c_str(), is_selected)) {
+                state.selected[i] = !is_selected;
+            }
+            ImGui::PopID();
+        }
+        ImGui::EndListBox();
+    }
+}
+
+bool add_instruments_from_folder_dialog::import_footer(scan_state& state) {
+    bool close = false;
+    if (!state.have_paths()) {
+        ImGui::BeginDisabled();
+    }
+    bool const import_clicked = ImGui::Button("Import");
+    if (!state.have_paths()) {
+        ImGui::EndDisabled();
+    }
+    if (import_clicked) {
+        std::vector<std::string> paths;
+        paths.reserve(state.scan_paths.size());
+        bool const filter = state.selected_count() > 0;
+        for (std::size_t i = 0; i < state.scan_paths.size(); ++i) {
+            if (!filter || state.selected[i]) {
+                paths.push_back(state.scan_paths[i].string());
+            }
+        }
+        handler_.emit<event::add_instruments>(std::move(paths));
+        ImGui::CloseCurrentPopup();
+        close = true;
+    }
+
+    ImGui::SameLine();
+    if (ImGui::Button("Cancel") || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+        ImGui::CloseCurrentPopup();
+        close = true;
+    }
+    return close;
 }
 
 bool add_instruments_from_folder_dialog::draw() {

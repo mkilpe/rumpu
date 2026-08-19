@@ -139,7 +139,7 @@ void track_list::draw_play_cursor(float col_x, float col_top, float col_bottom)
 	drawlist->PopClipRect();
 }
 
-bool track_list::do_draw()
+bool track_list::update_wheel_zoom()
 {
 	ImGuiIO& io = ImGui::GetIO();
 
@@ -156,13 +156,14 @@ bool track_list::do_draw()
 		&& !ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopup)) {
 		zoom_changed = true;
 		zoom_ += 0.05f * (max_zoom / 20.0f) * io.MouseWheel;
-		if(zoom_ > max_zoom) {
-			zoom_ = max_zoom;
-		}
-		if(zoom_ < 0.10) {
-			zoom_ = 0.10;
-		}
+		zoom_ = std::clamp(zoom_, 0.10f, max_zoom);
 	}
+	return zoom_changed;
+}
+
+bool track_list::do_draw()
+{
+	bool const zoom_changed = update_wheel_zoom();
 
 	float col_x = 0.0f;
 	float col_top = 0.0f;

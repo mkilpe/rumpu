@@ -12,6 +12,7 @@ public:
     bool draw() override;
 private:
     ui_task run();
+    void song_fields(std::string& name, int& beats, int& beat_type, float& tempo);
 
     event_system::event_handler& handler_;
     ui_task task_;

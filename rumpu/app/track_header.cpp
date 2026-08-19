@@ -54,36 +54,39 @@ void track_header::context_menu(section* sec, ImVec2 header_pos, float lead_x, f
             if (bar_index >= sec->length())
                 bar_index = sec->length() - 1;
         }
-
-        auto change = sec->find_change(bar_index);
-        bool has_tempo = change && change->tempo_change;
-
-        if (has_tempo) {
-            char label[64];
-            std::snprintf(label, sizeof(label), "Edit Tempo (Bar %u)...", bar_index + 1);
-            if (ImGui::MenuItem(label)) {
-                tempo_dialog_bar_ = bar_index;
-                tempo_dialog_value_ = change->tempo_change->value;
-                tempo_dialog_open_ = true;
-            }
-            std::snprintf(label, sizeof(label), "Remove Tempo Change (Bar %u)", bar_index + 1);
-            if (ImGui::MenuItem(label)) {
-                song_edit edit{*song_, undo_};
-                sec->set_tempo_change(bar_index, std::nullopt);
-            }
-        } else {
-            char label[64];
-            std::snprintf(label, sizeof(label), "Set Tempo (Bar %u)...", bar_index + 1);
-            if (ImGui::MenuItem(label)) {
-                tempo_dialog_bar_ = bar_index;
-                tempo_dialog_value_ = song_ ? song_->default_tempo().value : 120.0f;
-                tempo_dialog_open_ = true;
-            }
-        }
+        tempo_menu_items(sec, bar_index);
 
         ImGui::EndPopup();
     } else {
         mouse_pos_ = {};
+    }
+}
+
+void track_header::tempo_menu_items(section* sec, uint32_t bar_index)
+{
+    auto change = sec->find_change(bar_index);
+    bool has_tempo = change && change->tempo_change;
+
+    char label[64];
+    if (has_tempo) {
+        std::snprintf(label, sizeof(label), "Edit Tempo (Bar %u)...", bar_index + 1);
+        if (ImGui::MenuItem(label)) {
+            tempo_dialog_bar_ = bar_index;
+            tempo_dialog_value_ = change->tempo_change->value;
+            tempo_dialog_open_ = true;
+        }
+        std::snprintf(label, sizeof(label), "Remove Tempo Change (Bar %u)", bar_index + 1);
+        if (ImGui::MenuItem(label)) {
+            song_edit edit{*song_, undo_};
+            sec->set_tempo_change(bar_index, std::nullopt);
+        }
+    } else {
+        std::snprintf(label, sizeof(label), "Set Tempo (Bar %u)...", bar_index + 1);
+        if (ImGui::MenuItem(label)) {
+            tempo_dialog_bar_ = bar_index;
+            tempo_dialog_value_ = song_ ? song_->default_tempo().value : 120.0f;
+            tempo_dialog_open_ = true;
+        }
     }
 }
 
@@ -118,72 +121,69 @@ void track_header::tempo_dialog(section* sec)
 
 bool track_header::do_draw()
 {
-    auto drawlist = ImGui::GetWindowDrawList();
-
     auto pos  = ImGui::GetCursorScreenPos();
     auto size = ImGui::GetWindowSize();
-
-    std::size_t lead_x = 10;
+    float const lead_x = 10.0f;
 
     if(song_) {
         if(auto sec = song_->find_section(section_)) {
-
-            float x = pos.x + lead_x;
-            std::size_t beat_per_bar = song_->default_time_signature().beats_in_bar();
-            float inc = (size.x / sec->length()) / beat_per_bar;
-            float bar_width = inc * beat_per_bar;
+            float bar_width = size.x / sec->length();
 
             // invisible button for mouse interaction
             ImGui::InvisibleButton("track_header_canvas", size, ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonRight);
 
-            // context menu and dialog
-            context_menu(sec, pos, static_cast<float>(lead_x), bar_width);
+            context_menu(sec, pos, lead_x, bar_width);
             tempo_dialog(sec);
-
-            // draw ticks, bar numbers, and tempo indicators
-            std::size_t i = 0;
-            ImVec2 tick_pos{x, pos.y};
-            while(tick_pos.x < pos.x + size.x) {
-                bool is_bar_start = (i % beat_per_bar == 0);
-                uint32_t bar_index = static_cast<uint32_t>(i / beat_per_bar);
-
-                auto change = is_bar_start ? sec->find_change(bar_index) : std::optional<section_bar_change>();
-                bool has_tempo = change && change->tempo_change;
-
-                auto end = tick_pos;
-                auto color = IM_COL32(255,127,127,255);
-                if(is_bar_start) {
-                    end.y += 10;
-                    color = has_tempo ? IM_COL32(255,180,50,255) : IM_COL32(100,255,100,255);
-                } else {
-                    end.y += 5;
-                }
-                ++i;
-                drawlist->AddLine(tick_pos, end, color, 1.0f);
-
-                if(is_bar_start) {
-                    auto label = std::to_string(bar_index + 1);
-                    auto text_size = ImGui::CalcTextSize(label.c_str());
-                    if(bar_width > text_size.x) {
-                        drawlist->AddText(ImVec2(tick_pos.x + 2, tick_pos.y + 10), IM_COL32(200,200,200,255), label.c_str());
-                    }
-
-                    // draw tempo change indicator
-                    if(has_tempo) {
-                        char bpm_label[32];
-                        std::snprintf(bpm_label, sizeof(bpm_label), "%.0f", change->tempo_change->value);
-                        auto bpm_size = ImGui::CalcTextSize(bpm_label);
-                        if(bar_width > bpm_size.x) {
-                            drawlist->AddText(ImVec2(tick_pos.x + 2, tick_pos.y + 20), IM_COL32(255,180,50,255), bpm_label);
-                        }
-                    }
-                }
-
-                tick_pos.x += inc;
-            }
+            draw_ticks(sec, pos, size, lead_x);
         }
     }
     return true;
+}
+
+// draw ticks, bar numbers, and tempo indicators
+void track_header::draw_ticks(section const* sec, ImVec2 pos, ImVec2 size, float lead_x)
+{
+    auto drawlist = ImGui::GetWindowDrawList();
+    std::size_t const beat_per_bar = song_->default_time_signature().beats_in_bar();
+    float const inc = (size.x / sec->length()) / beat_per_bar;
+    float const bar_width = inc * beat_per_bar;
+
+    std::size_t i = 0;
+    ImVec2 tick_pos{pos.x + lead_x, pos.y};
+    while(tick_pos.x < pos.x + size.x) {
+        bool is_bar_start = (i % beat_per_bar == 0);
+        uint32_t bar_index = static_cast<uint32_t>(i / beat_per_bar);
+
+        auto change = is_bar_start ? sec->find_change(bar_index) : std::optional<section_bar_change>();
+        bool has_tempo = change && change->tempo_change;
+
+        auto end = tick_pos;
+        auto color = IM_COL32(255,127,127,255);
+        if(is_bar_start) {
+            end.y += 10;
+            color = has_tempo ? IM_COL32(255,180,50,255) : IM_COL32(100,255,100,255);
+        } else {
+            end.y += 5;
+        }
+        ++i;
+        drawlist->AddLine(tick_pos, end, color, 1.0f);
+
+        if(is_bar_start) {
+            auto label = std::to_string(bar_index + 1);
+            if(bar_width > ImGui::CalcTextSize(label.c_str()).x) {
+                drawlist->AddText(ImVec2(tick_pos.x + 2, tick_pos.y + 10), IM_COL32(200,200,200,255), label.c_str());
+            }
+            if(has_tempo) {
+                char bpm_label[32];
+                std::snprintf(bpm_label, sizeof(bpm_label), "%.0f", change->tempo_change->value);
+                if(bar_width > ImGui::CalcTextSize(bpm_label).x) {
+                    drawlist->AddText(ImVec2(tick_pos.x + 2, tick_pos.y + 20), IM_COL32(255,180,50,255), bpm_label);
+                }
+            }
+        }
+
+        tick_pos.x += inc;
+    }
 }
 
 }

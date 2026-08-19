@@ -16,6 +16,11 @@ public:
     void set_context(event_system::event_handler&, song*, std::uint32_t section, std::size_t track_index, drum::track const&, undo_manager* undo = nullptr);
 
 private:
+    void clipped_name();
+    void mute_button(track_settings&);
+    void gain_knob(track_settings*);
+
+private:
     undo_manager* undo_{};
     float gain_{};
     event_system::event_handler* handler_{};

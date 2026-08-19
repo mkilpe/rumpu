@@ -3,6 +3,7 @@
 #include "view.hpp"
 #include "ui_coroutine.hpp"
 #include "async_dialog_result.hpp"
+#include <rumpu/core/export.hpp>
 #include <rumpu/core/song.hpp>
 
 namespace securepath::drum::app {
@@ -15,7 +16,13 @@ public:
     bool draw() override;
 
 private:
+    enum class export_action { none, start, cancel };
+
     ui_task run(song s);
+    export_action options_frame(std::string& path, export_options& options);
+    void export_step(wav_exporter&, std::string& error, bool& done);
+    bool completed_frame(wav_exporter const&); // true when Close was pressed
+    bool failed_frame(std::string const& error);
 
     ui_task task_;
     // Shared with file dialog callback thread; must outlive this object

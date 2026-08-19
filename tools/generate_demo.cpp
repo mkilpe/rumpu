@@ -427,26 +427,26 @@ section make_outro() {
 
 } // anon namespace
 
+// Sample paths, in instrument index order 0-10
+static std::vector<std::string> const demo_samples = {
+    "Kick/RD_K_3.wav",
+    "Snare/RD_S_5.wav",
+    "Cymbals/Hi Hat/RD_C_HH_2.wav",
+    "Cymbals/Hi Hat/RD_C_HH_8.wav",
+    "Cymbals/Ride/RD_C_R_3.wav",
+    "Cymbals/Crash/RD_C_C_2.wav",
+    "Cymbals/Splash/RD_C_S_1.wav",
+    "Toms/High Tom/RD_T_HT_2.wav",
+    "Toms/Mid Tom/RD_T_MT_2.wav",
+    "Toms/Floor Tom/RD_T_FT_2.wav",
+    "Claps/RD_C_3.wav",
+};
+
 int main(int argc, char* argv[]) {
     fs::path output_dir = argc > 1 ? fs::path(argv[1]) : fs::current_path();
     fs::create_directories(output_dir);
 
-    // Sample paths
-    std::string kick_rel      = "Kick/RD_K_3.wav";
-    std::string snare_rel     = "Snare/RD_S_5.wav";
-    std::string hh_closed_rel = "Cymbals/Hi Hat/RD_C_HH_2.wav";
-    std::string hh_open_rel   = "Cymbals/Hi Hat/RD_C_HH_8.wav";
-    std::string ride_rel      = "Cymbals/Ride/RD_C_R_3.wav";
-    std::string crash_rel     = "Cymbals/Crash/RD_C_C_2.wav";
-    std::string splash_rel    = "Cymbals/Splash/RD_C_S_1.wav";
-    std::string hitom_rel     = "Toms/High Tom/RD_T_HT_2.wav";
-    std::string midtom_rel    = "Toms/Mid Tom/RD_T_MT_2.wav";
-    std::string flotom_rel    = "Toms/Floor Tom/RD_T_FT_2.wav";
-    std::string clap_rel      = "Claps/RD_C_3.wav";
-
-    for (auto const& rel : {kick_rel, snare_rel, hh_closed_rel, hh_open_rel,
-                            ride_rel, crash_rel, splash_rel,
-                            hitom_rel, midtom_rel, flotom_rel, clap_rel}) {
+    for (auto const& rel : demo_samples) {
         copy_sample(rel, output_dir);
     }
 
@@ -455,17 +455,9 @@ int main(int argc, char* argv[]) {
     s.set_rand_volume(rand_hit_volume{5.0f});
 
     // instruments: 0-10
-    s.add_instrument(instrument(sample_rel(kick_rel)));
-    s.add_instrument(instrument(sample_rel(snare_rel)));
-    s.add_instrument(instrument(sample_rel(hh_closed_rel)));
-    s.add_instrument(instrument(sample_rel(hh_open_rel)));
-    s.add_instrument(instrument(sample_rel(ride_rel)));
-    s.add_instrument(instrument(sample_rel(crash_rel)));
-    s.add_instrument(instrument(sample_rel(splash_rel)));
-    s.add_instrument(instrument(sample_rel(hitom_rel)));
-    s.add_instrument(instrument(sample_rel(midtom_rel)));
-    s.add_instrument(instrument(sample_rel(flotom_rel)));
-    s.add_instrument(instrument(sample_rel(clap_rel)));
+    for (auto const& rel : demo_samples) {
+        s.add_instrument(instrument(sample_rel(rel)));
+    }
 
     auto intro_id       = s.add_section(make_intro());
     auto verse1_id      = s.add_section(make_verse1());

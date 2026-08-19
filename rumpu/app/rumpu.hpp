@@ -32,6 +32,17 @@ public:
 
 private:
     void menu();
+    void file_menu();
+    void edit_menu();
+    void sections_menu();
+    void other_menus();
+    void save_current_file();
+    void open_export_dialog();
+    void handle_undo_shortcut();
+    void draw_dialogs();
+    void draw_windows();
+    void clone_current_section();
+    void remove_current_section();
     void add_track(uint32_t section, std::size_t instrument_index);
     void open_add_track_dialog(uint32_t section);
     void load_and_play(uint32_t section);

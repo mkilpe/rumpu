@@ -22,112 +22,121 @@ void section_view::set_context(song* s, uint32_t section, undo_manager* undo) {
     current_section_ = section;
 }
 
+struct section_view::drag_move {
+    int source = -1;
+    int target = -1;
+
+    bool valid() const { return source >= 0 && target >= 0 && source != target; }
+};
+
 bool section_view::do_draw() {
     if (!song_) {
         return false;
     }
-
-    auto& order = song_->section_order();
-    auto const& sections = song_->sections();
 
     if (ImGui::Button("+##add_section")) {
         LOG_TRACE("add_section clicked");
         handler_.emit<event::add_section>();
     }
 
-    // Draw section order buttons with drag-and-drop reordering
-    int drag_source = -1;
-    int drag_target = -1;
+    // Draw section order buttons with drag-and-drop reordering; the move is
+    // applied after the loop to avoid mutating the order during iteration
+    drag_move move;
+    for (std::size_t i = 0; i < song_->section_order().size(); ++i) {
+        section_button(i, move);
+    }
+    end_drop_target(move);
 
-    auto const& style = ImGui::GetStyle();
-    float max_x = ImGui::GetContentRegionMax().x;
-
-    for (std::size_t i = 0; i < order.size(); ++i) {
-        auto id = order[i];
-        bool is_selected = (id == current_section_);
-
-        // Use section name if available
-        auto it = sections.find(id);
-        std::string name = (it != sections.end() && !it->second.name().empty())
-            ? it->second.name()
-            : "Section " + std::to_string(id);
-        std::string label = std::to_string(i + 1) + ": " + name + "##order_" + std::to_string(i);
-
-        // Wrap to next row if button doesn't fit
-        float button_w = ImGui::CalcTextSize(label.c_str()).x + style.FramePadding.x * 2;
-        float last_x = ImGui::GetItemRectMax().x;
-        float next_x = last_x + style.ItemSpacing.x + button_w;
-        float window_x = ImGui::GetWindowPos().x + max_x;
-        if (next_x < window_x) {
-            ImGui::SameLine();
-        }
-
-        if (is_selected) {
-            ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
-        }
-
-        if (ImGui::Button(label.c_str())) {
-            handler_.emit<event::select_section>(id);
-        }
-
-        // Right-click context menu
-        std::string ctx_id = "section_ctx_" + std::to_string(i);
-        if (ImGui::BeginPopupContextItem(ctx_id.c_str())) {
-            if (ImGui::Selectable("Duplicate in queue")) {
-                song_edit edit{*song_, undo_};
-                order.insert(order.begin() + static_cast<std::ptrdiff_t>(i) + 1, id);
-            }
-            if (ImGui::Selectable("Remove from queue")) {
-                song_edit edit{*song_, undo_};
-                order.erase(order.begin() + static_cast<std::ptrdiff_t>(i));
-            }
-            ImGui::EndPopup();
-        }
-
-        // Drag source
-        if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_None)) {
-            int idx = static_cast<int>(i);
-            ImGui::SetDragDropPayload("SECTION_ORDER", &idx, sizeof(int));
-            ImGui::Text("%s", name.c_str());
-            ImGui::EndDragDropSource();
-        }
-
-        // Drop target
-        if (ImGui::BeginDragDropTarget()) {
-            if (auto const* payload = ImGui::AcceptDragDropPayload("SECTION_ORDER")) {
-                drag_source = *static_cast<int const*>(payload->Data);
-                drag_target = static_cast<int>(i);
-            }
-            ImGui::EndDragDropTarget();
-        }
-
-        if (is_selected) {
-            ImGui::PopStyleColor();
-        }
+    if (move.valid()) {
+        song_edit edit{*song_, undo_};
+        auto& order = song_->section_order();
+        auto val = order[move.source];
+        order.erase(order.begin() + move.source);
+        order.insert(order.begin() + move.target, val);
     }
 
-    // Invisible drop target after the last button so items can be dragged to the end
+    return true;
+}
+
+void section_view::section_button(std::size_t i, drag_move& move) {
+    auto& order = song_->section_order();
+    auto const& sections = song_->sections();
+    auto const id = order[i];
+    bool const is_selected = (id == current_section_);
+
+    // Use section name if available
+    auto it = sections.find(id);
+    std::string name = (it != sections.end() && !it->second.name().empty())
+        ? it->second.name()
+        : "Section " + std::to_string(id);
+    std::string label = std::to_string(i + 1) + ": " + name + "##order_" + std::to_string(i);
+
+    // Wrap to next row if button doesn't fit
+    auto const& style = ImGui::GetStyle();
+    float button_w = ImGui::CalcTextSize(label.c_str()).x + style.FramePadding.x * 2;
+    float next_x = ImGui::GetItemRectMax().x + style.ItemSpacing.x + button_w;
+    if (next_x < ImGui::GetWindowPos().x + ImGui::GetContentRegionMax().x) {
+        ImGui::SameLine();
+    }
+
+    if (is_selected) {
+        ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
+    }
+    if (ImGui::Button(label.c_str())) {
+        handler_.emit<event::select_section>(id);
+    }
+
+    queue_context_menu(i, id);
+
+    if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_None)) {
+        int idx = static_cast<int>(i);
+        ImGui::SetDragDropPayload("SECTION_ORDER", &idx, sizeof(int));
+        ImGui::Text("%s", name.c_str());
+        ImGui::EndDragDropSource();
+    }
+    if (ImGui::BeginDragDropTarget()) {
+        if (auto const* payload = ImGui::AcceptDragDropPayload("SECTION_ORDER")) {
+            move.source = *static_cast<int const*>(payload->Data);
+            move.target = static_cast<int>(i);
+        }
+        ImGui::EndDragDropTarget();
+    }
+
+    if (is_selected) {
+        ImGui::PopStyleColor();
+    }
+}
+
+void section_view::queue_context_menu(std::size_t i, std::uint32_t id) {
+    auto& order = song_->section_order();
+    std::string ctx_id = "section_ctx_" + std::to_string(i);
+    if (ImGui::BeginPopupContextItem(ctx_id.c_str())) {
+        if (ImGui::Selectable("Duplicate in queue")) {
+            song_edit edit{*song_, undo_};
+            order.insert(order.begin() + static_cast<std::ptrdiff_t>(i) + 1, id);
+        }
+        if (ImGui::Selectable("Remove from queue")) {
+            song_edit edit{*song_, undo_};
+            order.erase(order.begin() + static_cast<std::ptrdiff_t>(i));
+        }
+        ImGui::EndPopup();
+    }
+}
+
+// Invisible drop target after the last button so items can be dragged to the end
+void section_view::end_drop_target(drag_move& move) {
+    auto const& order = song_->section_order();
     if (!order.empty()) {
         ImGui::SameLine();
         ImGui::InvisibleButton("##drop_end", ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetFrameHeight()));
         if (ImGui::BeginDragDropTarget()) {
             if (auto const* payload = ImGui::AcceptDragDropPayload("SECTION_ORDER")) {
-                drag_source = *static_cast<int const*>(payload->Data);
-                drag_target = static_cast<int>(order.size() - 1);
+                move.source = *static_cast<int const*>(payload->Data);
+                move.target = static_cast<int>(order.size() - 1);
             }
             ImGui::EndDragDropTarget();
         }
     }
-
-    // Apply reorder after the loop to avoid mutating during iteration
-    if (drag_source >= 0 && drag_target >= 0 && drag_source != drag_target) {
-        song_edit edit{*song_, undo_};
-        auto val = order[drag_source];
-        order.erase(order.begin() + drag_source);
-        order.insert(order.begin() + drag_target, val);
-    }
-
-    return true;
 }
 
 }

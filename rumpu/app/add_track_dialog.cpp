@@ -68,23 +68,9 @@ ui_task add_track_dialog::run(song* s, std::uint32_t section) {
             co_return;
         }
 
-        auto const& instruments = s->instruments();
-        auto labels = make_instrument_labels(instruments);
+        instrument_list(*s, selected);
 
-        float button_height = ImGui::GetFrameHeightWithSpacing();
-        if (ImGui::BeginListBox("##instruments", ImVec2(-FLT_MIN, -button_height))) {
-            for (std::size_t i = 0; i < instruments.size(); ++i) {
-                ImGui::PushID(static_cast<int>(i));
-                bool is_selected = (static_cast<int>(i) == selected);
-                if (ImGui::Selectable(labels[i].c_str(), is_selected)) {
-                    selected = static_cast<int>(i);
-                }
-                ImGui::PopID();
-            }
-            ImGui::EndListBox();
-        }
-
-        bool const has_selection = selected >= 0 && static_cast<std::size_t>(selected) < instruments.size();
+        bool const has_selection = selected >= 0 && static_cast<std::size_t>(selected) < s->instruments().size();
         if (!has_selection) {
             ImGui::BeginDisabled();
         }
@@ -108,6 +94,24 @@ ui_task add_track_dialog::run(song* s, std::uint32_t section) {
 
         ImGui::EndPopup();
         co_await next_frame{};
+    }
+}
+
+void add_track_dialog::instrument_list(song const& s, int& selected) {
+    auto const& instruments = s.instruments();
+    auto labels = make_instrument_labels(instruments);
+
+    float button_height = ImGui::GetFrameHeightWithSpacing();
+    if (ImGui::BeginListBox("##instruments", ImVec2(-FLT_MIN, -button_height))) {
+        for (std::size_t i = 0; i < instruments.size(); ++i) {
+            ImGui::PushID(static_cast<int>(i));
+            bool is_selected = (static_cast<int>(i) == selected);
+            if (ImGui::Selectable(labels[i].c_str(), is_selected)) {
+                selected = static_cast<int>(i);
+            }
+            ImGui::PopID();
+        }
+        ImGui::EndListBox();
     }
 }
 

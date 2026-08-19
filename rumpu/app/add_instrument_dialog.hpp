@@ -14,6 +14,7 @@ public:
     bool draw() override;
 private:
     ui_task run();
+    void path_row(std::string& path);
 
     event_system::event_handler& handler_;
     ui_task task_;

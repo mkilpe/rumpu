@@ -5,6 +5,7 @@
 #include <rumpu/core/time_signature.hpp>
 
 #include "imgui.h"
+#include "imgui_stdlib.h"
 
 #include <algorithm>
 #include <cstring>
@@ -23,7 +24,7 @@ ui_task new_song_dialog::run() {
     ImGui::OpenPopup("New Song");
     co_await next_frame{};
 
-    char name[256]{};
+    std::string name;
     int beats = 4;
     int beat_type = 4;
     float tempo = 120.0f;
@@ -34,26 +35,11 @@ ui_task new_song_dialog::run() {
             co_return;
         }
 
-        ImGui::Text("Song name:");
-        ImGui::SetNextItemWidth(-FLT_MIN);
-        ImGui::InputText("##name", name, sizeof(name));
-
-        ImGui::Text("Time signature:");
-        ImGui::SetNextItemWidth(100);
-        ImGui::InputInt("Beats##beats", &beats);
-        beats = std::clamp(beats, 1, 32);
-        ImGui::SetNextItemWidth(100);
-        ImGui::InputInt("Beat type##type", &beat_type);
-        beat_type = std::clamp(beat_type, 1, 32);
-
-        ImGui::Text("Tempo (BPM):");
-        ImGui::SetNextItemWidth(100);
-        ImGui::InputFloat("##tempo", &tempo, 1.0f, 10.0f, "%.1f");
-        tempo = std::clamp(tempo, 20.0f, 400.0f);
+        song_fields(name, beats, beat_type, tempo);
 
         if (ImGui::Button("Create")) {
             handler_.emit<event::new_song>(
-                std::string(name),
+                name,
                 time_signature{static_cast<uint16_t>(beats), static_cast<uint16_t>(beat_type)},
                 tempo
             );
@@ -71,6 +57,25 @@ ui_task new_song_dialog::run() {
         ImGui::EndPopup();
         co_await next_frame{};
     }
+}
+
+void new_song_dialog::song_fields(std::string& name, int& beats, int& beat_type, float& tempo) {
+    ImGui::Text("Song name:");
+    ImGui::SetNextItemWidth(-FLT_MIN);
+    ImGui::InputText("##name", &name);
+
+    ImGui::Text("Time signature:");
+    ImGui::SetNextItemWidth(100);
+    ImGui::InputInt("Beats##beats", &beats);
+    beats = std::clamp(beats, 1, 32);
+    ImGui::SetNextItemWidth(100);
+    ImGui::InputInt("Beat type##type", &beat_type);
+    beat_type = std::clamp(beat_type, 1, 32);
+
+    ImGui::Text("Tempo (BPM):");
+    ImGui::SetNextItemWidth(100);
+    ImGui::InputFloat("##tempo", &tempo, 1.0f, 10.0f, "%.1f");
+    tempo = std::clamp(tempo, 20.0f, 400.0f);
 }
 
 bool new_song_dialog::draw() {

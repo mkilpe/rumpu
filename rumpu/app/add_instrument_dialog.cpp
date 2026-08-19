@@ -45,24 +45,7 @@ ui_task add_instrument_dialog::run() {
             co_return;
         }
 
-        ImGui::Text("WAV file path:");
-        float browse_width = ImGui::CalcTextSize("Browse...").x + ImGui::GetStyle().FramePadding.x * 2 + ImGui::GetStyle().ItemSpacing.x;
-        ImGui::SetNextItemWidth(-browse_width);
-        ImGui::InputText("##path", &path);
-        ImGui::SameLine();
-
-        bool const browsing = file_result_->in_flight();
-        if (browsing) {
-            ImGui::BeginDisabled();
-        }
-        if (ImGui::Button("Browse...") && file_result_->begin()) {
-            open_wav_file_dialog([r = file_result_](std::string p) {
-                r->deliver(std::move(p));
-            });
-        }
-        if (browsing) {
-            ImGui::EndDisabled();
-        }
+        path_row(path);
 
         ImGui::Text("Name:");
         ImGui::SetNextItemWidth(-FLT_MIN);
@@ -83,6 +66,27 @@ ui_task add_instrument_dialog::run() {
 
         ImGui::EndPopup();
         co_await next_frame{};
+    }
+}
+
+void add_instrument_dialog::path_row(std::string& path) {
+    ImGui::Text("WAV file path:");
+    float browse_width = ImGui::CalcTextSize("Browse...").x + ImGui::GetStyle().FramePadding.x * 2 + ImGui::GetStyle().ItemSpacing.x;
+    ImGui::SetNextItemWidth(-browse_width);
+    ImGui::InputText("##path", &path);
+    ImGui::SameLine();
+
+    bool const browsing = file_result_->in_flight();
+    if (browsing) {
+        ImGui::BeginDisabled();
+    }
+    if (ImGui::Button("Browse...") && file_result_->begin()) {
+        open_wav_file_dialog([r = file_result_](std::string p) {
+            r->deliver(std::move(p));
+        });
+    }
+    if (browsing) {
+        ImGui::EndDisabled();
     }
 }
 
