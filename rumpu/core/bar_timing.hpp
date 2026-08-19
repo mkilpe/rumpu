@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <limits>
 #include <optional>
 
 namespace securepath::drum {
@@ -60,8 +61,19 @@ struct bar_timing {
 	std::uint32_t bar_samples(std::uint32_t sample_rate) const {
 		double timing_multiplier = default_timing.beat_type() * current_timing.beats_in_bar()
 			/ double(default_timing.beats_in_bar() * current_timing.beat_type());
-		return static_cast<std::uint32_t>(
-			60.0 * timing_multiplier * sample_rate * current_timing.beats_in_bar() / current_tempo.value);
+		double const samples =
+			60.0 * timing_multiplier * sample_rate * current_timing.beats_in_bar() / current_tempo.value;
+		// individually valid but extreme timing/tempo combinations can fall
+		// outside uint32: casting such values is undefined, and a zero-sample
+		// bar would stall the mixer's render loop
+		constexpr double max = std::numeric_limits<std::uint32_t>::max();
+		if(!(samples >= 1.0)) {
+			return 1;
+		}
+		if(samples >= max) {
+			return std::numeric_limits<std::uint32_t>::max();
+		}
+		return static_cast<std::uint32_t>(samples);
 	}
 
 	time_signature default_timing;

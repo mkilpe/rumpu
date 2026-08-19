@@ -7,6 +7,7 @@
 #include <securepath/log/log.hpp>
 
 #include <algorithm>
+#include <shared_mutex>
 #include <stdexcept>
 
 namespace securepath::drum {
@@ -65,6 +66,9 @@ void player::update_bar_offsets(std::uint32_t section_id) {
 	if(!song_|| !out_) {
 		return;
 	}
+	// runs on the audio thread on section transitions: the song may be edited
+	// concurrently, so the section walk needs the song's read lock
+	std::shared_lock sl{song_->mutex};
 	auto const* sec = song_->find_section(section_id);
 	if(!sec) {
 		return;

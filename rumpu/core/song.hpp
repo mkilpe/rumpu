@@ -44,6 +44,7 @@ public:
 	tempo default_tempo() const;
 
 	std::optional<delta_tempo> global_tempo_slide() const;
+	void set_global_tempo_slide(std::optional<delta_tempo>);
 
 	auto& sections(this auto& self) { return self.sections_; }
 	auto& section_order(this auto& self) { return self.section_order_; }

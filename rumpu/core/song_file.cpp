@@ -3,6 +3,7 @@
 #include <securepath/serialisation/util.hpp>
 #include "serialisation/serialisation.hpp"
 
+#include <cmath>
 #include <filesystem>
 #include <format>
 #include <fstream>
@@ -26,6 +27,14 @@ static void validate_tempo(tempo const& t, char const* what) {
 	}
 }
 
+// slide deltas feed straight into per-bar tempo and volume arithmetic, where a
+// NaN would poison the bar-length calculation and the audio output
+static void validate_slide_value(float value, char const* what) {
+	if(!std::isfinite(value)) {
+		throw std::runtime_error(std::format("invalid {} {} in project file", what, value));
+	}
+}
+
 static void validate_section(section const& sec, std::size_t track_count, std::size_t instrument_count) {
 	if(sec.length() < 1) {
 		throw std::runtime_error("zero-length section in project file");
@@ -42,6 +51,9 @@ static void validate_section(section const& sec, std::size_t track_count, std::s
 		if(t.bars().size() != sec.length()) {
 			throw std::runtime_error("track bar count does not match section length in project file");
 		}
+		for(auto const& [bar, slide] : t.volume_slides()) {
+			validate_slide_value(slide.value, "volume slide");
+		}
 	}
 	for(auto const& [bar, change] : sec.changes()) {
 		if(change.timing_change) {
@@ -49,6 +61,9 @@ static void validate_section(section const& sec, std::size_t track_count, std::s
 		}
 		if(change.tempo_change) {
 			validate_tempo(*change.tempo_change, "tempo change");
+		}
+		if(change.tempo_slide_change) {
+			validate_slide_value(change.tempo_slide_change->value, "tempo slide change");
 		}
 	}
 }
@@ -62,12 +77,16 @@ std::string project_relative_path(std::string const& path, std::filesystem::path
 	if(ec || rel.empty()) {
 		return path;
 	}
-	return rel.string();
+	// forward slashes so a project saved on Windows still resolves elsewhere
+	return rel.generic_string();
 }
 
 void validate_song(song const& s) {
 	validate_time_signature(s.default_time_signature(), "time signature");
 	validate_tempo(s.default_tempo(), "tempo");
+	if(s.global_tempo_slide()) {
+		validate_slide_value(s.global_tempo_slide()->value, "global tempo slide");
+	}
 	std::size_t const track_count = s.sections().empty()
 		? 0 : s.sections().begin()->second.tracks().size();
 	for(auto const& [id, sec] : s.sections()) {

@@ -36,8 +36,8 @@ static void draw_progress(wav_exporter const& exporter) {
 }
 
 void export_dialog::open(song s) {
-    // Drop a result delivered after the previous dialog instance closed
-    file_result_->take();
+    // Drop any result or still-open chooser from a previous dialog session
+    file_result_->invalidate();
     task_ = run(std::move(s));
 }
 
@@ -106,10 +106,12 @@ export_dialog::export_action export_dialog::options_frame(std::string& path, exp
     if (browsing) {
         ImGui::BeginDisabled();
     }
-    if (ImGui::Button("Browse...") && file_result_->begin()) {
-        save_wav_file_dialog([r = file_result_](std::string p) {
-            r->deliver(std::move(p));
-        });
+    if (ImGui::Button("Browse...")) {
+        if (auto session = file_result_->begin()) {
+            save_wav_file_dialog([r = file_result_, s = *session](std::string p) {
+                r->deliver(s, std::move(p));
+            });
+        }
     }
     if (browsing) {
         ImGui::EndDisabled();

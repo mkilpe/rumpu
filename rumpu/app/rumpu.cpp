@@ -83,12 +83,13 @@ void rumpu::perform_redo() {
 void rumpu::open_project_dialog(project_action action) {
     // One dialog in flight at a time; the callback shares ownership of the
     // mailbox only, so a result delivered after shutdown is dropped harmlessly.
-    if (!project_dialog_result_->begin()) {
+    auto session = project_dialog_result_->begin();
+    if (!session) {
         return;
     }
     pending_project_action_ = action;
-    auto callback = [r = project_dialog_result_](std::string path) {
-        r->deliver(std::move(path));
+    auto callback = [r = project_dialog_result_, s = *session](std::string path) {
+        r->deliver(s, std::move(path));
     };
     if (action == project_action::open) {
         open_project_file_dialog(std::move(callback));

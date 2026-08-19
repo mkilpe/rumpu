@@ -427,6 +427,56 @@ TEST_CASE("player cursor resets when same section repeats", "[player]") {
 	CHECK(reset_count >= 1);
 }
 
+TEST_CASE("player cursor survives song edits during playback", "[player]") {
+	null_event_loop loop;
+	null_event_handler handler{loop};
+
+	auto config = audio::device_config{{audio::float_t, 1, 32, 44100}, 4000};
+	auto mock = std::make_shared<mock_play_device>(config, 100);
+
+	// repeat the section so the cursor recomputes bar offsets on every
+	// transition while the song is being edited
+	song s = make_test_song(480);
+	auto sec_id = s.section_order()[0];
+	for(int i = 0; i < 30; ++i) {
+		s.section_order().push_back(sec_id);
+	}
+
+	player p{handler, mock};
+	p.play(&s);
+
+	// storm of edits under the song's exclusive lock, mutating the structures
+	// the cursor walks: the per-bar change map and the section map. checking
+	// is_playing() rarely keeps the loop bounded without serialising every
+	// edit against the audio thread through the player mutex.
+	bool playing = true;
+	for(int i = 0; i < 20000 && playing; ++i) {
+		{
+			std::unique_lock l{s.mutex};
+			s.find_section(sec_id)->set_tempo_change(2, tempo{480});
+		}
+		{
+			std::unique_lock l{s.mutex};
+			s.find_section(sec_id)->set_tempo_change(2, std::nullopt);
+		}
+		{
+			std::unique_lock l{s.mutex};
+			auto id = s.add_section();
+			s.remove_section(id);
+		}
+		if(i % 50 == 49) {
+			playing = p.is_playing();
+		}
+	}
+
+	// playback must have completed; the real assertion is a clean run under
+	// the thread sanitizer
+	for(int i = 0; i < 5000 && p.is_playing(); ++i) {
+		std::this_thread::sleep_for(std::chrono::milliseconds(1));
+	}
+	CHECK(!p.is_playing());
+}
+
 TEST_CASE("player cursor starts near zero", "[player]") {
 	null_event_loop loop;
 	null_event_handler handler{loop};

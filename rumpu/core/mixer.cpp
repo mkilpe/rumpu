@@ -139,7 +139,13 @@ struct mixer::impl {
 			section_ = song_->find_section(pos_.section_id);
 			if(!section_) {
 				// the section being played was removed; advance to the next one
-				next_section();
+				// still in the song and enter it at the start of its first bar
+				while(!section_ && !ended_) {
+					next_section();
+				}
+				if(section_) {
+					update_audio_params();
+				}
 			}
 		}
 	}

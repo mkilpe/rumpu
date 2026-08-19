@@ -84,6 +84,10 @@ std::optional<delta_tempo> song::global_tempo_slide() const {
 	return tempo_slide_;
 }
 
+void song::set_global_tempo_slide(std::optional<delta_tempo> slide) {
+	tempo_slide_ = slide;
+}
+
 volume_accent_info const& song::accent_rules() const {
 	return accent_info_;
 }

@@ -13,8 +13,8 @@
 namespace securepath::drum::app {
 
 void instruments_dialog::open(song* s, undo_manager* undo, std::filesystem::path project_base) {
-    // Drop a result delivered after the previous dialog instance closed
-    file_result_->take();
+    // Drop any result or still-open chooser from a previous dialog session
+    file_result_->invalidate();
     task_ = run(s, undo, std::move(project_base));
 }
 
@@ -163,10 +163,12 @@ void instruments_dialog::sample_buttons(song& s, undo_manager* undo, instrument&
     if (browsing) {
         ImGui::BeginDisabled();
     }
-    if (ImGui::Button("Add sample...") && file_result_->begin()) {
-        open_wav_file_dialog([r = file_result_](std::string p) {
-            r->deliver(std::move(p));
-        });
+    if (ImGui::Button("Add sample...")) {
+        if (auto session = file_result_->begin()) {
+            open_wav_file_dialog([r = file_result_, s = *session](std::string p) {
+                r->deliver(s, std::move(p));
+            });
+        }
     }
     if (browsing) {
         ImGui::EndDisabled();

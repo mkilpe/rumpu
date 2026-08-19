@@ -265,6 +265,35 @@ TEST_CASE("mixer clamps a negative hit offset larger than the bar", "[mixer]") {
 	CHECK(peak_in_range(audio, 0, bar_len) > 0.0f);
 }
 
+TEST_CASE("mixer starts the next section's first bar when the playing section is removed", "[mixer]") {
+	// removing the section that is currently playing must enter the next
+	// section at its bar start: the stale mid-bar sample position from the
+	// removed section would otherwise skip bar 0's beats entirely
+	song s{{}, {4, 4}, {120}};
+	s.add_instrument(instrument{kick_path});
+	s.load_instruments(44100);
+	auto id1 = s.add_section();
+	s.section_order().push_back(id1);
+	auto id2 = s.add_section();
+	s.section_order().push_back(id2);
+	beat b;
+	b.action = beat::hit;
+	b.hit_data.volume = volume{false, 1.0f};
+	s.find_section(id2)->tracks()[0].bars()[0].beats[0] = b;
+
+	mixer m{s, 44100};
+	std::vector<float> pre(1000, 0.0f);
+	REQUIRE(m.process(pre.data(), pre.size()) == pre.size()); // mid-bar in id1
+
+	s.remove_section(id1);
+
+	// one 4/4 bar at 120 BPM = 2 s = 88200 samples
+	std::vector<float> bar(88200, 0.0f);
+	CHECK(m.process(bar.data(), bar.size()) == bar.size());
+	CHECK(m.currently_playing_section() == id2);
+	CHECK(bar[0] != 0.0f);
+}
+
 TEST_CASE("mixer duration for empty song is zero", "[mixer]") {
 	song s{{}, {4, 4}, {120}};
 	mixer m{s, 44100};

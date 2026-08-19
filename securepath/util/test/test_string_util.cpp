@@ -2,6 +2,8 @@
 #include <securepath/util/string_util.hpp>
 
 #include <string>
+#include <string_view>
+#include <vector>
 
 namespace securepath::test {
 
@@ -43,6 +45,22 @@ TEST_CASE("string conversion invalid utf8 becomes replacement char", "[string_ut
 	CHECK(w.size() == 3);
 	CHECK(w[0] == L'a');
 	CHECK(w[2] == L'z');
+}
+
+TEST_CASE("to_hex with separator", "[string_util]") {
+	CHECK("30" == to_hex("0"));
+	CHECK("41-42" == to_hex("AB", "-"));
+	CHECK("41ABC41" == to_hex("AA", "ABC"));
+	CHECK("" == to_hex("", "X"));
+}
+
+TEST_CASE("split_view", "[string_util]") {
+	CHECK(split_view("") == std::vector<std::string_view>{});
+	CHECK(split_view("a b c") == std::vector<std::string_view>{"a", "b", "c"});
+	CHECK(split_view("a b c ") == std::vector<std::string_view>{"a", "b", "c", ""});
+	CHECK(split_view(" a b c") == std::vector<std::string_view>{"", "a", "b", "c"});
+	CHECK(split_view("a.b.c", ".") == std::vector<std::string_view>{"a", "b", "c"});
+	CHECK(split_view("a...b.c", ".") == std::vector<std::string_view>{"a", "", "", "b", "c"});
 }
 
 }

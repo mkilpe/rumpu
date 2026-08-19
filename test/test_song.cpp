@@ -199,6 +199,34 @@ TEST_CASE("load rejects invalid per-bar tempo change", "[song][validate]") {
 	check_load_rejects(s);
 }
 
+TEST_CASE("load rejects non-finite tempo slide change", "[song][validate]") {
+	song s = make_valid_song();
+	s.sections().begin()->second.changes()[1].tempo_slide_change =
+		tempo_slide{1, 3, std::numeric_limits<float>::quiet_NaN()};
+	CHECK_THROWS_AS(validate_song(s), std::runtime_error);
+}
+
+TEST_CASE("load rejects non-finite global tempo slide", "[song][validate]") {
+	song s = make_valid_song();
+	s.set_global_tempo_slide(delta_tempo{std::numeric_limits<float>::quiet_NaN()});
+	CHECK_THROWS_AS(validate_song(s), std::runtime_error);
+}
+
+TEST_CASE("load rejects non-finite volume slide", "[song][validate]") {
+	song s = make_valid_song();
+	s.sections().begin()->second.tracks()[0].volume_slides()[0] =
+		volume_slide{0, 2, std::numeric_limits<float>::infinity()};
+	CHECK_THROWS_AS(validate_song(s), std::runtime_error);
+}
+
+TEST_CASE("validate_song accepts finite slides", "[song][validate]") {
+	song s = make_valid_song();
+	s.sections().begin()->second.changes()[1].tempo_slide_change = tempo_slide{1, 3, 20.0f};
+	s.sections().begin()->second.tracks()[0].volume_slides()[0] = volume_slide{0, 2, -0.5f};
+	s.set_global_tempo_slide(delta_tempo{2.0f});
+	CHECK_NOTHROW(validate_song(s));
+}
+
 TEST_CASE("load rejects invalid time signature", "[song][validate]") {
 	song s = make_valid_song();
 	s.set_default_time_signature({0, 4});

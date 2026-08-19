@@ -20,8 +20,8 @@ static std::string filename_stem(std::string const& path) {
 }
 
 void add_instrument_dialog::open() {
-    // Drop a result delivered after the previous dialog instance closed
-    file_result_->take();
+    // Drop any result or still-open chooser from a previous dialog session
+    file_result_->invalidate();
     task_ = run();
 }
 
@@ -80,10 +80,12 @@ void add_instrument_dialog::path_row(std::string& path) {
     if (browsing) {
         ImGui::BeginDisabled();
     }
-    if (ImGui::Button("Browse...") && file_result_->begin()) {
-        open_wav_file_dialog([r = file_result_](std::string p) {
-            r->deliver(std::move(p));
-        });
+    if (ImGui::Button("Browse...")) {
+        if (auto session = file_result_->begin()) {
+            open_wav_file_dialog([r = file_result_, s = *session](std::string p) {
+                r->deliver(s, std::move(p));
+            });
+        }
     }
     if (browsing) {
         ImGui::EndDisabled();

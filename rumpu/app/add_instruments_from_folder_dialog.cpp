@@ -18,8 +18,8 @@ add_instruments_from_folder_dialog::add_instruments_from_folder_dialog(event_sys
 {}
 
 void add_instruments_from_folder_dialog::open() {
-    // Drop a result delivered after the previous dialog instance closed
-    folder_result_->take();
+    // Drop any result or still-open chooser from a previous dialog session
+    folder_result_->invalidate();
     task_ = run();
 }
 
@@ -121,10 +121,12 @@ void add_instruments_from_folder_dialog::folder_row(scan_state& state) {
     if (browsing) {
         ImGui::BeginDisabled();
     }
-    if (ImGui::Button("Browse...") && folder_result_->begin()) {
-        open_folder_dialog([r = folder_result_](std::string p) {
-            r->deliver(std::move(p));
-        });
+    if (ImGui::Button("Browse...")) {
+        if (auto session = folder_result_->begin()) {
+            open_folder_dialog([r = folder_result_, s = *session](std::string p) {
+                r->deliver(s, std::move(p));
+            });
+        }
     }
     if (browsing) {
         ImGui::EndDisabled();

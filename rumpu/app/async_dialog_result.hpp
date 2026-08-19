@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -11,23 +12,43 @@ namespace securepath::drum::app {
 // dialog thread. The dialog callback must capture a shared_ptr to this (never
 // the owning object), so a result delivered after the owner is gone lands in
 // the mailbox and is dropped with it.
+//
+// Deliveries are tied to a session: begin() hands out a token the callback
+// must pass to deliver(), and invalidate() (called when the owning dialog
+// reopens) makes older tokens no-ops. Without this, a chooser left open across
+// a dialog close/reopen would deliver into the new session and the value would
+// be applied to whatever is selected then.
 class async_dialog_result {
 public:
-    // Marks a dialog in flight. Returns false if one is already running.
-    bool begin() {
+    // Marks a dialog in flight and returns the token for its delivery.
+    // Returns nullopt if one is already running.
+    std::optional<std::uint64_t> begin() {
         std::lock_guard l{mutex_};
         if (in_flight_) {
-            return false;
+            return std::nullopt;
         }
         in_flight_ = true;
-        return true;
+        return session_;
     }
 
-    // Called from the dialog thread; empty value means cancelled.
-    void deliver(std::string value) {
+    // Called from the dialog thread; empty value means cancelled. A delivery
+    // whose session has been invalidated is dropped.
+    void deliver(std::uint64_t session, std::string value) {
         std::lock_guard l{mutex_};
-        value_ = std::move(value);
-        has_value_ = true;
+        if (session == session_) {
+            value_ = std::move(value);
+            has_value_ = true;
+        }
+    }
+
+    // Called from the UI thread when the owning dialog (re)opens: drops any
+    // stored value and detaches any chooser still open from an earlier session.
+    void invalidate() {
+        std::lock_guard l{mutex_};
+        ++session_;
+        in_flight_ = false;
+        has_value_ = false;
+        value_.clear();
     }
 
     // Called from the UI thread. Returns the delivered value at most once
@@ -50,6 +71,7 @@ public:
 private:
     mutable std::mutex mutex_;
     std::string value_;
+    std::uint64_t session_{};
     bool has_value_{};
     bool in_flight_{};
 };
