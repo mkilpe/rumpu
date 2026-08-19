@@ -109,4 +109,16 @@ TEST_CASE("octet_vector_stream write read 2", "[octet_vector_stream]") {
 
 }
 
+TEST_CASE("octet_vector_ostream write past the end grows the vector", "[octet_vector_stream]") {
+	// a write position beyond the current size used to underflow the
+	// remaining-space computation and resize to a huge value
+	octet_vector vec(2);
+	octet_vector_ostream out(vec, 10);
+	char const payload[] = {1, 2, 3};
+	CHECK(out.write(payload, sizeof(payload)));
+	CHECK(vec.size() == 13);
+	CHECK(vec[10] == 1);
+	CHECK(vec[12] == 3);
+}
+
 }

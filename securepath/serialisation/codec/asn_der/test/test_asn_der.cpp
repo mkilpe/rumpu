@@ -148,4 +148,12 @@ TEST_CASE("asn_der encoder refuses strings above the decodable limit", "[asn_der
 	CHECK_THROWS_AS(encoder.encode(big, std::nullopt), serialisation_error);
 }
 
+TEST_CASE("asn_der trailing data outside a sequence throws", "[asn_der]") {
+	// used to dereference the front of an empty sequence-boundary list
+	std::stringstream str{std::string{0x02, 0x01, 0x00}};
+	asn_der_decoder<std::stringstream> decoder(str);
+	trailing_data d;
+	CHECK_THROWS_AS(decoder.decode(d), serialisation_error);
+}
+
 }

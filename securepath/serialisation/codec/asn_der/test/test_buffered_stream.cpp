@@ -59,4 +59,20 @@ TEST_CASE("buffered_stream") {
 	CHECK(!stream.readable_bytes(11));
 }
 
+TEST_CASE("buffered_stream read spans look-ahead buffer and stream", "[buffered_stream]") {
+	// readable_bytes buffers bytes ahead; a read crossing from that buffer
+	// into the live stream must report the full count, not just the stream part
+	std::string data = securepath::test::random_string(30);
+	std::stringstream ss(data);
+	buffered_stream stream(ss);
+
+	CHECK(stream.readable_bytes(10)); // 10 bytes now buffered
+
+	octet_vector buf(25);
+	auto res = stream.read(buf.data(), buf.size());
+	CHECK(res == buf.size());
+	CHECK(buf == subbuffer(to_octet_vector(data), 0, buf.size()));
+	CHECK(stream.pos() == buf.size());
+}
+
 }

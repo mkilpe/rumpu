@@ -40,6 +40,11 @@ octet_vector_ostream::octet_vector_ostream(octet_vector& vec, std::size_t write_
 
 bool octet_vector_ostream::write(char const* buf, std::size_t size) {
 	if(buf && size) {
+		// a write position past the end (constructed that way, or the vector
+		// shrunk externally) must grow the vector, not underflow size_left
+		if(write_pos_ > vec_.size()) {
+			vec_.resize(write_pos_);
+		}
 		std::size_t size_left = vec_.size() - write_pos_;
 		if(size_left < size) {
 			vec_.resize(vec_.size()+size-size_left);

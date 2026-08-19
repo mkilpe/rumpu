@@ -55,6 +55,11 @@ public:
 	}
 
 	virtual void decode(trailing_data& d) {
+		if(seq_pos_.empty()) {
+			// trailing data is "the rest of the enclosing sequence"; there is
+			// no meaningful extent at the outermost level
+			throw serialisation_error("trailing data decoded outside a sequence");
+		}
 		uint64_t pos = seq_pos_.front();
 		if(s_.pos() < pos) {
 			octet_vector b(pos - s_.pos());

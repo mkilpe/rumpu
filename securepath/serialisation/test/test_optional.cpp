@@ -122,4 +122,15 @@ TEST_CASE("tagged optional yields to a differently tagged element", "[serialisat
 	CHECK(c.after == 9);
 }
 
+TEST_CASE("container of optionals cannot loop on a non-advancing element", "[serialisation][optional]") {
+	// an absent optional consumes nothing; decoding a sequence whose content
+	// never matches used to append nullopt forever until memory ran out
+	auto load = [] {
+		return deser_bytes<std::vector<std::optional<std::uint16_t>>>(
+			{ 0x30, 0x03
+			, 0x09, 0x01, 0x00 }); // a REAL: never matches optional<int>
+	};
+	CHECK_THROWS_AS(load(), serialisation_error);
+}
+
 }

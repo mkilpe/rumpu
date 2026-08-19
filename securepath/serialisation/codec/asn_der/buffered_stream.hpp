@@ -31,7 +31,7 @@ public:
 	std::size_t read(std::uint8_t* buf, std::size_t s) {
 		std::size_t ps = read_from_buffer(buf, s);
 		if(ps != s) {
-			ps = read_from_stream(buf+ps, s-ps);
+			ps += read_from_stream(buf+ps, s-ps);
 		}
 		return ps;
 	}
