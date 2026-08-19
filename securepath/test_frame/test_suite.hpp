@@ -1,4 +1,4 @@
-#include <external/catch/catch.hpp>
+#include <catch2/catch_all.hpp>
 #include <securepath/util/timer.hpp>
 #include <chrono>
 

@@ -1,4 +1,4 @@
-file(GLOB SRC *.cpp *.hpp)
+file(GLOB SRC CONFIGURE_DEPENDS *.cpp *.hpp)
 add_executable(test_serialisation ${SRC})
 target_link_libraries(test_serialisation serialisation test_frame)
 add_test(NAME test_serialisation COMMAND test_serialisation)

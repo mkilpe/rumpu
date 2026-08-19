@@ -3,8 +3,7 @@
 #include <securepath/log/backend/file_output.hpp>
 #include <securepath/util/print_util.hpp>
 
-#define CATCH_CONFIG_RUNNER
-#include <external/catch/catch.hpp>
+#include <catch2/catch_session.hpp>
 
 namespace securepath {
 

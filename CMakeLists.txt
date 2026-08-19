@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.25)
 
 project("rumpu")
 
@@ -31,6 +31,17 @@ set(RUMPU_VERSION_FULL "${RUMPU_VERSION}+${RUMPU_GIT_HASH}")
 set(CMAKE_CXX_STANDARD 26)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# fail with a clear message instead of hundreds of C++26 errors
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 14)
+    message(FATAL_ERROR "GCC ${CMAKE_CXX_COMPILER_VERSION} is too old; C++26 support requires GCC 14 or newer")
+endif()
+
+option(RUMPU_SANITIZE "Build with address and undefined-behaviour sanitizers" OFF)
+if(RUMPU_SANITIZE)
+    add_compile_options(-fsanitize=address,undefined -fno-omit-frame-pointer)
+    add_link_options(-fsanitize=address,undefined)
+endif()
+
 enable_testing()
 
 get_filename_component(my_root_directory ${CMAKE_CURRENT_LIST_FILE} DIRECTORY)
@@ -43,9 +54,17 @@ else()
     set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/lib)
 endif()
 
-#find_package(Qt5 5.12.0 COMPONENTS Core Multimedia REQUIRED)
+if(MINGW)
+    # mingw libstdc++ ships std::print's terminal support in a separate archive
+    link_libraries(stdc++exp)
+endif()
+
 if(WIN32)
     include(fetch-deps)
+else()
+    # provides the imported 'glfw' target; a missing dev package fails here
+    # with a clear message instead of at link time with a bare -lglfw
+    find_package(glfw3 3.3 REQUIRED)
 endif()
 
 #set(CMAKE_AUTOMOC ON)
@@ -67,7 +86,12 @@ link_directories(${my_root_directory}/lib)
 
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${CXX_FLAGS} -g3 -ggdb")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${CXX_FLAGS} -O2")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CXX_LOCAL_FLAGS} -Wall -Wreturn-type -Werror=return-type -fdiagnostics-color=auto -Wno-deprecated-declarations")
+# -Wno-missing-field-initializers: partially initialised aggregates (rest
+# value-initialised) are idiomatic here
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CXX_LOCAL_FLAGS} -Wall -Wextra -Wno-unused-parameter -Wno-missing-field-initializers -Wreturn-type -Werror=return-type -fdiagnostics-color=auto -Wno-deprecated-declarations")
+
+# single test framework for all suites (securepath's test_frame and test_rumpu)
+add_subdirectory(submodules/catch2 ${CMAKE_BINARY_DIR}/catch2)
 
 add_subdirectory(rumpu)
 

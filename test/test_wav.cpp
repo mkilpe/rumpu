@@ -10,8 +10,9 @@
 
 namespace audio = securepath::audio;
 
+// output files: written into the build tree, never the source tree
 static std::string test_file(std::string const& name) {
-	return (std::filesystem::path(TEST_DATA_DIR) / name).string();
+	return (std::filesystem::path(TEST_OUT_DIR) / name).string();
 }
 
 static audio::audio_data make_test_data(audio::audio_format fmt, std::vector<float> const& samples) {

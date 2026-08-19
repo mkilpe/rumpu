@@ -14,7 +14,7 @@ inline
 asn_class_type get_asn_class(std::optional<tag_info> const& t) {
 	return t
 		? static_cast<asn_class_type>(t->tag_type.value_or(asn_class::context_specific_c))
-		: asn_class::universal_c;
+		: static_cast<asn_class_type>(asn_class::universal_c);
 }
 
 inline

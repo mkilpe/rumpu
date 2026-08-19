@@ -40,3 +40,4 @@ local-plan.txt
 test/export.wav
 *_include.cmake
 *_tests.cmake
+test/output/

@@ -4,15 +4,36 @@
 #include <rumpu/core/song.hpp>
 #include <rumpu/core/song_file.hpp>
 #include <rumpu/core/instrument.hpp>
+#include <securepath/audio/util/audio_data.hpp>
 
 #include <algorithm>
 #include <cstdio>
+#include <cstring>
 #include <filesystem>
 
 using namespace securepath::drum;
+namespace audio = securepath::audio;
 
 static const char* kick_path = TEST_DATA_DIR "/test_kick.wav";
-static const char* kick2_path = TEST_DATA_DIR "/test_pcm16.wav";
+
+// second sample for the multi-sample tests: generated (once per run) into the
+// build tree so the tests don't depend on another test's output file
+static std::string const& second_sample_path() {
+	static std::string const path = [] {
+		std::string p = (std::filesystem::path(TEST_OUT_DIR) / "test_second_sample.wav").string();
+		audio::audio_format fmt{audio::short_t, 1, 16, 44100, std::endian::little};
+		std::vector<std::int16_t> samples(64);
+		for(std::size_t i = 0; i != samples.size(); ++i) {
+			samples[i] = static_cast<std::int16_t>(1000 + 500*i);
+		}
+		securepath::octet_vector data(samples.size() * sizeof(std::int16_t));
+		std::memcpy(data.data(), samples.data(), data.size());
+		audio::audio_data ad{fmt, std::move(data)};
+		ad.save(p);
+		return p;
+	}();
+	return path;
+}
 
 static void add_kick_pattern(song& s) {
 	s.add_instrument(instrument{kick_path});
@@ -295,7 +316,7 @@ TEST_CASE("mixer choke in same bar does not kill earlier beat", "[mixer]") {
 
 static std::uint32_t add_multi_sample_pattern(song& s) {
 	instrument inst{kick_path};
-	inst.add_sample(kick2_path);
+	inst.add_sample(second_sample_path());
 	s.add_instrument(std::move(inst));
 	s.load_instruments(44100);
 	auto sec_id = s.add_section();
@@ -314,7 +335,7 @@ TEST_CASE("multi-sample test fixtures have distinct content", "[mixer][random_sa
 	// Pre-condition for the random-sample tests: the two fixture WAVs must differ,
 	// otherwise we can't tell which sample the mixer picked.
 	auto a = load_drum_sample(kick_path);
-	auto b = load_drum_sample(kick2_path);
+	auto b = load_drum_sample(second_sample_path());
 	REQUIRE(a.buffer() != nullptr);
 	REQUIRE(b.buffer() != nullptr);
 	REQUIRE(*a.buffer() != *b.buffer());

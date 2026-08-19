@@ -13,7 +13,7 @@ if(NOT DEFINED sound_backend)
 	endif()
 endif()
 
-file(GLOB SRC *.cpp *.hpp)
+file(GLOB SRC CONFIGURE_DEPENDS *.cpp *.hpp)
 add_library(audio STATIC ${SRC})
 
 if(DEFINED sound_backend)
