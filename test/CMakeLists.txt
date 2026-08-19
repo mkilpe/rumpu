@@ -2,6 +2,7 @@ add_subdirectory(${CMAKE_SOURCE_DIR}/submodules/catch2 ${CMAKE_BINARY_DIR}/catch
 
 add_executable(test_rumpu
 	test_async_dialog_result.cpp
+	test_audio_buffer.cpp
 	test_audio_data.cpp
 	test_drum_sample.cpp
 	test_export.cpp

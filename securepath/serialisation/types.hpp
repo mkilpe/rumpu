@@ -35,6 +35,15 @@ public:
 	{}
 };
 
+// The expected element is not at the current position (enclosing sequence
+// ended, or the next element carries a different tag). Optional-field decoding
+// treats exactly this as "field absent"; any other serialisation_error is
+// corrupt data and propagates.
+class element_not_present : public serialisation_error {
+public:
+	using serialisation_error::serialisation_error;
+};
+
 //two's complement arbitrary size integer in big endian
 class integer {
 public:

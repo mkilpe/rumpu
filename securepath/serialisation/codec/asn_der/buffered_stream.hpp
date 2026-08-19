@@ -66,21 +66,24 @@ public:
 		return s;
 	}
 
+	// true when s bytes can be read from the current position; a pure query,
+	// buffered bytes stay readable. On a short stream any partially read bytes
+	// are lost (the stream cannot be rewound), matching the previous behaviour.
 	bool readable_bytes(std::size_t s) {
-		std::size_t rs = 0;
+		std::size_t buffered = 0;
 		if(look_ahead_pos_ < buffer_.size()) {
-			rs = std::min(s, buffer_.size()-look_ahead_pos_);
+			buffered = buffer_.size()-look_ahead_pos_;
 		}
-		if(rs != s) {
-			std::size_t more_required = s-rs;
-			buffer_.resize(buffer_.size()+more_required);
-			// notice: this is broken if the stream/deserialiser doesn't get re-constructed after failure
-			// as this might make a partial read and throw the data away
-			if(!stream_.read(reinterpret_cast<char*>(buffer_.data()+buffer_.size()-more_required), more_required)) {
-				throw serialisation_error("end of stream");
-			}
+		if(buffered >= s) {
+			return true;
 		}
-		return s;
+		std::size_t const more_required = s-buffered;
+		octet_vector tmp(more_required);
+		if(!stream_.read(reinterpret_cast<char*>(tmp.data()), more_required)) {
+			return false;
+		}
+		buffer_.insert(buffer_.end(), tmp.begin(), tmp.end());
+		return true;
 	}
 
 	bool is_peeking() const {

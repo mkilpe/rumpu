@@ -110,4 +110,42 @@ TEST_CASE("asn_der explicit tag", "[asn_der]") {
 
 }
 
+TEST_CASE("asn_der constructed size limit is separate from primitive limit", "[asn_der]") {
+	// a sequence header may declare more than the primitive cap (a large
+	// document is mostly one big outer sequence), a primitive may not
+	// (its declared length is allocated up front)
+	auto make_header = [](std::uint8_t tag_byte, std::uint32_t length) {
+		std::string s;
+		s.push_back(static_cast<char>(tag_byte));
+		s.push_back(static_cast<char>(0x84)); // long form, 4 length octets
+		s.push_back(static_cast<char>(length >> 24));
+		s.push_back(static_cast<char>(length >> 16));
+		s.push_back(static_cast<char>(length >> 8));
+		s.push_back(static_cast<char>(length));
+		return s;
+	};
+	std::uint32_t const over_primitive = 3*1024*1024;
+
+	{
+		// 3 MB sequence: accepted (content missing, but the header must pass)
+		std::stringstream str{make_header(0x30, over_primitive)};
+		asn_der_decoder<std::stringstream> decoder(str);
+		CHECK_NOTHROW(decoder.start_sequence(std::nullopt));
+	}
+	{
+		// 3 MB octet string: rejected before any allocation
+		std::stringstream str{make_header(0x04, over_primitive)};
+		asn_der_decoder<std::stringstream> decoder(str);
+		octet_vector v;
+		CHECK_THROWS_AS(decoder.decode(v, std::nullopt), serialisation_error);
+	}
+}
+
+TEST_CASE("asn_der encoder refuses strings above the decodable limit", "[asn_der]") {
+	std::stringstream str;
+	asn_der_encoder<std::stringstream> encoder(str);
+	std::string big(max_structure_size + 1, 'x');
+	CHECK_THROWS_AS(encoder.encode(big, std::nullopt), serialisation_error);
+}
+
 }

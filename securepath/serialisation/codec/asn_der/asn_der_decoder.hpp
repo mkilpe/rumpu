@@ -13,8 +13,6 @@
 
 namespace securepath::serialisation {
 
-/// Limit maximum size of the asn structures, so that memory usage is limited in case of malicious remote peer
-std::uint64_t const max_structure_size{1024*1024*2};
 
 /// Limit structure nesting depth, so that recursively decoded types cannot overflow the stack
 std::size_t const max_structure_depth{64};
@@ -159,8 +157,9 @@ public:
 		std::uint64_t ret = 0;
 		try {
 			std::uint64_t lenght = next_length();
-			s_.readable_bytes(lenght);
-			ret = lenght;
+			if(lenght && s_.readable_bytes(lenght)) {
+				ret = lenght;
+			}
 		} catch(...) {}
 		return ret;
 	}
@@ -236,26 +235,29 @@ private:
 	asn_header decode_header() {
 		asn_header header = decode_tag();
 		header.length = decode_length();
-		if(header.length > max_structure_size) {
-			LOG_WARN("received asn structure which has size bigger than the set maximum ({} > {})", header.length, max_structure_size);
+		auto const max_size = header.is_constructed ? max_constructed_size : max_structure_size;
+		if(header.length > max_size) {
+			LOG_WARN("received asn structure which has size bigger than the set maximum ({} > {})", header.length, max_size);
 			throw serialisation_error("asn structure too big");
 		}
 		return header;
 	}
 
 	asn_header decode_header(asn_class_type asn_class, uint64_t tag) {
-		if(is_end_of_sequence()) {
+		// outside any sequence, absence manifests as clean end of stream;
+		// inside a sequence a stream end is truncation and propagates as error
+		if(is_end_of_sequence() || (seq_pos_.empty() && !s_.readable_bytes(1))) {
 			if(!s_.is_peeking()) {
 				LOG_WARN("decode_header: end of sequence detected");
 			}
-			throw serialisation_error("end of sequence when trying to decode header");
+			throw element_not_present("end of sequence when trying to decode header");
 		}
 		asn_header header = decode_header();
 		if(header.asn_class != asn_class || header.tag != tag) {
 			if(!s_.is_peeking()) {
 				LOG_WARN("decode_header: asn class or tag does not match");
 			}
-			throw serialisation_error("asn class or tag does not match");
+			throw element_not_present("asn class or tag does not match");
 		}
 		return header;
 	}

@@ -56,7 +56,7 @@ TEST_CASE("buffered_stream") {
 	CHECK(stream.pos() == 2*buf.size());
 
 	CHECK(stream.readable_bytes(10));
-	CHECK_THROWS(stream.readable_bytes(11));
+	CHECK(!stream.readable_bytes(11));
 }
 
 }

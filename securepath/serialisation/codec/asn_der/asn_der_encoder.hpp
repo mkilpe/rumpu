@@ -205,6 +205,11 @@ private:
 
 	template<typename Type>
 	void encode_string(Type const& s, std::optional<tag_info> tag, uint64_t default_tag) {
+		if(s.size() > max_structure_size) {
+			// the decoder refuses primitives above this limit; writing one would
+			// produce a document that saves fine but can never be loaded
+			throw serialisation_error("string too large to be decodable");
+		}
 		asn_header header;
 		header.asn_class = get_asn_class(tag);
 		header.tag = get_tag(tag, default_tag);

@@ -39,6 +39,17 @@ struct asn_header {
 	bool is_constructed = false;
 };
 
+/// Limit maximum size of primitive asn elements (strings, integers...), whose
+/// declared length is allocated up front, so that memory usage is limited in
+/// case of malicious remote peer. The encoder refuses to write larger ones so
+/// a document that saves is always loadable.
+std::uint64_t const max_structure_size{1024*1024*2};
+
+/// Constructed types (sequences) only set a parsing boundary — nothing is
+/// allocated from their declared length — so they may grow with content;
+/// without the higher limit a large document could be saved but never loaded
+std::uint64_t const max_constructed_size{std::uint64_t(1024)*1024*512};
+
 }
 
 #endif

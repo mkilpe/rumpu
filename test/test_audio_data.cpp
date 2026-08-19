@@ -85,6 +85,41 @@ TEST_CASE("resample without rate change keeps frame count", "[audio_data][resamp
 	CHECK(out[1] == Approx(-0.25f)); // (-0.5 + 0) / 2
 }
 
+TEST_CASE("int16 conversion round-trips exactly", "[audio_data][convert]") {
+	// read divides by 32768 and write must multiply by the same scale
+	// (rounding, not truncating), or every save/load cycle drifts
+	std::vector<std::int16_t> src{0, 1, -1, 12345, -12345, 32767, -32768};
+	octet_vector bytes(src.size() * sizeof(std::int16_t));
+	std::memcpy(bytes.data(), src.data(), bytes.size());
+
+	audio_data d{{short_t, 1, 16, 44100}, std::move(bytes)};
+	d.resample(float_mono(44100));
+	d.resample({short_t, 1, 16, 44100});
+
+	auto out = d.data();
+	REQUIRE(out.size() == src.size() * sizeof(std::int16_t));
+	std::vector<std::int16_t> result(src.size());
+	std::memcpy(result.data(), out.data(), out.size());
+	CHECK(result == src);
+}
+
+TEST_CASE("non-finite float samples convert to silence", "[audio_data][convert]") {
+	// NaN passes through std::clamp and float->int conversion of NaN is UB
+	std::vector<float> src{std::numeric_limits<float>::quiet_NaN(),
+		std::numeric_limits<float>::infinity(),
+		-std::numeric_limits<float>::infinity(), 0.5f};
+	audio_data d{float_mono(44100), to_bytes(src)};
+	d.resample({short_t, 1, 16, 44100});
+
+	auto out = d.data();
+	std::vector<std::int16_t> result(src.size());
+	std::memcpy(result.data(), out.data(), out.size());
+	CHECK(result[0] == 0);
+	CHECK(result[1] == 0);
+	CHECK(result[2] == 0);
+	CHECK(result[3] == 16384);
+}
+
 TEST_CASE("resample rejects zero sample rates", "[audio_data][resample]") {
 	audio_data zero_src{float_mono(0), to_bytes(ramp(10))};
 	CHECK_THROWS_AS(zero_src.resample(float_mono(44100)), invalid_format);

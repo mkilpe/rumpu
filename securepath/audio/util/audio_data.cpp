@@ -1,7 +1,9 @@
 #include "audio_data.hpp"
 #include "detail/wav.hpp"
 
+#include <algorithm>
 #include <bit>
+#include <cmath>
 #include <cstring>
 #include <fstream>
 #include <vector>
@@ -66,12 +68,24 @@ static float read_sample(std::uint8_t const* src, audio::audio_format const& fmt
 	return 0.f;
 }
 
+// quantise to an integer sample using the same scale the read side divides by,
+// so integer -> float -> integer round-trips exactly; rounds instead of
+// truncating and clamps the +1.0 edge into range
+template<typename T>
+static T quantise(float v, float scale, long min, long max) {
+	return static_cast<T>(std::clamp(std::lrintf(v * scale), min, max));
+}
+
 static void write_sample(std::uint8_t* dst, float v, audio::audio_format const& fmt) {
+	if(!std::isfinite(v)) {
+		// NaN passes through std::clamp unchanged, and float -> int of NaN/Inf is UB
+		v = 0.0f;
+	}
 	v = std::clamp(v, -1.0f, 1.0f);
 	switch(fmt.type) {
-	case audio::char_t:  *reinterpret_cast<std::int8_t*>(dst) = std::int8_t(v * 127); break;
-	case audio::uchar_t: *dst = std::uint8_t((v + 1.0f) * 127.5f); break;
-	case audio::short_t: write_value<std::int16_t>(dst, std::int16_t(v * 32767), fmt.endian); break;
+	case audio::char_t:  *reinterpret_cast<std::int8_t*>(dst) = quantise<std::int8_t>(v, 128.0f, -128, 127); break;
+	case audio::uchar_t: *dst = quantise<std::uint8_t>(v + 1.0f, 128.0f, 0, 255); break;
+	case audio::short_t: write_value<std::int16_t>(dst, quantise<std::int16_t>(v, 32768.0f, -32768, 32767), fmt.endian); break;
 	case audio::float_t: write_value<std::uint32_t>(dst, std::bit_cast<std::uint32_t>(v), fmt.endian); break;
 	case audio::int24_t: break;
 	}

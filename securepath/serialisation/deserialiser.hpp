@@ -88,7 +88,9 @@ public:
 			if(etag) {
 				d_->end_explicit_tag();
 			}
-		} catch(...) {
+		} catch(element_not_present const&) {
+			// the field is genuinely absent (old file / different tag); any
+			// other decode failure is corrupt data and must propagate
 			v = std::nullopt;
 		}
 	}

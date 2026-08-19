@@ -3,6 +3,8 @@
 #include <securepath/util/conversions.hpp>
 
 #include <cassert>
+#include <limits>
+#include <stdexcept>
 #include <vector>
 #include <cstring>
 #include <algorithm>
@@ -23,11 +25,12 @@ public:
 
 template<typename T>
 struct audio_buffer_typed : public audio_buffer_base {
-	audio_buffer_typed(std::size_t size, T silence, T min = std::numeric_limits<T>::min(), T max = std::numeric_limits<T>::max() )
+	// lowest() (not min(), which is the smallest positive value for floats)
+	audio_buffer_typed(std::size_t size, T silence)
 	: data_(size)
 	, silence_(silence)
-	, min_(min)
-	, max_(max)
+	, min_(std::numeric_limits<T>::lowest())
+	, max_(std::numeric_limits<T>::max())
 	{}
 
 	virtual void add_silence_samples(uint samples, uint already_used_samples) {
@@ -39,16 +42,17 @@ struct audio_buffer_typed : public audio_buffer_base {
 	}
 
 	virtual void mix(uint start, uint end, audio_buffer const& other, uint other_pos, double mult) {
-		using common_type = typename std::common_type<int, T>::type; //have int as common type for integers, otherwise use the T
+		// double holds every supported sample type exactly
 		T const* o_p = other.begin<T>() + other_pos;
 		for(T* p = data_.data() + start; start != end; ++start, ++p, ++o_p) {
-			*p = std::clamp(common_type((int(*p)+int(*o_p))*mult), common_type(min_), common_type(max_));
+			double const v = (double(*p) + double(*o_p)) * mult;
+			*p = static_cast<T>(std::clamp(v, double(min_), double(max_)));
 		}
 	}
 
 	virtual void scale(uint start, uint end, double mult) {
 		for(T* p = data_.data() + start; start != end; ++start, ++p) {
-			*p *= mult;
+			*p = static_cast<T>(std::clamp(double(*p) * mult, double(min_), double(max_)));
 		}
 	}
 
@@ -82,9 +86,37 @@ std::unique_ptr<audio_buffer_base> construct_typed_buffer(sample_type t, std::si
 	return ret;
 }
 
+// bytes per sample for the in-memory representation; also rejects formats
+// whose bits_per_sample disagrees with the storage type, which would desync
+// every byte-based size computation from the actual allocation
+static std::size_t checked_bytes_per_sample(audio_format const& f) {
+	std::size_t expected = 0;
+	if(f.type == char_t || f.type == uchar_t) {
+		expected = 1;
+	} else if(f.type == short_t) {
+		expected = 2;
+	} else if(f.type == float_t) {
+		expected = 4;
+	} else {
+		throw std::invalid_argument("unsupported audio buffer sample type");
+	}
+	if(f.bits_per_sample != expected*8) {
+		throw std::invalid_argument("bits_per_sample does not match the sample type");
+	}
+	return expected;
+}
+
+static std::size_t checked_sample_count(audio_format const& f, std::size_t data_size) {
+	std::size_t const sample_size = checked_bytes_per_sample(f);
+	if(data_size % sample_size != 0) {
+		throw std::invalid_argument("data size is not a multiple of the sample size");
+	}
+	return data_size / sample_size;
+}
+
 audio_buffer::audio_buffer(audio_format f, std::size_t samples)
 : format_(f)
-, bytes_per_sample_(f.bits_per_sample/8)
+, bytes_per_sample_(checked_bytes_per_sample(f))
 , samples_(samples)
 , used_samples_()
 , ptr_( construct_typed_buffer(f.type, samples, p_) )
@@ -92,7 +124,7 @@ audio_buffer::audio_buffer(audio_format f, std::size_t samples)
 }
 
 audio_buffer::audio_buffer(audio_format f, octet_vector const& data)
-: audio_buffer(f, 8*data.size() / f.bits_per_sample)
+: audio_buffer(f, checked_sample_count(f, data.size()))
 {
 	std::memcpy(begin<std::uint8_t>(), data.data(), data.size());
 	set_used_size(data.size());
@@ -123,6 +155,9 @@ void audio_buffer::add_silence_samples(uint samples) {
 }
 
 void audio_buffer::mix(uint pos, audio_buffer const& buf, uint buf_pos, uint length, double mult) {
+	if(buf.format_.type != format_.type) {
+		throw std::invalid_argument("mixing buffers of different sample types");
+	}
 	//todo: consider real error handling
 	assert(pos+length <= used_samples_);
 	assert(buf_pos + length <= buf.used_samples());
