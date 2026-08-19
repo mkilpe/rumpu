@@ -14,6 +14,9 @@ namespace {
 	constexpr std::uint16_t wav_format_float = 3;
 	constexpr std::uint16_t max_channels = 16;
 	constexpr std::uint32_t max_sample_rate = 768000;
+	// declared chunk sizes are attacker-controlled; bound them before allocating
+	constexpr std::size_t max_data_chunk_size = 256u*1024*1024;
+	constexpr std::size_t max_fmt_chunk_size = 1024;
 }
 
 void validate_wav_format(riff::riff_fmt_data const& fmt, std::size_t data_size) {
@@ -88,6 +91,9 @@ void wav::load(std::istream& in) {
 	data_.clear();
 
 	octet_vector buf = read(in, riff_header::size);
+	if(buf.size() != riff_header::size) {
+		throw invalid_format("truncated RIFF header");
+	}
 	header_.read(buf.data(), buf.size());
 
 	if(std::strncmp(reinterpret_cast<char const*>(header_.header.chunk_id), "RIFF", 4) != 0) {
@@ -114,6 +120,10 @@ void wav::load_chunk(std::istream& in) {
 	LOG_TRACE("reading chunk header at offset {}", std::size_t(in.tellg()));
 	octet_vector buf = read(in, chunk_header::size);
 
+	if(buf.empty() && in.gcount() != 0) {
+		// bytes remained but not a whole header: cut off mid-file, not clean EOF
+		throw invalid_format("truncated chunk header");
+	}
 	if(!buf.empty()) {
 		chunk_header h;
 		h.read(buf.data(), buf.size());
@@ -126,19 +136,34 @@ void wav::load_chunk(std::istream& in) {
 			LOG_TRACE("skipping RIFF chunk '{}' ({} bytes)", std::string(h.chunk_id, h.chunk_id+4), h.chunk_size);
 			in.seekg(h.chunk_size, std::ios_base::cur);
 		}
+		if(h.chunk_size % 2 != 0) {
+			// RIFF chunks are word-aligned: odd payloads are followed by a pad
+			// byte not counted in chunk_size
+			in.seekg(1, std::ios_base::cur);
+		}
 	}
 }
 
 void wav::load_format_chunk(std::istream& in, std::size_t size) {
-	octet_vector buf = read(in, size);
-	if(!buf.empty()) {
-		riff_fmt_data fmt;
-		fmt.read(buf.data(), buf.size());
-		format_ = fmt;
+	if(size < riff_fmt_data::size) {
+		throw invalid_format("truncated fmt chunk");
 	}
+	if(size > max_fmt_chunk_size) {
+		throw invalid_format("fmt chunk size out of bounds");
+	}
+	octet_vector buf = read(in, size);
+	if(buf.size() != size) {
+		throw invalid_format("truncated fmt chunk");
+	}
+	riff_fmt_data fmt;
+	fmt.read(buf.data(), buf.size());
+	format_ = fmt;
 }
 
 void wav::load_data_chunk(std::istream& in, std::size_t size) {
+	if(size > max_data_chunk_size) {
+		throw invalid_format("data chunk size out of bounds");
+	}
 	data_ = read(in, size);
 	if(data_.size() != size) {
 		throw invalid_format("invalid data chunk; size does not match");

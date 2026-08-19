@@ -31,7 +31,7 @@ TEST_CASE("samples_per_bar scales with tempo", "[timing]") {
 	CHECK(samples_per_bar(ts, ts, tempo{240}, 44100) < samples_per_bar(ts, ts, tempo{120}, 44100));
 }
 
-// M5: slides must accumulate on every bar of [begin, end), including bars
+// slides must accumulate on every bar of [begin, end), including bars
 // without an explicit change record.
 
 static std::vector<float> walk_tempi(bar_timing t, section const& sec) {

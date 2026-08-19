@@ -1,4 +1,4 @@
-// DirectSound backend tests (M9). Windows-only; runnable on a real machine or
+// DirectSound backend tests. Windows-only; runnable on a real machine or
 // under Wine with a null ALSA device (no audio hardware needed).
 #include <catch2/catch_all.hpp>
 

@@ -155,7 +155,7 @@ TEST_CASE("loader rejects files newer than the current version", "[song][seriali
 	std::remove(file.c_str());
 }
 
-// M4: hostile-but-well-formed files must be rejected at load, not crash at play
+// hostile-but-well-formed files must be rejected at load, not crash at play
 
 static song make_valid_song() {
 	song s{{}, {4, 4}, {120}};
