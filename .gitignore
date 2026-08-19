@@ -38,3 +38,5 @@ rumpu/app/version.hpp
 
 local-plan.txt
 test/export.wav
+*_include.cmake
+*_tests.cmake
