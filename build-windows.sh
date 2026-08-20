@@ -26,20 +26,12 @@ echo "Build complete. Binary: ${BUILD_DIR}/bin/rumpu.exe"
 if [[ "$BUILD_INSTALLER" == true ]]; then
     cd "${BUILD_DIR}"
 
-    # Stage only the files we need (avoids cpack preinstall building all targets)
+    # Stage through the CMake install rules (exe, runtime DLLs, third-party
+    # license texts) so the installer content has one source of truth; using a
+    # staging dir instead of cpack's preinstall avoids building all targets.
     STAGING="${BUILD_DIR}/_cpack_staging"
     rm -rf "${STAGING}"
-    mkdir -p "${STAGING}/bin"
-    cp "${BUILD_DIR}/bin/rumpu.exe" "${STAGING}/bin/"
-
-    # Bundle MinGW runtime DLLs
-    SYSROOT=$(x86_64-w64-mingw32-gcc -print-sysroot 2>/dev/null || echo "/usr/x86_64-w64-mingw32/sys-root")
-    for dll in libstdc++-6.dll libgcc_s_seh-1.dll libwinpthread-1.dll; do
-        found=$(find "${SYSROOT}" /usr/x86_64-w64-mingw32 -name "$dll" 2>/dev/null | head -1)
-        if [[ -n "$found" ]]; then
-            cp "$found" "${STAGING}/bin/"
-        fi
-    done
+    cmake --install "${BUILD_DIR}" --prefix "${STAGING}"
 
     # Render the user manual to a self-contained HTML file (screenshots and
     # stylesheet embedded), staged next to bin/ for the installer to package.

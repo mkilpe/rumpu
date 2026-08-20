@@ -1,6 +1,7 @@
 file(GLOB SRC CONFIGURE_DEPENDS *.cpp *.hpp)
 
 file(READ "${CMAKE_SOURCE_DIR}/LICENSE" LICENSE_TEXT)
+file(READ "${CMAKE_SOURCE_DIR}/THIRD_PARTY_LICENSES.txt" THIRD_PARTY_TEXT)
 configure_file(license.hpp.in "${CMAKE_CURRENT_BINARY_DIR}/license.hpp" @ONLY)
 configure_file(version.hpp.in "${CMAKE_CURRENT_BINARY_DIR}/version.hpp" @ONLY)
 
@@ -36,6 +37,7 @@ elseif(WIN32)
 endif()
 
 install(TARGETS rumpu RUNTIME DESTINATION bin)
+install(FILES "${CMAKE_SOURCE_DIR}/THIRD_PARTY_LICENSES.txt" DESTINATION .)
 
 if(WIN32 AND MINGW)
     # Bundle MinGW runtime DLLs
@@ -56,4 +58,28 @@ if(WIN32 AND MINGW)
                     "${${dll}_PATH}" "$<TARGET_FILE_DIR:rumpu>")
         endif()
     endforeach()
+
+    # License texts for the bundled runtime DLLs: libstdc++/libgcc are GPLv3
+    # with the GCC Runtime Library Exception, winpthreads is MIT+BSD.
+    # Shipping the DLLs requires shipping these texts (paths are referenced
+    # from THIRD_PARTY_LICENSES.txt); found from the host toolchain packages.
+    # NO_CMAKE_FIND_ROOT_PATH: these are host paths; the cross toolchain would
+    # otherwise reroot the search into the target sysroot and find nothing
+    find_file(GCC_COPYING3_PATH COPYING3
+        PATHS /usr/share/licenses/mingw64-libstdc++ /usr/share/licenses/mingw64-libgcc
+        NO_CMAKE_FIND_ROOT_PATH)
+    find_file(GCC_RUNTIME_EXCEPTION_PATH COPYING.RUNTIME
+        PATHS /usr/share/licenses/mingw64-libstdc++ /usr/share/licenses/mingw64-libgcc
+        NO_CMAKE_FIND_ROOT_PATH)
+    find_file(WINPTHREADS_COPYING_PATH COPYING
+        PATHS /usr/share/licenses/mingw64-winpthreads
+        NO_CMAKE_FIND_ROOT_PATH)
+    if(GCC_COPYING3_PATH AND GCC_RUNTIME_EXCEPTION_PATH AND WINPTHREADS_COPYING_PATH)
+        install(FILES ${GCC_COPYING3_PATH} DESTINATION licenses RENAME COPYING3.txt)
+        install(FILES ${GCC_RUNTIME_EXCEPTION_PATH} DESTINATION licenses RENAME COPYING.RUNTIME.txt)
+        install(FILES ${WINPTHREADS_COPYING_PATH} DESTINATION licenses RENAME COPYING.winpthreads.txt)
+    else()
+        message(WARNING "MinGW runtime license texts not found; the installer "
+            "ships GPL-licensed runtime DLLs and must include their licenses")
+    endif()
 endif()

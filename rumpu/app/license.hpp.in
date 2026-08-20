@@ -4,4 +4,6 @@ namespace securepath::drum::app {
 
 inline constexpr char license_text[] = R"license(@LICENSE_TEXT@)license";
 
+inline constexpr char third_party_licenses_text[] = R"tpl(@THIRD_PARTY_TEXT@)tpl";
+
 }

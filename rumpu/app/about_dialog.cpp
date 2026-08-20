@@ -18,6 +18,16 @@ void about_dialog::open() {
     task_ = run();
 }
 
+static void license_tab(char const* label, char const* text) {
+    if (ImGui::BeginTabItem(label)) {
+        ImGui::BeginChild("##text", {0, -ImGui::GetFrameHeightWithSpacing()},
+            ImGuiChildFlags_Border, ImGuiWindowFlags_HorizontalScrollbar);
+        ImGui::TextUnformatted(text);
+        ImGui::EndChild();
+        ImGui::EndTabItem();
+    }
+}
+
 ui_task about_dialog::run() {
     ImGui::OpenPopup("About Rumpu");
     co_await next_frame{};
@@ -27,9 +37,11 @@ ui_task about_dialog::run() {
             co_return;
         }
         ImGui::Text("Rumpu %s", version);
-        ImGui::SeparatorText("License");
-        ImGui::InputTextMultiline("##license", const_cast<char*>(license_text), sizeof(license_text),
-            ImVec2(-1, -ImGui::GetFrameHeightWithSpacing()), ImGuiInputTextFlags_ReadOnly);
+        if (ImGui::BeginTabBar("##about_tabs")) {
+            license_tab("License", license_text);
+            license_tab("Third-party licenses", third_party_licenses_text);
+            ImGui::EndTabBar();
+        }
         if (ImGui::Button("Close") || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
             ImGui::CloseCurrentPopup();
             ImGui::EndPopup();
