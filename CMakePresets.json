@@ -12,7 +12,8 @@
             "binaryDir": "${sourceDir}/build-windows",
             "toolchainFile": "${sourceDir}/cmake/toolchain-mingw64.cmake",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Release"
+                "CMAKE_BUILD_TYPE": "Release",
+                "CMAKE_CROSSCOMPILING_EMULATOR": "wine64"
             }
         }
     ],
@@ -30,6 +31,17 @@
         {
             "name": "default",
             "configurePreset": "default",
+            "output": {
+                "outputOnFailure": true
+            }
+        },
+        {
+            "name": "windows",
+            "configurePreset": "windows",
+            "environment": {
+                "WINEPATH": "/usr/x86_64-w64-mingw32/sys-root/mingw/bin",
+                "WINEDEBUG": "-all"
+            },
             "output": {
                 "outputOnFailure": true
             }

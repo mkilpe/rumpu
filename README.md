@@ -97,6 +97,16 @@ Requires the MinGW-w64 toolchain (`mingw64-gcc-c++` or equivalent).
 ./build-windows.sh --installer    # additionally produces an NSIS installer
 ```
 
+The test suites can be run through Wine (`wine-core` and `wine-alsa`, no
+sound hardware needed). The `windows` preset registers `wine64` as the test
+emulator, so the usual preset flow works:
+
+```sh
+cmake --preset windows
+cmake --build --preset windows
+ctest --preset windows
+```
+
 The installer registers Rumpu's `.spd` file association on the target
 system and bundles the user manual (reachable from the Start Menu). Building
 the installer requires `pandoc` on the build host to render the manual.

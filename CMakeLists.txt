@@ -11,7 +11,10 @@ endif()
 set(RUMPU_VERSION_MAJOR 0)
 set(RUMPU_VERSION_MINOR 1)
 set(RUMPU_VERSION_PATCH 3)
-set(RUMPU_VERSION_LABEL "rc.2" CACHE STRING "Optional pre-release label, e.g. alpha, beta.1")
+# Optional pre-release label, e.g. alpha, beta.1. Deliberately not a cache
+# variable: the value here must win on every reconfigure, otherwise a build
+# directory configured before a label change keeps stamping the old label.
+set(RUMPU_VERSION_LABEL "")
 
 set(RUMPU_VERSION "${RUMPU_VERSION_MAJOR}.${RUMPU_VERSION_MINOR}.${RUMPU_VERSION_PATCH}")
 if(RUMPU_VERSION_LABEL)
