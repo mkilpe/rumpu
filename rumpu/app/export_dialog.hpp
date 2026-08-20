@@ -13,9 +13,9 @@ namespace securepath::drum::app {
 
 class export_dialog : public view {
 public:
-    // Takes ownership of a song snapshot; its instruments are loaded at the
-    // export sample rate when the user starts the export (relative sample
-    // paths resolve against project_base).
+    // Takes ownership of a song snapshot; its samples are loaded at the
+    // export sample rate, with progress shown, once the user starts the
+    // export (relative sample paths resolve against project_base).
     void open(song, std::filesystem::path project_base);
     bool draw() override;
 

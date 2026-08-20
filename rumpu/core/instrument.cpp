@@ -29,6 +29,10 @@ std::vector<drum_sample> const& instrument::samples() const {
 	return samples_;
 }
 
+std::size_t instrument::sample_count() const {
+	return samples_.size();
+}
+
 std::string const& instrument::name() const {
 	return name_;
 }
@@ -58,6 +62,12 @@ void instrument::remove_sample(std::size_t index) {
 void instrument::load_samples(std::uint32_t sample_rate, std::filesystem::path const& base_dir) {
 	for(auto&& s : samples_) {
 		s.load_sample(sample_rate, base_dir);
+	}
+}
+
+void instrument::load_sample(std::size_t index, std::uint32_t sample_rate, std::filesystem::path const& base_dir) {
+	if(index < samples_.size()) {
+		samples_[index].load_sample(sample_rate, base_dir);
 	}
 }
 

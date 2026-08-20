@@ -26,13 +26,39 @@ static void peak_normalise(std::deque<float>& song_data) {
 
 constexpr std::size_t chunk_size = 50000;
 
-wav_exporter::wav_exporter(std::string file, song const& s, export_options opts)
+wav_exporter::wav_exporter(std::string file, song s, export_options opts, std::filesystem::path base_dir)
 	: file_(std::move(file))
 	, opts_(opts)
-	, mix_(s, opts_.format.samples_per_second)
-{}
+	, base_dir_(std::move(base_dir))
+	, song_(std::move(s))
+	, mix_(song_, opts_.format.samples_per_second)
+{
+	for(auto const& i : song_.instruments()) {
+		samples_total_ += i.sample_count();
+	}
+}
+
+bool wav_exporter::load_next_sample() {
+	auto& instruments = song_.instruments();
+	while(instrument_index_ < instruments.size()
+		&& sample_index_ >= instruments[instrument_index_].sample_count()) {
+		++instrument_index_;
+		sample_index_ = 0;
+	}
+	bool const more = instrument_index_ < instruments.size();
+	if(more) {
+		instruments[instrument_index_].load_sample(sample_index_, opts_.format.samples_per_second, base_dir_);
+		++sample_index_;
+		++samples_loaded_;
+	}
+	return more;
+}
 
 bool wav_exporter::process() {
+	if(load_next_sample()) {
+		return true;
+	}
+
 	if(!mixing_done_) {
 		float arr[chunk_size];
 		std::size_t const size = mix_.process(arr, chunk_size);

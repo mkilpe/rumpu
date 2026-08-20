@@ -36,6 +36,17 @@ static void draw_progress(wav_exporter const& exporter) {
     ImGui::ProgressBar(fraction, {-1, 0}, overlay);
 }
 
+static void draw_loading_progress(wav_exporter const& exporter) {
+    std::size_t const total = exporter.samples_total();
+    std::size_t const loaded = exporter.samples_loaded();
+    float const fraction = total ? float(loaded) / float(total) : 1.0f;
+
+    char overlay[64];
+    std::snprintf(overlay, sizeof(overlay), "%zu / %zu samples", loaded, total);
+
+    ImGui::ProgressBar(fraction, {-1, 0}, overlay);
+}
+
 void export_dialog::open(song s, std::filesystem::path project_base) {
     // Drop any result or still-open chooser from a previous dialog session
     file_result_->invalidate();
@@ -124,14 +135,14 @@ export_dialog::export_action export_dialog::options_frame(std::string& path, exp
     return action;
 }
 
-// Loads the snapshot's instruments and builds the exporter; a failure message
-// drives the failed screen. The load happens here, not when the dialog opens:
-// the disk work only starts once the user commits to exporting.
+// Builds the exporter, which takes ownership of the song snapshot; a failure
+// message drives the failed screen. The exporter loads the samples one per
+// process() call, so the disk work only starts once the user commits to
+// exporting and the dialog keeps drawing progress while it runs.
 void export_dialog::create_exporter(std::string const& path, song s, export_options const& options,
     std::filesystem::path project_base, std::optional<wav_exporter>& exporter, std::string& error) {
     try {
-        s.load_instruments(options.format.samples_per_second, project_base);
-        exporter.emplace(path, std::move(s), options);
+        exporter.emplace(path, std::move(s), options, std::move(project_base));
     } catch (std::exception const& e) {
         error = e.what();
     }
@@ -144,8 +155,13 @@ void export_dialog::export_step(wav_exporter& exporter, std::string& error, bool
     } catch (std::exception const& e) {
         error = e.what();
     }
-    ImGui::Text("Exporting...");
-    draw_progress(exporter);
+    if (exporter.is_loading()) {
+        ImGui::Text("Preparing samples...");
+        draw_loading_progress(exporter);
+    } else {
+        ImGui::Text("Exporting...");
+        draw_progress(exporter);
+    }
 }
 
 bool export_dialog::completed_frame(wav_exporter const& exporter) {

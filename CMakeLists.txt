@@ -11,7 +11,7 @@ endif()
 set(RUMPU_VERSION_MAJOR 0)
 set(RUMPU_VERSION_MINOR 1)
 set(RUMPU_VERSION_PATCH 3)
-set(RUMPU_VERSION_LABEL "rc.1" CACHE STRING "Optional pre-release label, e.g. alpha, beta.1")
+set(RUMPU_VERSION_LABEL "rc.2" CACHE STRING "Optional pre-release label, e.g. alpha, beta.1")
 
 set(RUMPU_VERSION "${RUMPU_VERSION_MAJOR}.${RUMPU_VERSION_MINOR}.${RUMPU_VERSION_PATCH}")
 if(RUMPU_VERSION_LABEL)
