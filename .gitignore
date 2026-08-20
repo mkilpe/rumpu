@@ -30,8 +30,10 @@ Doxyfile.Doxygen
 ./config.hpp
 oi
 catch2
+build/
 build_*
 build-windows/
+compile_commands.json
 
 rumpu/app/license.hpp
 rumpu/app/version.hpp

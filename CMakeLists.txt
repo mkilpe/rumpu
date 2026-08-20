@@ -2,10 +2,16 @@ cmake_minimum_required(VERSION 3.25)
 
 project("rumpu")
 
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
+    message(FATAL_ERROR "In-source builds are not supported; configure with "
+        "'cmake --preset default' (or 'cmake -S . -B build'). Remove the "
+        "CMakeCache.txt and CMakeFiles/ this attempt just created.")
+endif()
+
 set(RUMPU_VERSION_MAJOR 0)
 set(RUMPU_VERSION_MINOR 1)
 set(RUMPU_VERSION_PATCH 3)
-set(RUMPU_VERSION_LABEL "" CACHE STRING "Optional pre-release label, e.g. alpha, beta.1")
+set(RUMPU_VERSION_LABEL "rc.1" CACHE STRING "Optional pre-release label, e.g. alpha, beta.1")
 
 set(RUMPU_VERSION "${RUMPU_VERSION_MAJOR}.${RUMPU_VERSION_MINOR}.${RUMPU_VERSION_PATCH}")
 if(RUMPU_VERSION_LABEL)
@@ -27,6 +33,7 @@ if(NOT RUMPU_GIT_HASH)
 endif()
 
 set(RUMPU_VERSION_FULL "${RUMPU_VERSION}+${RUMPU_GIT_HASH}")
+message(STATUS "Rumpu version: ${RUMPU_VERSION_FULL}")
 
 set(CMAKE_CXX_STANDARD 26)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -46,13 +53,11 @@ enable_testing()
 
 get_filename_component(my_root_directory ${CMAKE_CURRENT_LIST_FILE} DIRECTORY)
 set(CMAKE_MODULE_PATH ${my_root_directory}/cmake)
-if(CMAKE_CROSSCOMPILING)
-    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
-    set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
-else()
-    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/bin)
-    set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/lib)
-endif()
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+# for clangd and other tooling; a compile_commands.json symlink at the source
+# root points into the build directory
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 if(MINGW)
     # mingw libstdc++ ships std::print's terminal support in a separate archive
@@ -78,7 +83,7 @@ endif()
 find_package(OpenGL REQUIRED)
 
 include_directories(${my_root_directory})
-link_directories(${my_root_directory}/lib)
+link_directories(${CMAKE_BINARY_DIR}/lib)
 
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${CXX_FLAGS} -g3 -ggdb")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${CXX_FLAGS} -O2")
@@ -105,6 +110,8 @@ if(WIN32)
     set(CPACK_PACKAGE_VERSION_MAJOR ${RUMPU_VERSION_MAJOR})
     set(CPACK_PACKAGE_VERSION_MINOR ${RUMPU_VERSION_MINOR})
     set(CPACK_PACKAGE_VERSION_PATCH ${RUMPU_VERSION_PATCH})
+    # include the pre-release label in the installer name and version
+    set(CPACK_PACKAGE_VERSION ${RUMPU_VERSION})
     set(CPACK_PACKAGE_INSTALL_DIRECTORY "Rumpu")
     set(CPACK_PACKAGE_EXECUTABLES "rumpu" "Rumpu")
     set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")

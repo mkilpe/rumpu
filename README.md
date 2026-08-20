@@ -73,18 +73,20 @@ git submodule update --init --recursive
 Dependencies:
 
 - A C++26 compiler (GCC 14+ or recent Clang)
-- CMake ≥ 3.10
+- CMake ≥ 3.25
 - OpenGL, GLFW
 - GTK 3 development headers (file dialogs)
 - ALSA development headers (`libasound2-dev` / `alsa-lib-devel`)
 
-Build:
+Build (presets configure into `build/`):
 
 ```sh
-cmake -S . -B build
-cmake --build build
-./bin/rumpu
+cmake --preset default
+cmake --build --preset default
+./build/bin/rumpu
 ```
+
+Plain `cmake -S . -B build` works too; in-source configuration is rejected.
 
 ### Windows (cross-compile from Linux)
 
@@ -110,11 +112,14 @@ rumpu [project.spd]
 
 ## Running tests
 
+All suites, via CTest:
+
 ```sh
-cmake -S . -B build_test
-cmake --build build_test --target test_rumpu
-./bin/test_rumpu
+cmake --build --preset default
+ctest --preset default
 ```
+
+A single suite can be run directly, e.g. `./build/bin/test_rumpu`.
 
 ## Project layout
 
