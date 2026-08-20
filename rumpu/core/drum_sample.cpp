@@ -18,6 +18,13 @@ void drum_sample::load_sample(std::uint32_t sample_rate, std::filesystem::path c
 	if(source_file_.empty()) {
 		throw std::runtime_error("Failed to load sample");
 	}
+	// the player reloads all instruments on every play press, under the song's
+	// write lock: an already-loaded buffer at the right rate must not cost
+	// disk I/O again. The source file of a live sample never changes; adding a
+	// different file creates a new drum_sample.
+	if(buffer_ && sample_rate_ == sample_rate) {
+		return;
+	}
 	std::filesystem::path p{source_file_};
 	std::string resolved = (p.is_relative() && !base_dir.empty()) ? (base_dir / p).string() : source_file_;
 	audio::audio_format target{audio::float_t, 1, 32, sample_rate};

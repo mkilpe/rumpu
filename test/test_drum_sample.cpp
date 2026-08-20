@@ -1,6 +1,7 @@
 #include <catch2/catch_all.hpp>
 
 #include <algorithm>
+#include <filesystem>
 
 #include <rumpu/core/drum_sample.hpp>
 
@@ -37,6 +38,28 @@ TEST_CASE("drum_sample reloads at different sample rate", "[drum_sample]") {
 	// the data must actually be rate-converted, not just relabeled
 	auto frames_22k = s.buffer()->size();
 	CHECK(std::abs(double(frames_22k) - double(frames_44k) / 2) <= 1.0);
+}
+
+TEST_CASE("drum_sample load at the same rate reuses the loaded buffer", "[drum_sample]") {
+	drum_sample s{kick_path};
+	s.load_sample(44100);
+	auto loaded = s.buffer();
+	s.load_sample(44100);
+	CHECK(s.buffer() == loaded);
+}
+
+TEST_CASE("drum_sample loaded buffer survives without the source file", "[drum_sample]") {
+	// the play path reloads instruments on every play press (under the song's
+	// write lock); an already-loaded sample must not touch the disk again
+	auto copy = (std::filesystem::path(TEST_OUT_DIR) / "kick_copy.wav").string();
+	std::filesystem::copy_file(kick_path, copy,
+		std::filesystem::copy_options::overwrite_existing);
+	drum_sample s{copy};
+	s.load_sample(44100);
+	std::filesystem::remove(copy);
+
+	REQUIRE_NOTHROW(s.load_sample(44100));
+	CHECK(s.buffer() != nullptr);
 }
 
 TEST_CASE("drum_sample throws on empty path", "[drum_sample]") {
