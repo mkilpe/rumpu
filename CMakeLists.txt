@@ -4,7 +4,7 @@ project("rumpu")
 
 set(RUMPU_VERSION_MAJOR 0)
 set(RUMPU_VERSION_MINOR 1)
-set(RUMPU_VERSION_PATCH 2)
+set(RUMPU_VERSION_PATCH 3)
 set(RUMPU_VERSION_LABEL "" CACHE STRING "Optional pre-release label, e.g. alpha, beta.1")
 
 set(RUMPU_VERSION "${RUMPU_VERSION_MAJOR}.${RUMPU_VERSION_MINOR}.${RUMPU_VERSION_PATCH}")
@@ -67,10 +67,6 @@ else()
     find_package(glfw3 3.3 REQUIRED)
 endif()
 
-#set(CMAKE_AUTOMOC ON)
-#set(CMAKE_AUTOUIC ON)
-#set(CMAKE_INCLUDE_CURRENT_DIR ON)
-
 if(NOT CMAKE_BUILD_TYPE)
 	set(CMAKE_BUILD_TYPE Debug)
 	message("-- Enabling debug build") 
@@ -86,8 +82,7 @@ link_directories(${my_root_directory}/lib)
 
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${CXX_FLAGS} -g3 -ggdb")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${CXX_FLAGS} -O2")
-# -Wno-missing-field-initializers: partially initialised aggregates (rest
-# value-initialised) are idiomatic here
+# -Wno-missing-field-initializers: partially initialised aggregates (rest value-initialised) are idiomatic here
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CXX_LOCAL_FLAGS} -Wall -Wextra -Wno-unused-parameter -Wno-missing-field-initializers -Wreturn-type -Werror=return-type -fdiagnostics-color=auto -Wno-deprecated-declarations")
 
 # single test framework for all suites (securepath's test_frame and test_rumpu)
@@ -105,7 +100,7 @@ add_subdirectory(test)
 if(WIN32)
     set(CPACK_GENERATOR "NSIS")
     set(CPACK_PACKAGE_NAME "Rumpu")
-    set(CPACK_PACKAGE_VENDOR "Humanity")
+    set(CPACK_PACKAGE_VENDOR "Secure Path Oy")
     set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Rumpu Drum Machine")
     set(CPACK_PACKAGE_VERSION_MAJOR ${RUMPU_VERSION_MAJOR})
     set(CPACK_PACKAGE_VERSION_MINOR ${RUMPU_VERSION_MINOR})
