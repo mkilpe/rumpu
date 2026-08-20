@@ -1,5 +1,6 @@
 
 #include "song_properties_dialog.hpp"
+#include "dialog_widgets.hpp"
 #include "events.hpp"
 
 #include <rumpu/core/time_signature.hpp>
@@ -22,15 +23,6 @@ void song_properties_dialog::open(song const* s) {
 namespace {
 
 struct properties_state {
-    std::string name;
-    std::string author;
-    std::string notes;
-    int beats{};
-    int beat_type{};
-    float tempo{};
-    float rand_offset_ms{};
-    float rand_volume_percent{};
-
     explicit properties_state(song const& s)
     : name(s.meta_info().name)
     , author(s.meta_info().author)
@@ -42,6 +34,15 @@ struct properties_state {
     , rand_volume_percent(s.rand_volume().max_percent)
     {
     }
+
+    std::string name;
+    std::string author;
+    std::string notes;
+    int beats{};
+    int beat_type{};
+    float tempo{};
+    float rand_offset_ms{};
+    float rand_volume_percent{};
 };
 
 void metadata_fields(properties_state& p) {
@@ -56,21 +57,6 @@ void metadata_fields(properties_state& p) {
     ImGui::Text("Notes:");
     float const notes_reserve = ImGui::GetFrameHeightWithSpacing() * 12;
     ImGui::InputTextMultiline("##notes", &p.notes, ImVec2(-FLT_MIN, -notes_reserve));
-}
-
-void timing_fields(properties_state& p) {
-    ImGui::Text("Time signature:");
-    ImGui::SetNextItemWidth(100);
-    ImGui::InputInt("Beats##beats", &p.beats);
-    p.beats = std::clamp(p.beats, 1, 32);
-    ImGui::SetNextItemWidth(100);
-    ImGui::InputInt("Beat type##type", &p.beat_type);
-    p.beat_type = std::clamp(p.beat_type, 1, 32);
-
-    ImGui::Text("Tempo (BPM):");
-    ImGui::SetNextItemWidth(100);
-    ImGui::InputFloat("##tempo", &p.tempo, 1.0f, 10.0f, "%.1f");
-    p.tempo = std::clamp(p.tempo, 20.0f, 400.0f);
 }
 
 void randomisation_fields(properties_state& p) {
@@ -103,7 +89,7 @@ ui_task song_properties_dialog::run(song const* s) {
         }
 
         metadata_fields(state);
-        timing_fields(state);
+        timing_fields(state.beats, state.beat_type, state.tempo);
         randomisation_fields(state);
 
         if (ImGui::Button("OK")) {

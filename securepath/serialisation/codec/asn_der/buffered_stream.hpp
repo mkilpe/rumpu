@@ -77,11 +77,14 @@ public:
 			return true;
 		}
 		std::size_t const more_required = s-buffered;
-		octet_vector tmp(more_required);
-		if(!stream_.read(reinterpret_cast<char*>(tmp.data()), more_required)) {
+		// read straight into the buffer tail; shrink back on a short read so
+		// the query allocates and copies nothing extra
+		std::size_t const old_size = buffer_.size();
+		buffer_.resize(old_size + more_required);
+		if(!stream_.read(reinterpret_cast<char*>(buffer_.data() + old_size), more_required)) {
+			buffer_.resize(old_size);
 			return false;
 		}
-		buffer_.insert(buffer_.end(), tmp.begin(), tmp.end());
 		return true;
 	}
 

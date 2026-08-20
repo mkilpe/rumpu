@@ -256,8 +256,13 @@ struct mixer::impl {
 					// an offset reaching before this bar cannot be honored; play at
 					// the bar start instead of wrapping into a huge unsigned position
 					adj_offset = std::max(adj_offset, 0);
-					info.actions.push_back(
-						action_data{static_cast<std::uint32_t>(adj_offset), value->action, info.volume.value * value->combined_hit_volume()});
+					// process_track consumes actions front-to-back in position
+					// order; a clamped offset can land before already-queued
+					// in-bar actions, so insert sorted instead of appending
+					auto const offset = static_cast<std::uint32_t>(adj_offset);
+					auto pos = std::ranges::lower_bound(info.actions, offset, {}, &action_data::sample_pos);
+					info.actions.insert(pos,
+						action_data{offset, value->action, info.volume.value * value->combined_hit_volume()});
 				}
 			}
 		}

@@ -1,5 +1,7 @@
 #include <catch2/catch_all.hpp>
 
+#include "song_fixtures.hpp"
+
 #include <rumpu/core/mixer.hpp>
 #include <rumpu/core/song.hpp>
 #include <rumpu/core/song_file.hpp>
@@ -12,9 +14,9 @@
 #include <filesystem>
 
 using namespace securepath::drum;
+using securepath::drum::test::kick_path;
+using securepath::drum::test::make_kick_song;
 namespace audio = securepath::audio;
-
-static const char* kick_path = TEST_DATA_DIR "/test_kick.wav";
 
 // second sample for the multi-sample tests: generated (once per run) into the
 // build tree so the tests don't depend on another test's output file
@@ -33,19 +35,6 @@ static std::string const& second_sample_path() {
 		return p;
 	}();
 	return path;
-}
-
-static void add_kick_pattern(song& s) {
-	s.add_instrument(instrument{kick_path});
-	s.load_instruments(44100);
-	auto sec_id = s.add_section();
-	s.section_order().push_back(sec_id);
-	auto& sec = *s.find_section(sec_id);
-	sec.tracks()[0].bars()[0].beats.resize(4);
-	beat b;
-	b.action = beat::hit;
-	b.hit_data.volume = volume{false, 1.0f};
-	sec.tracks()[0].bars()[0].beats[0] = b;
 }
 
 static std::vector<float> render_whole_song(song const& s, std::size_t samples) {
@@ -78,16 +67,14 @@ TEST_CASE("mixer produces no audio for empty song", "[mixer]") {
 }
 
 TEST_CASE("mixer produces audio for kick song", "[mixer]") {
-	song s{{}, {4, 4}, {120}};
-	add_kick_pattern(s);
+	song s = make_kick_song();
 	mixer m{s, 44100};
 	std::vector<float> buf(4096, 0.0f);
 	CHECK(m.process(buf.data(), buf.size()) > 0);
 }
 
 TEST_CASE("mixer kick starts at sample 0", "[mixer]") {
-	song s{{}, {4, 4}, {120}};
-	add_kick_pattern(s);
+	song s = make_kick_song();
 	mixer m{s, 44100};
 	std::vector<float> buf(4096, 0.0f);
 	m.process(buf.data(), buf.size());
@@ -95,8 +82,7 @@ TEST_CASE("mixer kick starts at sample 0", "[mixer]") {
 }
 
 TEST_CASE("mixer play_position advances after processing", "[mixer]") {
-	song s{{}, {4, 4}, {120}};
-	add_kick_pattern(s);
+	song s = make_kick_song();
 	mixer m{s, 44100};
 	std::vector<float> buf(4096, 0.0f);
 	m.process(buf.data(), buf.size());
@@ -104,8 +90,7 @@ TEST_CASE("mixer play_position advances after processing", "[mixer]") {
 }
 
 TEST_CASE("mixer muted track produces no audio", "[mixer]") {
-	song s{{}, {4, 4}, {120}};
-	add_kick_pattern(s);
+	song s = make_kick_song();
 	REQUIRE(!s.track_settings().empty());
 	s.track_settings()[0].volume = volume{true, 1.0f};
 	mixer m{s, 44100};
@@ -117,8 +102,7 @@ TEST_CASE("mixer muted track produces no audio", "[mixer]") {
 }
 
 TEST_CASE("mixer honors whole-track mute when playing a later section", "[mixer][track_settings]") {
-	song s{{}, {4, 4}, {120}};
-	add_kick_pattern(s);
+	song s = make_kick_song();
 	auto id2 = s.add_section();
 	s.section_order().push_back(id2);
 	auto& sec2 = *s.find_section(id2);
@@ -148,8 +132,7 @@ TEST_CASE("mixer honors whole-track mute when playing a later section", "[mixer]
 }
 
 TEST_CASE("mixer section-only playback uses given section", "[mixer]") {
-	song s{{}, {4, 4}, {120}};
-	add_kick_pattern(s);
+	song s = make_kick_song();
 	auto sec_id = s.section_order()[0];
 	mixer m{s, sec_id, 44100};
 	std::vector<float> buf(4096, 0.0f);
@@ -202,8 +185,7 @@ TEST_CASE("mixer duration with tempo slide accumulating per bar", "[mixer][slide
 TEST_CASE("mixer volume slide starting mid-section is applied", "[mixer][slide]") {
 	// Hits at bar 0 and bar 2; slide [1,3) drops volume by 0.25/bar,
 	// so the bar-2 hit must play at half the bar-0 amplitude.
-	song s{{}, {4, 4}, {120}};
-	add_kick_pattern(s);
+	song s = make_kick_song();
 	auto sec_id = s.section_order()[0];
 	auto& trk = s.find_section(sec_id)->tracks()[0];
 	trk.bars()[2].beats.resize(4);
@@ -222,8 +204,7 @@ TEST_CASE("mixer volume slide starting mid-section is applied", "[mixer][slide]"
 TEST_CASE("mixer volume slide does not leak into the next section", "[mixer][slide]") {
 	// Section 1 fades the track to 0.5; section 2 has no slide, so its hit
 	// must stay at 0.5, not keep fading.
-	song s{{}, {4, 4}, {120}};
-	add_kick_pattern(s);
+	song s = make_kick_song();
 	auto id1 = s.section_order()[0];
 	s.find_section(id1)->tracks()[0].volume_slides()[0] = volume_slide{0, 2, -0.5f};
 
@@ -292,6 +273,27 @@ TEST_CASE("mixer starts the next section's first bar when the playing section is
 	CHECK(m.process(bar.data(), bar.size()) == bar.size());
 	CHECK(m.currently_playing_section() == id2);
 	CHECK(bar[0] != 0.0f);
+}
+
+TEST_CASE("mixer clamped negative offset plays at bar start, not after later actions", "[mixer]") {
+	// a clamped next-bar hit lands at offset 0, which is before the in-bar
+	// actions already queued: it must be ordered first, not appended last
+	song s{{}, {4, 4}, {120}};
+	s.add_instrument(instrument{kick_path});
+	s.load_instruments(44100);
+	auto sec_id = s.add_section();
+	s.section_order().push_back(sec_id);
+	auto& trk = s.find_section(sec_id)->tracks()[0];
+	beat b;
+	b.action = beat::hit;
+	b.hit_data.volume = volume{false, 1.0f};
+	trk.bars()[0].beats[2] = b; // mid-bar hit queued before the clamped one
+	b.hit_data.rand_hit_offset = -5000.0f; // 5 s back; a 120 BPM bar is 2 s
+	trk.bars()[1].beats[0] = b;
+
+	auto audio = render_section(s, sec_id, 88200);
+	CHECK(audio[0] != 0.0f); // the clamped hit sounds at the bar start
+	CHECK(peak_in_range(audio, 44100, 1000) > 0.0f); // beat 2 still fires
 }
 
 TEST_CASE("mixer duration for empty song is zero", "[mixer]") {
@@ -434,8 +436,7 @@ TEST_CASE("mixer single-sample instrument plays identically to before random sel
 	// deterministic behaviour. We can't compare against "before the change" here,
 	// but we can assert that two fresh mixers produce identical audio (trivially
 	// true without RNG) and that the audio is non-silent.
-	song s{{}, {4, 4}, {120}};
-	add_kick_pattern(s);
+	song s = make_kick_song();
 	std::size_t const n = 44100 * 9;
 	auto first = render_whole_song(s, n);
 	auto second = render_whole_song(s, n);

@@ -12,7 +12,6 @@ using namespace securepath::audio::riff;
 namespace {
 	constexpr std::uint16_t wav_format_pcm = 1;
 	constexpr std::uint16_t wav_format_float = 3;
-	constexpr std::uint16_t max_channels = 16;
 	constexpr std::uint32_t max_sample_rate = 768000;
 	// declared chunk sizes are attacker-controlled; bound them before allocating
 	constexpr std::size_t max_data_chunk_size = 256u*1024*1024;
@@ -24,7 +23,7 @@ void validate_wav_format(riff::riff_fmt_data const& fmt, std::size_t data_size) 
 		LOG_INFO("unsupported wav audio format tag: {}", fmt.audio_format);
 		throw invalid_format("unsupported WAV format; only PCM and IEEE float are supported");
 	}
-	if(fmt.channels < 1 || fmt.channels > max_channels) {
+	if(fmt.channels < 1 || fmt.channels > max_supported_channels) {
 		LOG_INFO("invalid channel count: {}", fmt.channels);
 		throw invalid_format("unsupported channel count");
 	}

@@ -5,6 +5,11 @@
 namespace securepath::drum {
 
 struct tempo {
+	// engine-representable BPM range: the per-bar timing walk clamps
+	// slide-driven tempo to it and the project loader rejects values outside it
+	static constexpr float min_bpm = 1.0f;
+	static constexpr float max_bpm = 9999.0f;
+
 	tempo(float v = 0.0f)
 	: value(v)
 	{}

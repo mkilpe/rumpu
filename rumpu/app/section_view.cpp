@@ -23,10 +23,10 @@ void section_view::set_context(song* s, uint32_t section, undo_manager* undo) {
 }
 
 struct section_view::drag_move {
+    bool valid() const { return source >= 0 && target >= 0 && source != target; }
+
     int source = -1;
     int target = -1;
-
-    bool valid() const { return source >= 0 && target >= 0 && source != target; }
 };
 
 bool section_view::do_draw() {

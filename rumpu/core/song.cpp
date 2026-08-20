@@ -169,13 +169,13 @@ void song::remove_instrument(std::size_t index) {
 		return;
 	}
 	instruments_.erase(instruments_.begin() + index);
-	// Erase settings of the tracks about to be removed; every section has the
-	// same track layout, so the first section gives the positions.
+	// Every section has the same track layout, so the first section gives the
+	// positions of the tracks about to be removed.
 	if(!sections_.empty()) {
 		auto const& ref_tracks = sections_.begin()->second.tracks();
 		for(std::size_t i = ref_tracks.size(); i-- > 0;) {
-			if(ref_tracks[i].instrument_index() == index && i < track_settings_.size()) {
-				track_settings_.erase(track_settings_.begin() + i);
+			if(ref_tracks[i].instrument_index() == index) {
+				erase_track_setting(i);
 			}
 		}
 	}
@@ -187,6 +187,16 @@ void song::remove_instrument(std::size_t index) {
 		for(auto& t : tracks)
 			if(t.instrument_index() > index)
 				t.set_instrument_index(t.instrument_index() - 1);
+	}
+}
+
+// track_settings_[i] belongs to the track at position i in every section. Any
+// edit that changes track positions must mirror the same positional edit here
+// through this helper; sync_track_settings() only reconciles sizes at the
+// tail, so it cannot detect or repair a positional mismatch.
+void song::erase_track_setting(std::size_t position) {
+	if(position < track_settings_.size()) {
+		track_settings_.erase(track_settings_.begin() + position);
 	}
 }
 

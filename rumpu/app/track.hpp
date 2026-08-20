@@ -33,7 +33,6 @@ public:
 private:
     enum class divide_target { beat, bar };
 
-    void toggle_mark(track_draw_context&, const ImVec2& rel_pos);
     void handle_mouse(track_draw_context&);
     void context_menu(track_draw_context&);
     void beat_menu_items(track_draw_context&, ImVec2 rel);

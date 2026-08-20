@@ -1,6 +1,7 @@
 
 #include "export_dialog.hpp"
 #include "native_file_dialog.hpp"
+#include "dialog_widgets.hpp"
 #include <rumpu/core/export.hpp>
 
 #include "imgui.h"
@@ -35,13 +36,13 @@ static void draw_progress(wav_exporter const& exporter) {
     ImGui::ProgressBar(fraction, {-1, 0}, overlay);
 }
 
-void export_dialog::open(song s) {
+void export_dialog::open(song s, std::filesystem::path project_base) {
     // Drop any result or still-open chooser from a previous dialog session
     file_result_->invalidate();
-    task_ = run(std::move(s));
+    task_ = run(std::move(s), std::move(project_base));
 }
 
-ui_task export_dialog::run(song s) {
+ui_task export_dialog::run(song s, std::filesystem::path project_base) {
     ImGui::OpenPopup("Export as WAV");
     co_await next_frame{};
 
@@ -65,11 +66,7 @@ ui_task export_dialog::run(song s) {
     // Phase 2: one exporter chunk per frame, then a done/failed screen
     std::string error;
     std::optional<wav_exporter> exporter;
-    try {
-        exporter.emplace(path, std::move(s), options);
-    } catch (std::exception const& e) {
-        error = e.what();
-    }
+    create_exporter(path, std::move(s), options, std::move(project_base), exporter, error);
 
     bool done = false;
     while (true) {
@@ -102,20 +99,7 @@ export_dialog::export_action export_dialog::options_frame(std::string& path, exp
     ImGui::InputText("##path", &path);
     ImGui::SameLine();
 
-    bool const browsing = file_result_->in_flight();
-    if (browsing) {
-        ImGui::BeginDisabled();
-    }
-    if (ImGui::Button("Browse...")) {
-        if (auto session = file_result_->begin()) {
-            save_wav_file_dialog([r = file_result_, s = *session](std::string p) {
-                r->deliver(s, std::move(p));
-            });
-        }
-    }
-    if (browsing) {
-        ImGui::EndDisabled();
-    }
+    browse_button("Browse...", file_result_, save_wav_file_dialog);
 
     ImGui::SeparatorText("Gain control");
     int gain = static_cast<int>(options.gain_control);
@@ -138,6 +122,19 @@ export_dialog::export_action export_dialog::options_frame(std::string& path, exp
         action = export_action::cancel;
     }
     return action;
+}
+
+// Loads the snapshot's instruments and builds the exporter; a failure message
+// drives the failed screen. The load happens here, not when the dialog opens:
+// the disk work only starts once the user commits to exporting.
+void export_dialog::create_exporter(std::string const& path, song s, export_options const& options,
+    std::filesystem::path project_base, std::optional<wav_exporter>& exporter, std::string& error) {
+    try {
+        s.load_instruments(options.format.samples_per_second, project_base);
+        exporter.emplace(path, std::move(s), options);
+    } catch (std::exception const& e) {
+        error = e.what();
+    }
 }
 
 // run one exporter chunk and draw the progress frame

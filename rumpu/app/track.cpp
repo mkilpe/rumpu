@@ -380,6 +380,14 @@ void track::track_menu_items(track_draw_context& context, ImVec2 rel)
 	}
 }
 
+// one empty bar matching the signature: the pattern the dialog starts from
+static bar default_pattern_bar(time_signature const& signature)
+{
+	bar seed;
+	seed.beats.assign(signature.beats_in_bar(), beat{});
+	return seed;
+}
+
 void track::seed_apply_pattern(track_draw_context& context, ImVec2 rel)
 {
 	bar seed;
@@ -390,7 +398,7 @@ void track::seed_apply_pattern(track_draw_context& context, ImVec2 rel)
 			beat.division.clear();
 		}
 	} else {
-		seed.beats.assign(context.signature.beats_in_bar(), beat{});
+		seed = default_pattern_bar(context.signature);
 	}
 	apply_pattern_bars_.assign(1, seed);
 }
@@ -632,9 +640,7 @@ void track::apply_pattern_dialog(track_draw_context& context)
 		// set_context while ImGui keeps the popup open by name) — reseed the
 		// pattern instead of running the dialog on an empty vector
 		if(apply_pattern_bars_.empty()) {
-			bar seed;
-			seed.beats.assign(context.signature.beats_in_bar(), beat{});
-			apply_pattern_bars_.assign(1, seed);
+			apply_pattern_bars_.assign(1, default_pattern_bar(context.signature));
 		}
 		ImGui::TextUnformatted("Left click: toggle hit.  Right click: more actions (divide, choke...).");
 		ImGui::TextUnformatted("Pattern is tiled across the whole track.");

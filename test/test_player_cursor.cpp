@@ -1,6 +1,8 @@
 
 #include <catch2/catch_all.hpp>
 
+#include "song_fixtures.hpp"
+
 #include <rumpu/core/player.hpp>
 #include <rumpu/core/mixer.hpp>
 #include <rumpu/core/song.hpp>
@@ -17,8 +19,6 @@
 
 using namespace securepath;
 using namespace securepath::drum;
-
-static const char* kick_path = TEST_DATA_DIR "/test_kick.wav";
 
 // Minimal event loop that discards all events
 class null_event_loop : public event_system::event_loop {
@@ -115,21 +115,6 @@ private:
 	std::atomic<std::size_t> total_written_{0};
 	std::atomic<bool> running_{false};
 };
-
-static song make_test_song(float bpm) {
-	song s{{}, {4, 4}, {bpm}};
-	s.add_instrument(instrument{kick_path});
-	s.load_instruments(44100);
-	auto sec_id = s.add_section();
-	s.section_order().push_back(sec_id);
-	auto& sec = *s.find_section(sec_id);
-	sec.tracks()[0].bars()[0].beats.resize(4);
-	beat b;
-	b.action = beat::hit;
-	b.hit_data.volume = volume{false, 1.0f};
-	sec.tracks()[0].bars()[0].beats[0] = b;
-	return s;
-}
 
 TEST_CASE("bar_offsets match mixer sample counts", "[player]") {
 	song s{{}, {4, 4}, {120}};
@@ -231,7 +216,7 @@ TEST_CASE("player cursor is monotonic and reaches end", "[player]") {
 	auto config = audio::device_config{{audio::float_t, 1, 32, 44100}, 4000};
 	auto mock = std::make_shared<mock_play_device>(config, 100);
 
-	song s = make_test_song(480);
+	song s = test::make_kick_song(480);
 	auto sec_id = s.section_order()[0];
 
 	player p{handler, mock};
@@ -277,7 +262,7 @@ TEST_CASE("player cursor does not get stuck before end", "[player]") {
 	auto config = audio::device_config{{audio::float_t, 1, 32, 44100}, 4000};
 	auto mock = std::make_shared<mock_play_device>(config, 100);
 
-	song s = make_test_song(480);
+	song s = test::make_kick_song(480);
 	auto sec_id = s.section_order()[0];
 
 	player p{handler, mock};
@@ -318,7 +303,7 @@ TEST_CASE("player cursor with real ALSA", "[.][player][alsa]") {
 	null_event_loop loop;
 	null_event_handler handler{loop};
 
-	song s = make_test_song(120);
+	song s = test::make_kick_song(120);
 	auto sec_id = s.section_order()[0];
 
 	// Use real ALSA device with default config (24000 Hz, buffer 8000)
@@ -395,7 +380,7 @@ TEST_CASE("player cursor resets when same section repeats", "[player]") {
 	auto mock = std::make_shared<mock_play_device>(config, 100);
 
 	// Song with same section twice in queue
-	song s = make_test_song(480);
+	song s = test::make_kick_song(480);
 	auto sec_id = s.section_order()[0];
 	s.section_order().push_back(sec_id);
 
@@ -436,7 +421,7 @@ TEST_CASE("player cursor survives song edits during playback", "[player]") {
 
 	// repeat the section so the cursor recomputes bar offsets on every
 	// transition while the song is being edited
-	song s = make_test_song(480);
+	song s = test::make_kick_song(480);
 	auto sec_id = s.section_order()[0];
 	for(int i = 0; i < 30; ++i) {
 		s.section_order().push_back(sec_id);
@@ -484,7 +469,7 @@ TEST_CASE("player cursor starts near zero", "[player]") {
 	auto config = audio::device_config{{audio::float_t, 1, 32, 44100}, 4000};
 	auto mock = std::make_shared<mock_play_device>(config, 100);
 
-	song s = make_test_song(120);
+	song s = test::make_kick_song(120);
 	auto sec_id = s.section_order()[0];
 
 	player p{handler, mock};

@@ -83,18 +83,15 @@ void rumpu::perform_redo() {
 void rumpu::open_project_dialog(project_action action) {
     // One dialog in flight at a time; the callback shares ownership of the
     // mailbox only, so a result delivered after shutdown is dropped harmlessly.
-    auto session = project_dialog_result_->begin();
-    if (!session) {
-        return;
-    }
-    pending_project_action_ = action;
-    auto callback = [r = project_dialog_result_, s = *session](std::string path) {
-        r->deliver(s, std::move(path));
-    };
-    if (action == project_action::open) {
-        open_project_file_dialog(std::move(callback));
-    } else {
-        save_project_file_dialog(std::move(callback));
+    bool const launched = launch_dialog(project_dialog_result_, [action](auto callback) {
+        if (action == project_action::open) {
+            open_project_file_dialog(std::move(callback));
+        } else {
+            save_project_file_dialog(std::move(callback));
+        }
+    });
+    if (launched) {
+        pending_project_action_ = action;
     }
 }
 
@@ -134,16 +131,10 @@ void rumpu::save_current_file() {
 }
 
 void rumpu::open_export_dialog() {
-    // Export from a snapshot loaded at the export rate; the live
-    // song stays at the player rate so playback is unaffected.
-    try {
-        song copy{song_};
-        copy.load_instruments(export_options{}.format.samples_per_second, project_dir(current_file_));
-        export_dialog_.open(std::move(copy));
-    } catch(std::exception const& e) {
-        LOG_WARN("load_instruments failed: {}", e.what());
-        show_error(std::format("Failed to load instruments: {}", e.what()));
-    }
+    // Export from a snapshot; the dialog loads the snapshot's instruments at
+    // the export rate when the user actually starts the export, so opening
+    // the dialog stays cheap and the live song keeps the player-rate buffers.
+    export_dialog_.open(song{song_}, project_dir(current_file_));
 }
 
 void rumpu::file_menu() {

@@ -1,10 +1,12 @@
 
 #include "track_list.hpp"
+#include "dialog_widgets.hpp"
 #include <rumpu/core/undo_manager.hpp>
 #include <rumpu/core/song_edit.hpp>
 
 #include "imgui.h"
 
+#include <algorithm>
 #include <cstdio>
 
 namespace securepath::drum::app {
@@ -103,8 +105,7 @@ void track_header::tempo_dialog(section* sec)
         ImGui::Text("%s", label);
 
         ImGui::InputFloat("BPM", &tempo_dialog_value_, 1.0f, 10.0f, "%.1f");
-        if (tempo_dialog_value_ < 20.0f) tempo_dialog_value_ = 20.0f;
-        if (tempo_dialog_value_ > 400.0f) tempo_dialog_value_ = 400.0f;
+        tempo_dialog_value_ = std::clamp(tempo_dialog_value_, min_ui_tempo, max_ui_tempo);
 
         if (ImGui::Button("OK")) {
             song_edit edit{*song_, undo_};

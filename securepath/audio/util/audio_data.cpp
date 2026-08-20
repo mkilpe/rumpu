@@ -109,8 +109,6 @@ static float remap_channel(float const* src_channels, std::uint32_t src_ch, std:
 	return src_channels[0];
 }
 
-static constexpr std::size_t max_channels = 16;
-
 // Decode source bytes to interleaved float samples remapped to dst_ch channels.
 static std::vector<float> decode_frames(octet_vector const& data, audio::audio_format const& src, std::uint32_t dst_ch) {
 	std::uint32_t src_stride = src.bits_per_sample / 8;
@@ -121,7 +119,7 @@ static std::vector<float> decode_frames(octet_vector const& data, audio::audio_f
 	for(std::size_t f = 0; f != num_frames; ++f) {
 		auto* p = data.data() + f * src_frame;
 
-		float channels[max_channels];
+		float channels[max_supported_channels];
 		for(std::uint32_t c = 0; c != src.channels; ++c) {
 			channels[c] = read_sample(p + c * src_stride, src);
 		}
@@ -169,7 +167,7 @@ static octet_vector encode_frames(std::vector<float> const& samples, audio::audi
 }
 
 void audio_data::resample(audio::audio_format const& target) {
-	if(format_.channels > max_channels) {
+	if(format_.channels > max_supported_channels) {
 		throw std::runtime_error("Too many channels, only 16 supported");
 	}
 	if(format_.samples_per_second != target.samples_per_second

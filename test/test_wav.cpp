@@ -166,45 +166,42 @@ TEST_CASE("wav format validation rejects malformed formats", "[wav][validate]") 
 	CHECK_THROWS_AS(audio::validate_wav_format(make_fmt(1, 2, 44100, 16), 5), audio::invalid_format);
 }
 
-// -- chunk-level parser robustness: craft raw byte streams --
+// -- chunk-level parser robustness: craft byte streams through the shared
+//    riff serialisers, so the encoding is portable and defined in one place --
 
-static void put_bytes(securepath::octet_vector& v, void const* p, std::size_t n) {
-	auto const* b = static_cast<std::uint8_t const*>(p);
-	v.insert(v.end(), b, b + n);
+template<typename Writer>
+static void append_written(securepath::octet_vector& v, Writer const& w, std::size_t size) {
+	std::size_t const old = v.size();
+	v.resize(old + size);
+	w.write(v.data() + old, size);
 }
 
-static void put_u32(securepath::octet_vector& v, std::uint32_t x) {
-	put_bytes(v, &x, 4); // little-endian hosts only, as the rest of the tests
+static void put_ascii(securepath::octet_vector& v, std::string_view s) {
+	v.insert(v.end(), s.begin(), s.end());
 }
 
 static void put_chunk(securepath::octet_vector& v, char const (&id)[5],
                       securepath::octet_vector const& payload,
                       std::optional<std::uint32_t> declared_size = std::nullopt) {
-	put_bytes(v, id, 4);
-	put_u32(v, declared_size.value_or(static_cast<std::uint32_t>(payload.size())));
-	put_bytes(v, payload.data(), payload.size());
+	audio::riff::chunk_header h{
+		{std::uint8_t(id[0]), std::uint8_t(id[1]), std::uint8_t(id[2]), std::uint8_t(id[3])},
+		declared_size.value_or(static_cast<std::uint32_t>(payload.size()))};
+	append_written(v, h, audio::riff::chunk_header::size);
+	v.insert(v.end(), payload.begin(), payload.end());
 }
 
 static securepath::octet_vector fmt_payload_pcm8_mono() {
 	securepath::octet_vector p;
-	std::uint16_t const audio_format = 1, channels = 1, block_align = 1, bits = 8;
-	std::uint32_t const rate = 44100, byte_rate = 44100;
-	put_bytes(p, &audio_format, 2);
-	put_bytes(p, &channels, 2);
-	put_u32(p, rate);
-	put_u32(p, byte_rate);
-	put_bytes(p, &block_align, 2);
-	put_bytes(p, &bits, 2);
+	append_written(p, make_fmt(1, 1, 44100, 8), audio::riff::riff_fmt_data::size);
 	return p;
 }
 
 // chunks = concatenated chunk bytes following the WAVE tag
 static securepath::octet_vector raw_wav(securepath::octet_vector const& chunks) {
 	securepath::octet_vector v;
-	put_bytes(v, "RIFF", 4);
-	put_u32(v, static_cast<std::uint32_t>(4 + chunks.size()));
-	put_bytes(v, "WAVE", 4);
-	put_bytes(v, chunks.data(), chunks.size());
+	append_written(v, audio::riff::riff_header{static_cast<std::uint32_t>(chunks.size())},
+		audio::riff::riff_header::size);
+	v.insert(v.end(), chunks.begin(), chunks.end());
 	return v;
 }
 
@@ -258,7 +255,7 @@ TEST_CASE("wav truncated inputs throw invalid_format", "[wav][chunks]") {
 		securepath::octet_vector chunks;
 		put_chunk(chunks, "fmt ", fmt_payload_pcm8_mono());
 		put_chunk(chunks, "data", {1, 2, 3, 4});
-		put_bytes(chunks, "LI", 2); // partial next header
+		put_ascii(chunks, "LI"); // partial next header
 		CHECK_THROWS_AS(load_raw(raw_wav(chunks), out), audio::invalid_format);
 	}
 

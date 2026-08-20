@@ -2,13 +2,14 @@
 #include "add_instruments_from_folder_dialog.hpp"
 #include "events.hpp"
 #include "native_file_dialog.hpp"
+#include "dialog_widgets.hpp"
 
 #include "imgui.h"
 #include "imgui_stdlib.h"
 
 #include <algorithm>
 #include <filesystem>
-#include <system_error>
+#include <thread>
 #include <vector>
 
 namespace securepath::drum::app {
@@ -61,23 +62,35 @@ static void scan_folder(std::string const& folder, bool recursive,
 }
 
 struct add_instruments_from_folder_dialog::scan_state {
+    struct scan_result {
+        std::vector<std::filesystem::path> paths;
+        std::string error;
+    };
+
+    std::size_t selected_count() const {
+        return static_cast<std::size_t>(std::count(selected.begin(), selected.end(), true));
+    }
+    bool have_paths() const { return !scan_paths.empty() && scan_error.empty(); }
+    bool scanning() const { return result->in_flight(); }
+
     std::string folder;
     bool recursive = false;
 
     std::string scanned_folder;
     bool scanned_recursive = false;
     std::vector<std::filesystem::path> scan_paths;
+    // one display label per scanned path, computed when a scan completes so
+    // drawing the list costs no filesystem work
+    std::vector<std::string> labels;
     std::vector<bool> selected;
     std::string scan_error;
     // scanning happens after the folder text has been stable for a moment, so
     // typing a path does not hit the filesystem on every keystroke
     double changed_time = -1.0;
     bool scan_now = false;
-
-    std::size_t selected_count() const {
-        return static_cast<std::size_t>(std::count(selected.begin(), selected.end(), true));
-    }
-    bool have_paths() const { return !scan_paths.empty() && scan_error.empty(); }
+    // scans run on a worker thread and deliver here; a superseded scan's
+    // delivery is dropped by the session token
+    std::shared_ptr<async_result<scan_result>> result = std::make_shared<async_result<scan_result>>();
 };
 
 ui_task add_instruments_from_folder_dialog::run() {
@@ -117,20 +130,7 @@ void add_instruments_from_folder_dialog::folder_row(scan_state& state) {
     ImGui::InputText("##folder", &state.folder);
     ImGui::SameLine();
 
-    bool const browsing = folder_result_->in_flight();
-    if (browsing) {
-        ImGui::BeginDisabled();
-    }
-    if (ImGui::Button("Browse...")) {
-        if (auto session = folder_result_->begin()) {
-            open_folder_dialog([r = folder_result_, s = *session](std::string p) {
-                r->deliver(s, std::move(p));
-            });
-        }
-    }
-    if (browsing) {
-        ImGui::EndDisabled();
-    }
+    browse_button("Browse...", folder_result_, open_folder_dialog);
 }
 
 void add_instruments_from_folder_dialog::update_scan(scan_state& state) {
@@ -144,21 +144,53 @@ void add_instruments_from_folder_dialog::update_scan(scan_state& state) {
             state.changed_time = ImGui::GetTime();
         }
         if (state.scan_now || ImGui::GetTime() - state.changed_time > 0.4) {
-            state.scanned_folder = state.folder;
-            state.scanned_recursive = state.recursive;
-            scan_folder(state.folder, state.recursive, state.scan_paths, state.scan_error);
-            state.selected.assign(state.scan_paths.size(), false);
-            state.changed_time = -1.0;
+            start_scan(state);
         }
     } else {
         state.changed_time = -1.0;
     }
     state.scan_now = false;
+
+    if (auto res = state.result->take()) {
+        state.scan_paths = std::move(res->paths);
+        state.scan_error = std::move(res->error);
+        state.selected.assign(state.scan_paths.size(), false);
+        state.labels.clear();
+        state.labels.reserve(state.scan_paths.size());
+        for (auto const& p : state.scan_paths) {
+            state.labels.push_back(p.lexically_proximate(state.scanned_folder).string());
+        }
+    }
+}
+
+// Hand the directory walk to a worker thread: a large or slow (network)
+// folder must not stall the frame loop. The previous results are cleared so
+// an import cannot act on the old folder's list while the scan runs.
+void add_instruments_from_folder_dialog::start_scan(scan_state& state) {
+    state.scanned_folder = state.folder;
+    state.scanned_recursive = state.recursive;
+    state.changed_time = -1.0;
+    state.scan_paths.clear();
+    state.labels.clear();
+    state.selected.clear();
+    state.scan_error.clear();
+
+    state.result->invalidate(); // supersede a scan still running
+    if (auto session = state.result->begin()) {
+        std::thread{[m = state.result, s = *session,
+                folder = state.folder, recursive = state.recursive] {
+            scan_state::scan_result r;
+            scan_folder(folder, recursive, r.paths, r.error);
+            m->deliver(s, std::move(r));
+        }}.detach();
+    }
 }
 
 void add_instruments_from_folder_dialog::selection_controls(scan_state& state) {
     if (!state.scan_error.empty()) {
         ImGui::TextColored({1.0f, 0.5f, 0.5f, 1.0f}, "Error: %s", state.scan_error.c_str());
+    } else if (state.scanning()) {
+        ImGui::TextDisabled("Scanning...");
     } else if (state.folder.empty()) {
         ImGui::TextDisabled("Select a folder to preview WAV files.");
     } else if (state.scan_paths.empty()) {
@@ -195,16 +227,10 @@ void add_instruments_from_folder_dialog::selection_controls(scan_state& state) {
 void add_instruments_from_folder_dialog::file_list(scan_state& state) {
     float const button_height = ImGui::GetFrameHeightWithSpacing() + ImGui::GetStyle().ItemSpacing.y;
     if (ImGui::BeginListBox("##files", ImVec2(-FLT_MIN, -button_height))) {
-        namespace fs = std::filesystem;
         for (std::size_t i = 0; i < state.scan_paths.size(); ++i) {
-            auto const& p = state.scan_paths[i];
-            std::error_code ec;
-            auto rel = fs::relative(p, state.folder, ec);
-            std::string label = (ec || rel.empty()) ? p.string() : rel.string();
-
             ImGui::PushID(static_cast<int>(i));
             bool is_selected = state.selected[i];
-            if (ImGui::Selectable(label.c_str(), is_selected)) {
+            if (ImGui::Selectable(state.labels[i].c_str(), is_selected)) {
                 state.selected[i] = !is_selected;
             }
             ImGui::PopID();

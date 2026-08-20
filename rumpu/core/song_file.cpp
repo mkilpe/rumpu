@@ -10,8 +10,9 @@
 
 namespace securepath::drum {
 
-// Bounds mirror what the engine can represent: the mixer clamps slide-driven
-// tempo to [1, 9999] (mixer.cpp) and divides by both time-signature fields.
+// Bounds mirror what the engine can represent: the per-bar timing walk clamps
+// slide-driven tempo to [tempo::min_bpm, tempo::max_bpm] (bar_timing.hpp) and
+// divides by both time-signature fields.
 static void validate_time_signature(time_signature const& ts, char const* what) {
 	if(ts.beats_in_bar() < 1 || ts.beats_in_bar() > 128
 			|| ts.beat_type() < 1 || ts.beat_type() > 128) {
@@ -22,7 +23,7 @@ static void validate_time_signature(time_signature const& ts, char const* what) 
 
 static void validate_tempo(tempo const& t, char const* what) {
 	// range check also rejects NaN
-	if(!(t.value >= 1.0f && t.value <= 9999.0f)) {
+	if(!(t.value >= tempo::min_bpm && t.value <= tempo::max_bpm)) {
 		throw std::runtime_error(std::format("invalid {} {} in project file", what, t.value));
 	}
 }

@@ -1,5 +1,6 @@
 
 #include "new_song_dialog.hpp"
+#include "dialog_widgets.hpp"
 #include "events.hpp"
 
 #include <rumpu/core/time_signature.hpp>
@@ -64,18 +65,7 @@ void new_song_dialog::song_fields(std::string& name, int& beats, int& beat_type,
     ImGui::SetNextItemWidth(-FLT_MIN);
     ImGui::InputText("##name", &name);
 
-    ImGui::Text("Time signature:");
-    ImGui::SetNextItemWidth(100);
-    ImGui::InputInt("Beats##beats", &beats);
-    beats = std::clamp(beats, 1, 32);
-    ImGui::SetNextItemWidth(100);
-    ImGui::InputInt("Beat type##type", &beat_type);
-    beat_type = std::clamp(beat_type, 1, 32);
-
-    ImGui::Text("Tempo (BPM):");
-    ImGui::SetNextItemWidth(100);
-    ImGui::InputFloat("##tempo", &tempo, 1.0f, 10.0f, "%.1f");
-    tempo = std::clamp(tempo, 20.0f, 400.0f);
+    timing_fields(beats, beat_type, tempo);
 }
 
 bool new_song_dialog::draw() {

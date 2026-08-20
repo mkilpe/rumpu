@@ -87,6 +87,23 @@ TEST_CASE("remove_instrument erases the matching settings entry", "[song][track_
 	CHECK(s.track_settings()[0].volume.value == 0.75f);
 }
 
+TEST_CASE("remove_instrument keeps settings aligned when removing the middle track", "[song][track_settings]") {
+	song s{{}, {4, 4}, {120}};
+	s.add_instrument(instrument{});
+	s.add_instrument(instrument{});
+	s.add_instrument(instrument{});
+	s.add_section();
+	REQUIRE(s.track_settings().size() == 3);
+	s.track_settings()[0].volume.value = 0.25f;
+	s.track_settings()[1].volume.value = 0.5f;
+	s.track_settings()[2].volume.value = 0.75f;
+
+	s.remove_instrument(1);
+	REQUIRE(s.track_settings().size() == 2);
+	CHECK(s.track_settings()[0].volume.value == 0.25f);
+	CHECK(s.track_settings()[1].volume.value == 0.75f);
+}
+
 TEST_CASE("sync_track_settings migrates from the first section", "[song][track_settings]") {
 	song s{{}, {4, 4}, {120}};
 	s.add_instrument(instrument{});

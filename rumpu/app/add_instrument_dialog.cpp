@@ -2,6 +2,7 @@
 #include "add_instrument_dialog.hpp"
 #include "events.hpp"
 #include "native_file_dialog.hpp"
+#include "dialog_widgets.hpp"
 
 #include "imgui.h"
 #include "imgui_stdlib.h"
@@ -76,20 +77,7 @@ void add_instrument_dialog::path_row(std::string& path) {
     ImGui::InputText("##path", &path);
     ImGui::SameLine();
 
-    bool const browsing = file_result_->in_flight();
-    if (browsing) {
-        ImGui::BeginDisabled();
-    }
-    if (ImGui::Button("Browse...")) {
-        if (auto session = file_result_->begin()) {
-            open_wav_file_dialog([r = file_result_, s = *session](std::string p) {
-                r->deliver(s, std::move(p));
-            });
-        }
-    }
-    if (browsing) {
-        ImGui::EndDisabled();
-    }
+    browse_button("Browse...", file_result_, open_wav_file_dialog);
 }
 
 bool add_instrument_dialog::draw() {

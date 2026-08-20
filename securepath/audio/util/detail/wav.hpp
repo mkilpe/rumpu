@@ -5,6 +5,10 @@
 
 namespace securepath::audio {
 
+// Most channels the WAV validator accepts and the frame decoder can hold on
+// its stack; shared so a file that parses is guaranteed to decode.
+inline constexpr std::uint16_t max_supported_channels = 16;
+
 // Validates a parsed WAV format chunk against what this decoder can safely and
 // correctly handle, throwing invalid_format on any unsupported or inconsistent
 // parameters. data_size is the size of the data chunk in bytes. Kept as a free

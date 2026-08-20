@@ -81,8 +81,16 @@ public:
 	void add_track(std::size_t instrument_index, std::string const& name);
 	// Sizes track_settings_ to the track count, pulling values for missing
 	// entries from the first section's tracks (migrates pre-settings files).
+	// Tail-only: an edit that moves tracks to new positions must mirror the
+	// positional change itself (see erase_track_setting), since matching sizes
+	// tell this function nothing about a reorder.
 	void sync_track_settings();
 
+private:
+	// mirrors a positional track removal onto track_settings_
+	void erase_track_setting(std::size_t position);
+
+public:
 	template<typename Ar>
 	friend Ar& serialise(Ar&, song&);
 

@@ -53,7 +53,7 @@ struct bar_timing {
 			if(global_tempo_slide) {
 				current_tempo.value += global_tempo_slide->value;
 			}
-			current_tempo.value = std::clamp(current_tempo.value, 1.0f, 9999.0f);
+			current_tempo.value = std::clamp(current_tempo.value, tempo::min_bpm, tempo::max_bpm);
 		}
 	}
 

@@ -93,14 +93,30 @@ private:
 };
 
 // DirectSound counts buffer positions in bytes (and sizes in whole frames);
-// the audio_device interface counts in interleaved samples. Convert at every
-// DirectSound boundary.
-std::size_t to_bytes(WAVEFORMATEX const& f, std::size_t samples) {
-	return samples * (f.wBitsPerSample / 8);
-}
+// the audio_device interface counts in interleaved samples. Convert with
+// samples_to_octet_count/octets_to_sample_count at every DirectSound boundary.
 
-std::size_t to_samples(WAVEFORMATEX const& f, std::size_t bytes) {
-	return bytes / (f.wBitsPerSample / 8);
+// buffer position notifications are configured identically for play and
+// capture buffers; both expose IDirectSoundNotify through IUnknown
+void set_buffer_notifications(IUnknown& buffer, std::size_t buffer_bytes,
+		std::size_t step_bytes, HANDLE event) {
+	if(step_bytes == 0 || buffer_bytes % step_bytes != 0) {
+		throw std::logic_error("buffer size not divisible by notification period");
+	}
+	std::size_t const points = buffer_bytes / step_bytes;
+
+	com_ptr<IDirectSoundNotify> notify;
+	if(buffer.QueryInterface(IID_IDirectSoundNotify, (LPVOID*)notify.out()) != DS_OK) {
+		throw std::runtime_error("failed to query notification interface");
+	}
+	std::vector<DSBPOSITIONNOTIFY> pnot(points);
+	for(std::size_t i = 0; i != points; ++i) {
+		pnot[i].dwOffset = static_cast<DWORD>(step_bytes * (i+1) - 1);
+		pnot[i].hEventNotify = event;
+	}
+	if(notify->SetNotificationPositions(static_cast<DWORD>(pnot.size()), pnot.data()) != DS_OK) {
+		throw std::runtime_error("failed to set notification positions");
+	}
 }
 
 using enum_calltype = std::function<void (LPGUID, LPCWSTR)>;
@@ -150,7 +166,7 @@ public:
 			throw std::runtime_error("failed to create play buffer");
 		}
 		buffer_size_in_bytes_ = desc.dwBufferBytes;
-		config_.buffer_size = to_samples(format_, buffer_size_in_bytes_);
+		config_.buffer_size = octets_to_sample_count(config_.format, buffer_size_in_bytes_);
 
 		//initialise to zeros
 		void* p = 0;
@@ -175,19 +191,17 @@ public:
 			std::cout << "error: " << std::hex << h << std::endl;
 			throw std::runtime_error("buffer play failed");
 		}
-		started_ = true;
 		running_ = true;
 	}
 
 	void stop(stop_type s) {
-		if(s == stop_type::drain && started_) {
+		if(s == stop_type::drain && running_) {
 			drain();
 		}
 		running_ = false;
 		buffer_->Stop();
 		// wake a wait() parked on the notification event
 		::SetEvent(not_handle_);
-		started_ = false;
 	}
 
 	virtual std::size_t buffer_size() const {
@@ -207,24 +221,8 @@ public:
 	// Must be called while the buffer is stopped (the player configures the
 	// mode right after creating the device).
 	void set_notification(std::size_t samples) {
-		std::size_t const step = to_bytes(format_, samples);
-		if(step == 0 || buffer_size_in_bytes_ % step != 0) {
-			throw std::logic_error("buffer size not divisible by notification period");
-		}
-		std::size_t const points = buffer_size_in_bytes_ / step;
-
-		com_ptr<IDirectSoundNotify> notify;
-		if(buffer_->QueryInterface(IID_IDirectSoundNotify, (LPVOID*)notify.out()) != DS_OK) {
-			throw std::runtime_error("failed to query notification interface");
-		}
-		std::vector<DSBPOSITIONNOTIFY> pnot(points);
-		for(std::size_t i = 0; i != points; ++i) {
-			pnot[i].dwOffset = static_cast<DWORD>(step * (i+1) - 1);
-			pnot[i].hEventNotify = not_handle_;
-		}
-		if(notify->SetNotificationPositions(static_cast<DWORD>(pnot.size()), pnot.data()) != DS_OK) {
-			throw std::runtime_error("failed to set notification positions");
-		}
+		set_buffer_notifications(*buffer_, buffer_size_in_bytes_,
+			samples_to_octet_count(config_.format, samples), not_handle_);
 	}
 
 	virtual void set_mode(mode const& m) {
@@ -252,7 +250,7 @@ public:
 		// keep one frame unwritten so pos_ == play cursor always means "all
 		// played", never "exactly full": drain() relies on the distinction
 		size = std::max(size - int(format_.nBlockAlign), 0);
-		return to_samples(format_, size);
+		return octets_to_sample_count(config_.format, size);
 	}
 
 	std::size_t write_to_buffer(uint8_t const* buf, std::size_t size) {
@@ -277,8 +275,8 @@ public:
 	}
 
 	virtual std::size_t write(audio_buffer& b) {
-		std::size_t size = to_bytes(format_, avail());
-		if( pos_ == 0 && !started_ ) {
+		std::size_t size = samples_to_octet_count(config_.format, avail());
+		if( pos_ == 0 && !running_ ) {
 			// pre-start fill: same one-frame reservation as avail()
 			size = std::min<std::size_t>(b.used_size(), buffer_size_in_bytes_ - format_.nBlockAlign);
 		}
@@ -287,7 +285,7 @@ public:
 			consumed = write_to_buffer(b.begin<uint8_t>(), std::min<std::size_t>( size, b.used_size() ));
 			b.consume(consumed);
 		}
-		return to_samples(format_, consumed);
+		return octets_to_sample_count(config_.format, consumed);
 	}
 
 private:
@@ -328,7 +326,6 @@ private:
 
 private:
 	device_config config_;
-	bool started_{};
 	std::atomic<bool> running_{};
 	std::size_t buffer_size_in_bytes_{};
 	DWORD pos_{};
@@ -377,7 +374,7 @@ public:
 		}
 
 		buffer_size_in_bytes_ = desc.dwBufferBytes;
-		config_.buffer_size = to_samples(format_, buffer_size_in_bytes_);
+		config_.buffer_size = octets_to_sample_count(config_.format, buffer_size_in_bytes_);
 	}
 
 	~dsound_capture_device() {
@@ -432,28 +429,12 @@ public:
 		if(size < 0) {
 			size += buffer_size_in_bytes_;
 		}
-		return to_samples(format_, size);
+		return octets_to_sample_count(config_.format, size);
 	}
 
 	void set_notification(std::size_t samples) {
-		std::size_t const step = to_bytes(format_, samples);
-		if(step == 0 || buffer_size_in_bytes_ % step != 0) {
-			throw std::logic_error("buffer size not divisible by notification period");
-		}
-		std::size_t const points = buffer_size_in_bytes_ / step;
-
-		com_ptr<IDirectSoundNotify> notify;
-		if( buffer_->QueryInterface(IID_IDirectSoundNotify, (LPVOID*)notify.out() ) != DS_OK) {
-			throw std::runtime_error("failed to query notification interface");
-		}
-		std::vector<DSBPOSITIONNOTIFY> pnot(points);
-		for(std::size_t i = 0; i != points; ++i) {
-			pnot[i].dwOffset = static_cast<DWORD>(step * (i+1) - 1);
-			pnot[i].hEventNotify = not_handle_;
-		}
-		if(notify->SetNotificationPositions(static_cast<DWORD>(pnot.size()), pnot.data()) != DS_OK) {
-			throw std::runtime_error("failed to set notification positions");
-		}
+		set_buffer_notifications(*buffer_, buffer_size_in_bytes_,
+			samples_to_octet_count(config_.format, samples), not_handle_);
 	}
 
 	std::size_t capture_to_buffer(uint8_t* buf, std::size_t size) {
@@ -477,12 +458,12 @@ public:
 
 	virtual std::size_t read(audio_buffer& b) {
 		std::size_t read_size = 0;
-		std::size_t size = to_bytes(format_, avail());
+		std::size_t size = samples_to_octet_count(config_.format, avail());
 		if(size) {
 			read_size = capture_to_buffer(b.free_begin<uint8_t>(), std::min<std::size_t>( size, b.free_size() ));
 			b.conserve(read_size);
 		}
-		return to_samples(format_, read_size);
+		return octets_to_sample_count(config_.format, read_size);
 	}
 
 	virtual int supported_modes() const {

@@ -1,6 +1,7 @@
 
 #include "instruments_dialog.hpp"
 #include "native_file_dialog.hpp"
+#include "dialog_widgets.hpp"
 #include <rumpu/core/song_edit.hpp>
 #include <rumpu/core/song_file.hpp>
 
@@ -159,20 +160,7 @@ void instruments_dialog::sample_list(instrument const& inst, int& selected_sampl
 }
 
 void instruments_dialog::sample_buttons(song& s, undo_manager* undo, instrument& inst, int& selected_sample) {
-    bool const browsing = file_result_->in_flight();
-    if (browsing) {
-        ImGui::BeginDisabled();
-    }
-    if (ImGui::Button("Add sample...")) {
-        if (auto session = file_result_->begin()) {
-            open_wav_file_dialog([r = file_result_, s = *session](std::string p) {
-                r->deliver(s, std::move(p));
-            });
-        }
-    }
-    if (browsing) {
-        ImGui::EndDisabled();
-    }
+    browse_button("Add sample...", file_result_, open_wav_file_dialog);
 
     ImGui::SameLine();
 
