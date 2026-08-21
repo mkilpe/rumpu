@@ -1,5 +1,7 @@
 // DirectSound backend tests. Windows-only; runnable on a real machine or
-// under Wine with a null ALSA device (no audio hardware needed).
+// under Wine with winepulse on a PulseAudio/PipeWire server (a null sink is
+// enough: no hardware needed, but audio must be consumed at the sample rate
+// for the timing cases; ALSA's null plugin consumes instantly and fails them).
 #include <catch2/catch_all.hpp>
 
 #include <securepath/audio/audio_lib/audio_buffer.hpp>

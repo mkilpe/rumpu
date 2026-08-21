@@ -32,10 +32,10 @@ enum {
 }
 
 struct asn_header {
-	asn_class_type asn_class;
-	std::uint64_t tag;
-	std::uint64_t length;
-	bool is_constructed = false;
+	asn_class_type asn_class{};
+	std::uint64_t tag{};
+	std::uint64_t length{};
+	bool is_constructed{};
 };
 
 /// Limit maximum size of primitive asn elements (strings, integers...), whose

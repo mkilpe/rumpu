@@ -23,6 +23,7 @@ jobs:
   linux:
     name: Linux build and tests
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     container: registry.fedoraproject.org/fedora:44
     steps:
       - name: Install build dependencies
@@ -47,17 +48,39 @@ jobs:
   windows:
     name: Windows cross-build, tests under Wine, installer
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     container: registry.fedoraproject.org/fedora:44
     env:
-      # Wine's DirectSound backs onto ALSA; a null PCM lets the audio tests
-      # run without sound hardware
-      ALSA_CONFIG_PATH: /tmp/asound.conf
+      # Wine's DirectSound sits on mmdevapi, fed here by winepulse talking to
+      # a PulseAudio null sink: no sound hardware, but audio is consumed at
+      # the sample rate, which the DirectSound timing tests rely on (ALSA's
+      # null plugin consumes instantly and fails them)
+      PULSE_SERVER: unix:/tmp/pulse.sock
+      # the container's $HOME (/github/home) is owned by the runner uid, not
+      # root, and wine refuses to create its prefix in a directory it doesn't own
+      WINEPREFIX: /tmp/wineprefix
+      # no wine-mono/gecko in the container; stop wineboot from trying to
+      # install them (it would pop a dialog)
+      # winemenubuilder only writes desktop/MIME entries, nothing a test needs
+      WINEDLLOVERRIDES: mscoree,mshtml=;winemenubuilder.exe=d
+      WINEDEBUG: -all
+      # GitHub sets HOME=/github/home (owned by the runner uid); keep Wine's
+      # and XDG's per-user paths on a directory root actually owns
+      HOME: /root
+      # the DirectSound backend calls GetDesktopWindow(), which makes Wine
+      # start explorer.exe as the desktop; without a display driver that
+      # fails and the call hangs, so the tests run against an Xvfb display
+      DISPLAY: ':99'
     steps:
+      # wine-core alone is not a bootable Wine: prefix creation copies
+      # /usr/share/wine/winmd/* (wine-common) and a colour profile out of
+      # mscms.dll (wine-cms); without them setupapi retries the missing copy
+      # forever and wineboot never finishes
       - name: Install build dependencies
         run: >
           dnf install -y --setopt=install_weak_deps=False
-          mingw64-gcc-c++ cmake make git
-          wine-core wine-alsa
+          mingw64-gcc-c++ cmake make git procps-ng
+          wine-core wine-common wine-cms wine-pulseaudio pulseaudio xorg-x11-server-Xvfb
           mingw32-nsis pandoc
 
       - uses: actions/checkout@v4
@@ -70,14 +93,77 @@ jobs:
       - name: Build
         run: cmake --build --preset windows --parallel "$(nproc)"
 
+      # Start Xvfb and boot the prefix once, under a persistent wineserver
+      # that lives for the whole job. Wine's desktop and service processes
+      # (explorer.exe, services.exe, winedevice.exe, rpcss.exe) stay alive
+      # with the server and inherit the stdout/stderr of whoever spawned them;
+      # the Actions runner (and ctest) only consider a step/test finished once
+      # those pipes close. So: everything long-lived is started here with its
+      # output sent to a file, and nothing gets re-spawned under ctest's pipes.
       - name: Prepare Wine
         run: |
-          printf 'pcm.!default {\n\ttype null\n}\n' > "$ALSA_CONFIG_PATH"
-          wineboot --init
-          wineserver --wait
+          Xvfb "$DISPLAY" -screen 0 1280x1024x24 -nolisten tcp < /dev/null > /tmp/xvfb.log 2>&1 &
+          pulseaudio --daemonize=no -n --exit-idle-time=-1 --disallow-exit --log-target=stderr \
+            -L 'module-null-sink sink_name=ci' \
+            -L 'module-native-protocol-unix auth-anonymous=1 socket=/tmp/pulse.sock' \
+            < /dev/null > /tmp/pulseaudio.log 2>&1 &
+          for _ in $(seq 1 50); do
+            [ -S "/tmp/.X11-unix/X${DISPLAY#:}" ] && [ -S /tmp/pulse.sock ] || sleep 0.2
+          done
+          [ -S "/tmp/.X11-unix/X${DISPLAY#:}" ] || { cat /tmp/xvfb.log; exit 1; }
+          [ -S /tmp/pulse.sock ] || { cat /tmp/pulseaudio.log; exit 1; }
+          mkdir -p "$WINEPREFIX"
+          wineserver -p < /dev/null > /dev/null 2>&1
+          # a process started in a prefix whose boot hasn't completed waits up
+          # to 5 minutes for it before going on, so every test would silently
+          # take 300 s; fail here instead, with enough state to see what's stuck
+          wine64 --version
+          if ! WINEDEBUG=+timestamp,+pid,+wineboot,+process,+service,warn+setupapi,+loaddll,+seh,+mountmgr,+winediag \
+               timeout 300 wine64 wineboot --init < /dev/null > /tmp/wineboot.log 2>&1; then
+            set +e   # diagnostics only from here on; nothing below may abort the dump
+            echo "::error::wineboot did not finish within 300 s"
+            echo "--- limits: nproc=$(ulimit -u) pids.max=$(cat /sys/fs/cgroup/pids.max 2>/dev/null) pids.current=$(cat /sys/fs/cgroup/pids.current 2>/dev/null)"
+            echo "--- cpu users:"
+            top -b -n 1 -o %CPU 2>/dev/null | head -14
+            echo "--- all processes (stat, kernel wait channel):"
+            ps -eo pid,ppid,etimes,stat,wchan:32,args
+            for p in $(pgrep -f '^(wineserver|[A-Z]:\\)'); do
+              echo "== $p: $(tr '\0' ' ' < /proc/$p/cmdline 2>/dev/null)"
+              awk '{printf "   cpu ticks: user=%s sys=%s threads=%s\n", $14, $15, $20}' /proc/$p/stat 2>/dev/null
+              for t in /proc/$p/task/*; do
+                printf '   thread %s %s: wchan=%s syscall=%s\n' "${t##*/}" "$(cat $t/comm 2>/dev/null)" \
+                  "$(cat $t/wchan 2>/dev/null)" "$(cut -d' ' -f1 $t/syscall 2>/dev/null)"
+              done
+            done
+            echo "--- wineboot.log: $(wc -c < /tmp/wineboot.log) bytes; last 100 lines:"
+            tail -100 /tmp/wineboot.log
+            echo "--- most frequent trace sources in the last 20000 lines (a spin shows up here):"
+            tail -20000 /tmp/wineboot.log | grep -oE '(trace|warn|err|fixme):[a-z_]+:[A-Za-z_0-9]+' | sort | uniq -c | sort -rn | head -12
+            # keep the artifact bounded even if a spin flooded the log
+            head -c 20000000 /tmp/wineboot.log > /tmp/wineboot-head.log
+            tail -c 20000000 /tmp/wineboot.log > /tmp/wineboot-tail.log
+            rm -f /tmp/wineboot.log
+            exit 1
+          fi
+          # pin the audio driver: if winepulse couldn't be used, mmdevapi would
+          # silently fall back to whatever else is there instead of failing
+          wine64 reg add 'HKCU\Software\Wine\Drivers' /v Audio /d pulse /f < /dev/null > /dev/null 2>&1
+          echo "--- wine processes after boot:"
+          ps -eo pid,etimes,args | grep -iE '[w]ine|\.exe' || true
+
+      - name: Upload Wine logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wine-logs
+          path: |
+            /tmp/wineboot*.log
+            /tmp/xvfb.log
+            /tmp/pulseaudio.log
+          if-no-files-found: ignore
 
       - name: Test
-        run: ctest --preset windows
+        run: ctest --preset windows --timeout 600
 
       # built on every run so a broken installer script is caught early, but
       # only kept for tagged versions (v0.1.3, v0.2.0-rc.1, ...)

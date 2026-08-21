@@ -97,9 +97,10 @@ Requires the MinGW-w64 toolchain (`mingw64-gcc-c++` or equivalent).
 ./build-windows.sh --installer    # additionally produces an NSIS installer
 ```
 
-The test suites can be run through Wine (`wine-core` and `wine-alsa`, no
-sound hardware needed). The `windows` preset registers `wine64` as the test
-emulator, so the usual preset flow works:
+The test suites can be run through Wine (`wine-core` and `wine-pulseaudio`
+with a running PulseAudio/PipeWire server; no sound hardware needed). The
+`windows` preset registers `wine64` as the test emulator, so the usual preset
+flow works:
 
 ```sh
 cmake --preset windows
