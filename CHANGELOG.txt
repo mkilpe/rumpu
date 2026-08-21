@@ -57,3 +57,19 @@ Platform
     - Mouse wheel restricted to zoom (no scroll)
     - Saner default dialog sizes
     - Track context menu: clear track and apply pattern (1-4 bar pattern editor with split/divide/clear/choke)
+
+
+0.1.3
+-----
+    - Fix crash on export; export uses the correct sample rate
+    - Fix peak normalisation of silent songs
+    - Per-track mute and volume applied correctly; improved tempo and volume slides
+    - Negative timing offsets handled correctly
+    - Hardened .spd loading and saving (value validation) and WAV loading
+    - Re-use already loaded samples when loading instruments
+    - DirectSound: frames-versus-bytes size fix and missing features implemented;
+      ALSA: frames-versus-samples fix; small leak fixes in both backends
+    - Dialog session handling and minor GUI fixes
+    - Third-party licences bundled with the Windows installer; installer build fixes
+    - Out-of-source CMake builds with presets; GitHub CI builds and tests Linux and
+      Windows (cross-compiled, tests run under Wine) and publishes the installer on tags

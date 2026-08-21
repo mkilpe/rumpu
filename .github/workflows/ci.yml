@@ -49,6 +49,8 @@ jobs:
     name: Windows cross-build, tests under Wine, installer
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    permissions:
+      contents: write   # publishing the release and its installer asset
     container: registry.fedoraproject.org/fedora:44
     env:
       # Wine's DirectSound sits on mmdevapi, fed here by winepulse talking to
@@ -170,10 +172,44 @@ jobs:
       - name: Build installer
         run: ./build-windows.sh --installer
 
-      - name: Upload installer for tagged version
+      # release body: the tagged version's section of CHANGELOG.txt (header
+      # line "<version> ..." underlined with dashes), kept verbatim in a
+      # fenced block so the indented bullets render as written
+      - name: Release notes from CHANGELOG.txt
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: actions/upload-artifact@v4
+        run: |
+          ver="${GITHUB_REF_NAME#v}"
+          awk -v ver="$ver" '
+            { l[NR] = $0 }
+            END {
+              gsub(/\./, "\\.", ver)
+              wanted = 0
+              for (i = 1; i <= NR; i++) {
+                header = (i < NR && l[i] != "" && l[i+1] ~ /^-+$/)
+                if (header) {
+                  wanted = (l[i] ~ "^" ver "( |$)")
+                  i++
+                } else if (wanted) {
+                  print l[i]
+                }
+              }
+            }' CHANGELOG.txt | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}' > /tmp/notes.txt
+          if [ -s /tmp/notes.txt ]; then
+            { echo '```text'; cat /tmp/notes.txt; echo '```'; } > /tmp/release-notes.md
+          else
+            echo "::warning::no $ver section in CHANGELOG.txt; release body is a placeholder"
+            echo "Rumpu $GITHUB_REF_NAME (no changelog entry for this version yet)." > /tmp/release-notes.md
+          fi
+          cat /tmp/release-notes.md
+
+      # release assets do not expire, unlike workflow artifacts; re-running
+      # for the same tag updates the release and overwrites the installer
+      - name: Publish GitHub release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
         with:
-          name: rumpu-${{ github.ref_name }}-win64-installer
-          path: build-windows/Rumpu-*-win64.exe
-          if-no-files-found: error
+          name: Rumpu ${{ github.ref_name }}
+          body_path: /tmp/release-notes.md
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          files: build-windows/Rumpu-*-win64.exe
+          fail_on_unmatched_files: true

@@ -10,7 +10,7 @@ each track plays an *instrument* — a single WAV or a folder of WAVs that are
 randomised per hit. Tempo, time signature, per-beat volume and timing offsets,
 and choke groups are all editable on a zoomable timeline.
 
-The project is **alpha software** (current version: 0.1.2). Expect rough edges.
+The project is **alpha software** (current version: 0.1.3). Expect rough edges.
 
 ## Features
 
