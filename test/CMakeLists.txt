@@ -10,6 +10,7 @@ add_executable(test_rumpu
 	test_timing.cpp
 	test_ui_task.cpp
 	test_undo_manager.cpp
+	test_user_dirs.cpp
 	test_wav.cpp
 )
 

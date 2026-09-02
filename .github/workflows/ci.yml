@@ -36,8 +36,17 @@ jobs:
         with:
           submodules: recursive
 
+      # The workspace is bind-mounted from the runner and owned by its uid,
+      # while everything in the container runs as root. Git refuses to work
+      # in a repository owned by another user unless it is listed as safe,
+      # so list it here rather than rely on what actions/checkout sets up
+      # for its own use; the version hash needs git during the configure.
+      - name: Mark the checkout as safe for git
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      # a release must never ship as "+unknown": fail here instead
       - name: Configure
-        run: cmake --preset default
+        run: cmake --preset default -DRUMPU_REQUIRE_GIT_HASH=ON
 
       - name: Build
         run: cmake --build --preset default --parallel "$(nproc)"
@@ -89,8 +98,13 @@ jobs:
         with:
           submodules: recursive
 
+      # same as in the linux job: the checkout is owned by the runner uid
+      - name: Mark the checkout as safe for git
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      # a release must never ship as "+unknown": fail here instead
       - name: Configure
-        run: cmake --preset windows
+        run: cmake --preset windows -DRUMPU_REQUIRE_GIT_HASH=ON
 
       - name: Build
         run: cmake --build --preset windows --parallel "$(nproc)"

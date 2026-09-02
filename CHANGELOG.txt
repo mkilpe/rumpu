@@ -73,3 +73,14 @@ Platform
     - Third-party licences bundled with the Windows installer; installer build fixes
     - Out-of-source CMake builds with presets; GitHub CI builds and tests Linux and
       Windows (cross-compiled, tests run under Wine) and publishes the installer on tags
+
+
+0.1.4
+-----
+    - Log and GUI layout files (rumpu.log, imgui.ini) are written to the user's
+      own directory instead of the working directory: AppData\Local\Rumpu on
+      Windows, where the install directory is read-only for standard users;
+      ~/.local/state/rumpu and ~/.config/rumpu on Linux
+    - Version string ended in "+unknown" in CI-built releases: CI now fails when
+      the commit hash cannot be determined, and local builds re-read the hash when
+      the checked-out commit changes
