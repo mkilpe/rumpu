@@ -10,7 +10,7 @@ endif()
 
 set(RUMPU_VERSION_MAJOR 0)
 set(RUMPU_VERSION_MINOR 1)
-set(RUMPU_VERSION_PATCH 3)
+set(RUMPU_VERSION_PATCH 4)
 # Optional pre-release label, e.g. alpha, beta.1. Deliberately not a cache
 # variable: the value here must win on every reconfigure, otherwise a build
 # directory configured before a label change keeps stamping the old label.
@@ -21,17 +21,55 @@ if(RUMPU_VERSION_LABEL)
     string(APPEND RUMPU_VERSION "-${RUMPU_VERSION_LABEL}")
 endif()
 
+# The commit hash is baked into version.hpp at configure time. Re-run the
+# configure whenever HEAD moves (checkout, commit and pull all touch the
+# reflog), so a build never reports a commit other than the one it came from.
+function(rumpu_reconfigure_on_head_change)
+    execute_process(
+        COMMAND ${GIT_EXECUTABLE} rev-parse --absolute-git-dir
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        RESULT_VARIABLE result
+        OUTPUT_VARIABLE git_dir
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+    )
+    if(NOT result EQUAL 0)
+        return()
+    endif()
+    foreach(file HEAD logs/HEAD)
+        if(EXISTS "${git_dir}/${file}")
+            set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${git_dir}/${file}")
+        endif()
+    endforeach()
+endfunction()
+
+option(RUMPU_REQUIRE_GIT_HASH "Fail the configure when the commit hash cannot be determined (release builds)" OFF)
+
 find_package(Git QUIET)
 if(Git_FOUND)
     execute_process(
         COMMAND ${GIT_EXECUTABLE} rev-parse --short HEAD
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        RESULT_VARIABLE RUMPU_GIT_RESULT
         OUTPUT_VARIABLE RUMPU_GIT_HASH
+        ERROR_VARIABLE RUMPU_GIT_ERROR
         OUTPUT_STRIP_TRAILING_WHITESPACE
-        ERROR_QUIET
+        ERROR_STRIP_TRAILING_WHITESPACE
     )
+    if(NOT RUMPU_GIT_RESULT EQUAL 0)
+        set(RUMPU_GIT_HASH "")
+        set(RUMPU_GIT_ERROR "git rev-parse failed: ${RUMPU_GIT_ERROR}")
+    endif()
+    rumpu_reconfigure_on_head_change()
+else()
+    set(RUMPU_GIT_ERROR "git not found")
 endif()
 if(NOT RUMPU_GIT_HASH)
+    set(RUMPU_GIT_ERROR "cannot determine the commit hash for the version string: ${RUMPU_GIT_ERROR}")
+    if(RUMPU_REQUIRE_GIT_HASH)
+        message(FATAL_ERROR "${RUMPU_GIT_ERROR}")
+    endif()
+    message(WARNING "${RUMPU_GIT_ERROR}; the version will read ${RUMPU_VERSION}+unknown")
     set(RUMPU_GIT_HASH "unknown")
 endif()
 

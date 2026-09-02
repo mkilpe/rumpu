@@ -17,9 +17,12 @@
 #include "rumpu.hpp"
 #include "version.hpp"
 
+#include <rumpu/core/user_dirs.hpp>
 #include <securepath/util/command_parser.hpp>
 
+#include <filesystem>
 #include <iostream>
+#include <string>
 
 static void glfw_error_callback(int error, const char* description)
 {
@@ -55,10 +58,17 @@ static const char* configure_gl_hints() {
 #endif
 }
 
-static void setup_imgui(GLFWwindow* window, const char* glsl_version, float main_scale) {
+// ImGui takes file names as UTF-8 (it widens them itself on Windows)
+static std::string utf8(std::filesystem::path const& path) {
+    std::u8string const u8 = path.u8string();
+    return std::string(u8.begin(), u8.end());
+}
+
+static void setup_imgui(GLFWwindow* window, const char* glsl_version, float main_scale, const char* ini_file) {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
+    io.IniFilename = ini_file;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
 
@@ -94,7 +104,7 @@ static void render_frame(GLFWwindow* window, securepath::drum::app::rumpu& app) 
     glfwSwapBuffers(window);
 }
 
-int run_app(securepath::drum::app::app_options options) {
+int run_app(securepath::drum::app::app_options options, std::filesystem::path const& ini_file) {
     glfwSetErrorCallback(glfw_error_callback);
     if (!glfwInit()) {
         return 1;
@@ -109,7 +119,9 @@ int run_app(securepath::drum::app::app_options options) {
     glfwMakeContextCurrent(window);
     glfwSwapInterval(1); // Enable vsync
 
-    setup_imgui(window, glsl_version, main_scale);
+    // ImGui keeps the pointer: the string outlives the context, destroyed below
+    std::string const ini_file_utf8 = utf8(ini_file);
+    setup_imgui(window, glsl_version, main_scale, ini_file_utf8.c_str());
 
     securepath::drum::app::rumpu app(std::move(options));
 
@@ -134,7 +146,12 @@ int run_app(securepath::drum::app::app_options options) {
 
 int main(int argc, char* argv[]) {
     try {
-        securepath::log::backend::add_backend<securepath::log::backend::file_output>("file", "rumpu.log");
+        // per-user locations: the install directory is read-only for a
+        // standard Windows user, and the working directory is arbitrary when
+        // started from a shortcut or a file association
+        securepath::drum::user_dirs const dirs = securepath::drum::default_user_dirs();
+        securepath::log::backend::add_backend<securepath::log::backend::file_output>(
+            "file", securepath::drum::user_file(dirs.state, "rumpu.log"));
 
         securepath::drum::app::app_options options;
         bool show_help{};
@@ -162,7 +179,7 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        return run_app(std::move(options));
+        return run_app(std::move(options), securepath::drum::user_file(dirs.config, "imgui.ini"));
     } catch(std::exception const& ex) {
         std::cout << "exception: " << ex.what() << std::endl;
     }
