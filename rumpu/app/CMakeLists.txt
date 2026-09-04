@@ -1,5 +1,10 @@
 file(GLOB SRC CONFIGURE_DEPENDS *.cpp *.hpp)
 
+# the texts are baked into license.hpp at configure time; file(READ) adds no
+# dependency of its own, so an edit must re-run the configure to reach the
+# About dialog
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+    "${CMAKE_SOURCE_DIR}/LICENSE" "${CMAKE_SOURCE_DIR}/THIRD_PARTY_LICENSES.txt")
 file(READ "${CMAKE_SOURCE_DIR}/LICENSE" LICENSE_TEXT)
 file(READ "${CMAKE_SOURCE_DIR}/THIRD_PARTY_LICENSES.txt" THIRD_PARTY_TEXT)
 configure_file(license.hpp.in "${CMAKE_CURRENT_BINARY_DIR}/license.hpp" @ONLY)
@@ -27,7 +32,7 @@ endif()
 
 add_executable(rumpu ${SRC} ${IMGUI_SRC} ${IMGUI_BACKEND_SRC} ${IMGUI_STDLIB_SRC})
 target_include_directories(rumpu PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
-target_link_libraries(rumpu rumpu_core event_system glfw OpenGL::GL)
+target_link_libraries(rumpu rumpu_core securepath::event_system securepath::log securepath::util glfw OpenGL::GL)
 
 if(UNIX AND NOT APPLE)
     target_include_directories(rumpu PRIVATE ${GTK3_INCLUDE_DIRS})

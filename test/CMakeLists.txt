@@ -1,7 +1,5 @@
 add_executable(test_rumpu
 	test_async_dialog_result.cpp
-	test_audio_buffer.cpp
-	test_audio_data.cpp
 	test_drum_sample.cpp
 	test_export.cpp
 	test_mixer.cpp
@@ -11,16 +9,7 @@ add_executable(test_rumpu
 	test_ui_task.cpp
 	test_undo_manager.cpp
 	test_user_dirs.cpp
-	test_wav.cpp
 )
-
-if(UNIX)
-	target_sources(test_rumpu PRIVATE test_alsa.cpp)
-endif()
-
-if(WIN32)
-	target_sources(test_rumpu PRIVATE test_dsound.cpp)
-endif()
 
 if(WIN32 AND MINGW)
 	# same runtime-DLL freshness as the app target (see rumpu/app/CMakeLists.txt)
@@ -48,11 +37,10 @@ target_compile_definitions(test_rumpu PRIVATE
 target_link_libraries(test_rumpu PRIVATE
 	Catch2::Catch2WithMain
 	rumpu_core
-	event_system
-	audio_util
-	audio
-	util
-	log
+	securepath::audio
+	securepath::audio_util
+	securepath::event_system
+	securepath::serialisation
 )
 
 add_test(NAME test_rumpu COMMAND test_rumpu)

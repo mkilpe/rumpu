@@ -93,6 +93,9 @@ endif()
 enable_testing()
 
 get_filename_component(my_root_directory ${CMAKE_CURRENT_LIST_FILE} DIRECTORY)
+# securepath appends its own cmake/ directory and includes its 'securepath'
+# and 'deps' modules through this path; this directory is searched first, so
+# no file in it may take either name
 set(CMAKE_MODULE_PATH ${my_root_directory}/cmake)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
@@ -123,6 +126,8 @@ if(UNIX)
 endif()
 find_package(OpenGL REQUIRED)
 
+# rumpu's own headers are included as <rumpu/...>; securepath headers come
+# through the securepath targets' include directories
 include_directories(${my_root_directory})
 link_directories(${CMAKE_BINARY_DIR}/lib)
 
@@ -131,13 +136,28 @@ set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${CXX_FLAGS} -O2")
 # -Wno-missing-field-initializers: partially initialised aggregates (rest value-initialised) are idiomatic here
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CXX_LOCAL_FLAGS} -Wall -Wextra -Wno-unused-parameter -Wno-missing-field-initializers -Wreturn-type -Werror=return-type -fdiagnostics-color=auto -Wno-deprecated-declarations")
 
-# single test framework for all suites (securepath's test_frame and test_rumpu)
+# single test framework for all suites (securepath's and test_rumpu). Added
+# before securepath: its securepath_ensure_catch2() reuses an existing
+# Catch2::Catch2 target and would otherwise add its own nested copy
 add_subdirectory(submodules/catch2 ${CMAKE_BINARY_DIR}/catch2)
 
-add_subdirectory(rumpu)
+# Base libraries (log, util, serialisation, event_system, audio, audio_util)
+# as securepath::<name>. securepath also builds its database, crypto, network
+# and console libraries whenever sqlite3, Botan and curses are installed;
+# rumpu wants only the base libraries, so those lookups are switched off.
+# asio is left alone: its only effect is the unused asio observers inside
+# event_system. SECUREPATH_BUILD_TESTS defaults to OFF when consumed; CI and
+# build-windows.sh --installer pass it explicitly.
+set(CMAKE_DISABLE_FIND_PACKAGE_SQLite3 TRUE)
+set(CMAKE_DISABLE_FIND_PACKAGE_Curses TRUE)
+if(UNIX)
+    # securepath's audio library silently builds without a backend when ALSA
+    # is missing; rumpu needs the backend, so fail here with a clear message
+    find_package(ALSA REQUIRED)
+endif()
+add_subdirectory(submodules/securepath)
 
-# base libs
-add_subdirectory(securepath)
+add_subdirectory(rumpu)
 
 add_subdirectory(tools)
 

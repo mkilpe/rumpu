@@ -7,3 +7,6 @@
 [submodule "submodules/catch2"]
 	path = submodules/catch2
 	url = https://github.com/catchorg/Catch2.git
+[submodule "submodules/securepath"]
+	path = submodules/securepath
+	url = https://github.com/mkilpe/securepath.git

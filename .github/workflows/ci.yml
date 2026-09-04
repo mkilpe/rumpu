@@ -25,6 +25,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     container: registry.fedoraproject.org/fedora:44
+    env:
+      # securepath's ALSA backend tests skip without a device; the null PCM
+      # they configure is always available here, so a skip means a breakage
+      SECUREPATH_AUDIO_TESTS_REQUIRE_DEVICE: 1
     steps:
       - name: Install build dependencies
         run: >
@@ -44,9 +48,11 @@ jobs:
       - name: Mark the checkout as safe for git
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
-      # a release must never ship as "+unknown": fail here instead
+      # a release must never ship as "+unknown": fail here instead. The
+      # securepath suites are off in a rumpu build by default; the pinned
+      # commit is what ships, so they run here
       - name: Configure
-        run: cmake --preset default -DRUMPU_REQUIRE_GIT_HASH=ON
+        run: cmake --preset default -DRUMPU_REQUIRE_GIT_HASH=ON -DSECUREPATH_BUILD_TESTS=ON
 
       - name: Build
         run: cmake --build --preset default --parallel "$(nproc)"
@@ -82,6 +88,9 @@ jobs:
       # start explorer.exe as the desktop; without a display driver that
       # fails and the call hangs, so the tests run against an Xvfb display
       DISPLAY: ':99'
+      # securepath's DirectSound tests skip without a play device; PulseAudio
+      # provides one here, so a skip means the audio setup broke
+      SECUREPATH_AUDIO_TESTS_REQUIRE_DEVICE: 1
     steps:
       # wine-core alone is not a bootable Wine: prefix creation copies
       # /usr/share/wine/winmd/* (wine-common) and a colour profile out of
@@ -102,9 +111,10 @@ jobs:
       - name: Mark the checkout as safe for git
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
-      # a release must never ship as "+unknown": fail here instead
+      # a release must never ship as "+unknown": fail here instead; the
+      # securepath suites run here too, as in the linux job
       - name: Configure
-        run: cmake --preset windows -DRUMPU_REQUIRE_GIT_HASH=ON
+        run: cmake --preset windows -DRUMPU_REQUIRE_GIT_HASH=ON -DSECUREPATH_BUILD_TESTS=ON
 
       - name: Build
         run: cmake --build --preset windows --parallel "$(nproc)"

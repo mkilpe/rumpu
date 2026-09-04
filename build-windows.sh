@@ -14,12 +14,34 @@ for arg in "$@"; do
     fi
 done
 
-cmake -S "${SCRIPT_DIR}" -B "${BUILD_DIR}" \
-    -DCMAKE_TOOLCHAIN_FILE="${SCRIPT_DIR}/cmake/toolchain-mingw64.cmake" \
-    -DCMAKE_BUILD_TYPE=Release \
+# The installer build runs every test suite first, securepath's included, so
+# the option is passed on every configure: a -D value stays in the cache and
+# would otherwise carry over from an earlier run in the same build directory.
+SECUREPATH_TESTS=OFF
+if [[ "$BUILD_INSTALLER" == true ]]; then
+    SECUREPATH_TESTS=ON
+fi
+
+# presets are resolved relative to the working directory
+cd "${SCRIPT_DIR}"
+
+# the windows preset supplies the toolchain, Release and the wine64 test
+# emulator that lets ctest run the cross-built test executables
+cmake --preset windows \
+    -DSECUREPATH_BUILD_TESTS="${SECUREPATH_TESTS}" \
     "${CMAKE_ARGS[@]}"
 
-cmake --build "${BUILD_DIR}" --target rumpu --parallel "$(nproc)"
+if [[ "$BUILD_INSTALLER" == true ]]; then
+    cmake --build --preset windows --parallel "$(nproc)"
+    # WINEPATH and WINEDEBUG come from the test preset; the DirectSound tests
+    # need a running Wine with PulseAudio (see .github/workflows/ci.yml)
+    if ! ctest --preset windows --timeout 600; then
+        echo "Error: tests failed; the installer is not built." >&2
+        exit 1
+    fi
+else
+    cmake --build --preset windows --target rumpu --parallel "$(nproc)"
+fi
 
 echo "Build complete. Binary: ${BUILD_DIR}/bin/rumpu.exe"
 

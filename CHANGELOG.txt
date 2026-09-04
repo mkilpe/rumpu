@@ -84,3 +84,12 @@ Platform
     - Version string ended in "+unknown" in CI-built releases: CI now fails when
       the commit hash cannot be determined, and local builds re-read the hash when
       the checked-out commit changes
+
+
+0.1.5
+-----
+    - The Secure Path base libraries (logging, event loop, serialisation, audio
+      backends) come from the securepath git submodule instead of in-source copies;
+      their audio tests moved there as well
+    - The Windows installer build runs the full test suite first, securepath's
+      suites included, and is not produced when any test fails

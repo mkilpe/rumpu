@@ -55,7 +55,8 @@ For a step-by-step walkthrough, see **[doc/MANUAL.md](doc/MANUAL.md)**.
 
 ## Building from source
 
-Rumpu uses git submodules for ImGui, ImGui-Knobs, and Catch2. Clone with:
+Rumpu uses git submodules for ImGui, ImGui-Knobs, Catch2 and the Secure Path
+base libraries (securepath). Clone with:
 
 ```sh
 git clone --recursive <repo-url> rumpu
@@ -97,6 +98,10 @@ Requires the MinGW-w64 toolchain (`mingw64-gcc-c++` or equivalent).
 ./build-windows.sh --installer    # additionally produces an NSIS installer
 ```
 
+`--installer` first builds everything with securepath's test suites enabled
+and runs the whole test suite under Wine; the installer is only produced when
+every test passes, so the Wine setup described below is required for it.
+
 The test suites can be run through Wine (`wine-core` and `wine-pulseaudio`
 with a running PulseAudio/PipeWire server; no sound hardware needed). The
 `windows` preset registers `wine64` as the test emulator, so the usual preset
@@ -132,14 +137,20 @@ ctest --preset default
 
 A single suite can be run directly, e.g. `./build/bin/test_rumpu`.
 
+securepath's own suites (test_log, test_util, test_serialisation, test_asn_der,
+test_event_system, test_audio) are off in a rumpu build; enable them with
+`cmake --preset default -DSECUREPATH_BUILD_TESTS=ON`. The audio backend tests
+skip without a play device unless `SECUREPATH_AUDIO_TESTS_REQUIRE_DEVICE` is
+set, as it is in CI.
+
 ## Project layout
 
 | Path | What's there |
 |---|---|
 | `rumpu/app/` | ImGui-based UI, dialogs, views |
 | `rumpu/core/` | Song data structures, mixer, player, export, undo |
-| `securepath/` | Logging, event loop, audio backend |
-| `submodules/` | ImGui, ImGui-Knobs, Catch2 |
+| `submodules/securepath/` | Secure Path base libraries: logging, event loop, serialisation, audio backends (git submodule) |
+| `submodules/` | ImGui, ImGui-Knobs, Catch2, securepath |
 | `doc/` | Manual, design notes, screenshots |
 | `test/` | Unit tests (Catch2) |
 | `tools/` | Utility programs |
